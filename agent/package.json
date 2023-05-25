@@ -1,0 +1,21 @@
+{
+  "name": "luckzh_fnative_monitor",
+  "version": "1.0.0",
+  "description": "luckzh_fnative_monitor",
+  "main": "index.js",
+  "scripts": {
+    "prepare": "npm run build",
+    "build": "frida-compile index.ts -o _agent.js -c",
+    "watch": "frida-compile index.ts -o _agent.js -w"
+  },
+  "author": "luckzh",
+  "devDependencies": {
+    "@types/frida-gum": "^18.1.0",
+    "@types/node": "^18.0.6",
+    "frida-compile": "^10.2.5"
+  },
+  "dependencies": {
+    "frida-java-bridge": "^6.2.4"
+  }
+  
+}
