@@ -119,13 +119,15 @@ export class UnixLibc {
 export class AndroidLinker {
     do_dlopen_ptr: NativePointer;
     call_array_ptr: NativePointer
-    call_constructors_ptr:NativePointer
+    call_constructors_ptr: NativePointer
+    find_libraries: NativePointer
     constructor() {
         const linker64Module = Process.findModuleByName("linker64");
         const symbols = linker64Module?.enumerateSymbols()!;
         this.do_dlopen_ptr = symbols.filter(exp => exp.name.indexOf("dlopen_ext") != -1)[0].address;
         this.call_array_ptr = symbols.filter(exp => exp.name.indexOf("call_array") != -1)[0].address;
         this.call_constructors_ptr = symbols.filter(exp => exp.name.indexOf("call_constructors") != -1)[0].address;
+        this.find_libraries = symbols.filter(exp => exp.name.indexOf("find_libraries") != -1)[0].address;
     }
     hook_do_dlopen(callback: (path: string) => void) {
         Interceptor.attach(this.do_dlopen_ptr, {
@@ -134,6 +136,23 @@ export class AndroidLinker {
             },
             onLeave(retvalue) {
                 callback(this.path);
+            },
+        });
+    }
+    hook_find_libraries(callback: (path: string) => void) {
+        Interceptor.attach(this.find_libraries, {
+            onEnter(args: InvocationArguments) {
+                const libsArray = args[2];
+                const libsCount = args[3].toInt32();
+
+                this.firstLibPath = ""
+
+                if (libsCount > 0) {
+                    this.firstLibPath = libsArray.readPointer().readCString();
+                }
+            },
+            onLeave(retvalue) {
+                callback(this.firstLibPath);
             },
         });
     }

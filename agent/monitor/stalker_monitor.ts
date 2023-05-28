@@ -1,16 +1,17 @@
 import { UnixProc, UnixLibc } from '../native/unix_android';
 import { ThreadObserver } from './interface_monitor';
-import { module_help } from '../assist/module_assist';
+import { module_help, alinker } from '../assist/module_assist';
 import { ArtMethod, art } from '../native/android_art';
-import { str_fuzzy } from '../assist/fuzzy_match_assist';
+import { SoInfo } from '../native/soinfo';
 export const module_map = new ModuleMap();
 export const unixproc = new UnixProc();
 export const unixlibc = new UnixLibc();
 function ensureNewestModuleMap() {
-    module_help.watchModule(path => {
+    alinker.hook_find_libraries((path) => {
         module_map.update();
-    });
+    })
 }
+ensureNewestModuleMap();
 export abstract class StalkerMonitor implements ThreadObserver {
     // 监控的 module  路径
     mpath: ModulePathRangeType = "user";
@@ -26,7 +27,14 @@ export abstract class StalkerMonitor implements ThreadObserver {
     traceThreads: Map<number, ThreadInfo> = new Map();
     // 跟踪的方法指针
     tracePtrs = new Set<NativePointer>();
-
+    //排除跟踪的模块
+    excludeModules = new Set<string>();
+    /**
+     * 是否只观察一次
+     * 方法重复调用过多 容易崩溃
+     * 建议默认开启
+     */
+    once = true
     constructor(mpath: ModulePathRangeType = "user", mname: string = "*", symbol: string = "*") {
         this.mpath = mpath;
         this.mname = mname;
@@ -34,13 +42,40 @@ export abstract class StalkerMonitor implements ThreadObserver {
 
         this.initThreads();
         this.watchModule();
-        ensureNewestModuleMap();
     }
+
     watchJniInvoke(): void {
         this.javaNativeWatch(null);
     }
+
     watchElfInit(): void {
-        
+        const _this = this;
+        Interceptor.attach(alinker.call_constructors_ptr, {
+            onEnter(args) {
+                const soinfo_ptr = args[0];
+                const sinfo = new SoInfo(soinfo_ptr);
+                const array_ptrs = sinfo.init_array_ptrs();
+                const iptr = sinfo.init_ptr();
+                let initm = null
+                if (array_ptrs.length > 0) {
+                    initm = module_map.find(array_ptrs[0]);
+                }
+                if (iptr.compare(0)) {
+                    initm = module_map.find(iptr);
+                }
+                if (initm && !_this.isExcludeModule(initm)) {
+                    this.initm = initm;
+                    console.log("trace module:"+initm.name)
+                    _this.ttrace(this.threadId)
+                }
+            },
+            onLeave(retval) {
+                if (this.initm) {
+                    _this.unttrace(this.threadId);
+                }
+            },
+        }
+        );
     }
     unwatch(): void {
         for (const tid of this.traceThreads.keys()) {
@@ -57,16 +92,29 @@ export abstract class StalkerMonitor implements ThreadObserver {
         Stalker.unfollow(tid);
         // Stalker.garbageCollect();
     }
+    isExcludeModule(module: Module | null | undefined | string) {
+        if (!module) return false;
+
+        const mname = module instanceof Module ? module.name : module;
+        return this.excludeModules.has(mname)
+    }
+    private updateExclude() {
+        const excludes = module_help.nagationModules(module_map, this.get_library_path_prefix(), this.mname);
+        module_help.toModuleNames(excludes).forEach(name => {
+            this.excludeModules.add(name);
+        })
+
+        exclude_modules(excludes);
+    }
     watchModule() {
-        exclude_modules(module_help.nagationModules(module_map, this.get_library_path_prefix(), this.mname));
+        this.updateExclude()
 
         //当 spawn 启动的时候 可能部分library 没有加载进去
         module_help.watchModule(path => {
-            exclude_modules(module_help.nagationModules(module_map, this.get_library_path_prefix(), this.mname));
+            this.updateExclude();
         });
     }
     watchMain(): void {
-        console.log("watchMain....");
         this.javaNativeWatch(this.mainThreadId);
     }
     /**
@@ -75,24 +123,19 @@ export abstract class StalkerMonitor implements ThreadObserver {
      * art_quick_invoke_stub
      * art_quick_invoke_static_stub
      */
-    javaNativeWatch(tid: number|null) {
+    javaNativeWatch(tid: number | null) {
         const _this = this;
         function checkSoRange(methodId: NativePointer): boolean {
             const am = new ArtMethod(methodId);
             const jniCodePtr = am.jniCodePtr();
             const m = module_map.find(jniCodePtr);
 
-            if (m != null) {
-                const b1 = _this.get_library_path_prefix() ? str_fuzzy.match(m.path, _this.get_library_path_prefix()!) : true;
-                const b2 = _this.mname ? str_fuzzy.match(m.name, _this.mname) : true;
-                return b1 && b2;
-            }
-            return false;
+            return !_this.isExcludeModule(m);
         }
         art.hook_art_quick_invoke_stub((invocontext: InvocationContext, args: InvocationArguments) => {
             const methodId = args[0];
             const _tid = invocontext.threadId;
-            if (checkSoRange(methodId) && ( !tid ||_tid == tid)) {
+            if (checkSoRange(methodId) && (!tid || _tid == tid)) {
                 _this.ttrace(_tid);
             }
         }, (invocontext) => {
@@ -102,7 +145,7 @@ export abstract class StalkerMonitor implements ThreadObserver {
         art.hook_art_quick_invoke_static_stub((invocontext: InvocationContext, args: InvocationArguments) => {
             const methodId = args[0];
             const _tid = invocontext.threadId;
-            if (checkSoRange(methodId) && ( !tid ||_tid == tid)) {
+            if (checkSoRange(methodId) && (!tid || _tid == tid)) {
                 _this.ttrace(_tid);
             }
         }, (invocontext) => {
@@ -115,9 +158,9 @@ export abstract class StalkerMonitor implements ThreadObserver {
         Interceptor.attach(unixlibc.pthread_create_ptr, {
             onEnter(args) {
                 const fun_ptr = args[2];
-                const isArt = module_map.find(fun_ptr)?.name == "libart.so";
+                const isArt = _this.isExcludeModule(module_map.find(fun_ptr));
                 if (isArt) {
-                    console.log("isArt:")
+                    console.log("skip art or system thread...")
                 } else {
                     if (!_this.tracePtrs.has(fun_ptr)) {
                         _this.tracePtrs.add(fun_ptr);
@@ -143,7 +186,7 @@ export abstract class StalkerMonitor implements ThreadObserver {
         }
         return null;
     }
-   ttrace(tid: number) {
+    ttrace(tid: number) {
         if (this.traceThreads.has(tid)) {
             return;
         }

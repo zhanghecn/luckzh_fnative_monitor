@@ -7,8 +7,11 @@ export namespace module_help {
         alinker.hook_do_dlopen(callback);
     }
 
+    export function toModuleNames(modules: Module[]) {
+        return modules.map(m => m.name);
+    }
     export function nagationModules(mm: ModuleMap, path: string | null, name: string | null) {
-        mm.update();
+        // console.log("path:" + path, "name:" + name);
         const ms = mm.values()
             .filter(m => {
                 if (path == null) return true;
@@ -26,11 +29,18 @@ export namespace module_help {
                 return str_fuzzy.match(m.name, name);
             })
             .map(m => m.name)
-            ;
-
+            .reduce((previous, cur, i, array) => {
+                previous.add(cur)
+                return previous;
+            }, new Set<string>());
+        ;
+        const excludes = mm.values()
+            .filter(m => {
+                return !check_m_names.has(m.name);
+            });
         // console.log("check_m_names:",check_m_names)
 
-        return ms;
+        return excludes;
     }
 
 }

@@ -73,3 +73,30 @@ void* get_init_func(GumSoinfo* gsi){
     return gsi->init_func;
 }
 `);
+const get_init_func = new NativeFunction(somodule.get_init_func, "pointer", ["pointer"]);
+const get_init_array_count = new NativeFunction(somodule.get_init_array_count, "int", ["pointer"]);
+const get_init_array = new NativeFunction(somodule.get_init_array, "pointer", ["pointer"]);
+
+export class SoInfo implements ObjectWrapper {
+    
+    handle: NativePointer;
+    constructor(handle: NativePointer) {
+        this.handle = handle;
+    }
+    init_array_ptrs() {
+        const init_ptrs = [];
+        const psize = Process.pointerSize;
+        const count = get_init_array_count(this.handle);
+        const init_array = get_init_array(this.handle);
+        for (let index = 0; index < count; index += psize) {
+            init_ptrs.push(init_array.add(index).readPointer());
+        }
+        return init_ptrs;
+    }
+
+    init_ptr() {
+        const init_func = get_init_func(this.handle);
+        return init_func;
+    }
+
+}

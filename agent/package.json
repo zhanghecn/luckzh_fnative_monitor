@@ -15,7 +15,7 @@
     "frida-compile": "^10.2.5"
   },
   "dependencies": {
+    "chalk": "^3.0.0",
     "frida-java-bridge": "^6.2.4"
   }
-  
 }
