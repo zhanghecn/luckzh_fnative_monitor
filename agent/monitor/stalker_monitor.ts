@@ -1,12 +1,11 @@
-import { UnixProc } from '../native/unix_android';
+import { UnixProc, UnixLibc } from '../native/unix_android';
 import { ThreadObserver } from './interface_monitor';
 import { module_help } from '../assist/module_assist';
-import "../native/android_art"
 import { ArtMethod, art } from '../native/android_art';
 import { str_fuzzy } from '../assist/fuzzy_match_assist';
 export const module_map = new ModuleMap();
 export const unixproc = new UnixProc();
-
+export const unixlibc = new UnixLibc();
 function ensureNewestModuleMap() {
     module_help.watchModule(path => {
         module_map.update();
@@ -37,6 +36,12 @@ export abstract class StalkerMonitor implements ThreadObserver {
         this.watchModule();
         ensureNewestModuleMap();
     }
+    watchJniInvoke(): void {
+        this.javaNativeWatch(null);
+    }
+    watchElfInit(): void {
+        
+    }
     unwatch(): void {
         for (const tid of this.traceThreads.keys()) {
             this.unttrace(tid);
@@ -47,8 +52,10 @@ export abstract class StalkerMonitor implements ThreadObserver {
         if (!this.traceThreads.has(tid)) {
             return;
         }
+        console.log("----------unttrace:" + tid);
         this.traceThreads.delete(tid);
         Stalker.unfollow(tid);
+        // Stalker.garbageCollect();
     }
     watchModule() {
         exclude_modules(module_help.nagationModules(module_map, this.get_library_path_prefix(), this.mname));
@@ -67,14 +74,8 @@ export abstract class StalkerMonitor implements ThreadObserver {
      * 对于 native 方法 会调用 两个方法
      * art_quick_invoke_stub
      * art_quick_invoke_static_stub
-     * 
-     * 其中会传递 当前 ArtMethod this 对象
-     * 在 ArtMethod 结构中:
-     * class ArtMethod final {
-     * 
-     * }
      */
-    javaNativeWatch(tid: number) {
+    javaNativeWatch(tid: number|null) {
         const _this = this;
         function checkSoRange(methodId: NativePointer): boolean {
             const am = new ArtMethod(methodId);
@@ -91,26 +92,47 @@ export abstract class StalkerMonitor implements ThreadObserver {
         art.hook_art_quick_invoke_stub((invocontext: InvocationContext, args: InvocationArguments) => {
             const methodId = args[0];
             const _tid = invocontext.threadId;
-            if (checkSoRange(methodId) && _tid == tid) {
-                _this.ttrace(tid);
+            if (checkSoRange(methodId) && ( !tid ||_tid == tid)) {
+                _this.ttrace(_tid);
             }
         }, (invocontext) => {
-            _this.unttrace(tid);
+            _this.unttrace(invocontext.threadId);
         });
 
         art.hook_art_quick_invoke_static_stub((invocontext: InvocationContext, args: InvocationArguments) => {
             const methodId = args[0];
             const _tid = invocontext.threadId;
-            if (checkSoRange(methodId) && _tid == tid) {
-                _this.ttrace(tid);
+            if (checkSoRange(methodId) && ( !tid ||_tid == tid)) {
+                _this.ttrace(_tid);
             }
         }, (invocontext) => {
-            _this.unttrace(tid);
+            _this.unttrace(invocontext.threadId);
         });
 
     }
     watchPthreadCreate(): void {
-
+        const _this = this;
+        Interceptor.attach(unixlibc.pthread_create_ptr, {
+            onEnter(args) {
+                const fun_ptr = args[2];
+                const isArt = module_map.find(fun_ptr)?.name == "libart.so";
+                if (isArt) {
+                    console.log("isArt:")
+                } else {
+                    if (!_this.tracePtrs.has(fun_ptr)) {
+                        _this.tracePtrs.add(fun_ptr);
+                        Interceptor.attach(fun_ptr, {
+                            onEnter(args) {
+                                _this.ttrace(this.threadId);
+                            },
+                            onLeave(retval) {
+                                _this.unttrace(this.threadId);
+                            },
+                        })
+                    }
+                }
+            }
+        });
     }
 
     abstract stalkerOptions(tinfo: ThreadInfo): StalkerOptions;
@@ -121,7 +143,7 @@ export abstract class StalkerMonitor implements ThreadObserver {
         }
         return null;
     }
-    private ttrace(tid: number) {
+   ttrace(tid: number) {
         if (this.traceThreads.has(tid)) {
             return;
         }

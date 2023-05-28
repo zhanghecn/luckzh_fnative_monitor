@@ -6,6 +6,7 @@ export namespace art {
 
     export const artso: Module = Process.findModuleByName("libart.so")!;
 
+    export const _ArtMethodSpec:ArtMethodSpec = getArtMethodSpec();
     export type ArtQuickInvokeType = "art_quick_invoke_stub" | "art_quick_invoke_static_stub";
     function _hook_art_quick_invoke_stub(quickInvokeType: ArtQuickInvokeType, enter_callback: (_this: InvocationContext, args: InvocationArguments) => void, leave_callback: (_this: InvocationContext) => void) {
         const art_quick_invoke_stub_ptr = artso.enumerateSymbols().filter(symbol => {
@@ -66,7 +67,7 @@ export class ArtMethod {
     }
 
     accessFlags(): number {
-        const artMSpec = art.getArtMethodSpec();
+        const artMSpec = art._ArtMethodSpec;
         return this.handle.add(artMSpec.offset.accessFlags).readU32();
     }
 
@@ -76,7 +77,7 @@ export class ArtMethod {
     }
 
     jniCodePtr(): NativePointer {
-        const artMSpec = art.getArtMethodSpec();
+        const artMSpec = art._ArtMethodSpec;
         return this.handle.add(artMSpec.offset.jniCode).readPointer();
     }
 

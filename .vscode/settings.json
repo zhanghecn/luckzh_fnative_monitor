@@ -46,6 +46,10 @@
         "type_traits": "cpp",
         "typeinfo": "cpp",
         "unordered_map": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "__functional_base_03": "cpp",
+        "link.h": "c",
+        "stddef.h": "c",
+        "elf.h": "c"
     }
 }

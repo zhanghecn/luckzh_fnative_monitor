@@ -1,10 +1,10 @@
 import { AndroidLinker } from '../native/unix_android';
 import { str_fuzzy } from './fuzzy_match_assist';
-const al = new AndroidLinker()
+export const alinker = new AndroidLinker()
 export namespace module_help {
 
     export function watchModule(callback: (path: string) => void) {
-        al.hook_do_dlopen(callback);
+        alinker.hook_do_dlopen(callback);
     }
 
     export function nagationModules(mm: ModuleMap, path: string | null, name: string | null) {
@@ -28,7 +28,7 @@ export namespace module_help {
             .map(m => m.name)
             ;
 
-        console.log("check_m_names:",check_m_names)
+        // console.log("check_m_names:",check_m_names)
 
         return ms;
     }

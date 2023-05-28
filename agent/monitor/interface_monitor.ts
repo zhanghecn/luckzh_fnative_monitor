@@ -12,6 +12,10 @@ export interface ThreadObserver {
      */
     watchPthreadCreate(): void
 
+    watchJniInvoke():void 
+
+    watchElfInit():void
+    
     /**
      * 取消监控
      * @param tid 线程 id 

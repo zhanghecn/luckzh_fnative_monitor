@@ -118,10 +118,14 @@ export class UnixLibc {
 
 export class AndroidLinker {
     do_dlopen_ptr: NativePointer;
+    call_array_ptr: NativePointer
+    call_constructors_ptr:NativePointer
     constructor() {
         const linker64Module = Process.findModuleByName("linker64");
-        const exports = linker64Module?.enumerateExports()!;
-        this.do_dlopen_ptr = exports.filter(exp => exp.name.indexOf("dlopen_ext") != -1)[0].address;
+        const symbols = linker64Module?.enumerateSymbols()!;
+        this.do_dlopen_ptr = symbols.filter(exp => exp.name.indexOf("dlopen_ext") != -1)[0].address;
+        this.call_array_ptr = symbols.filter(exp => exp.name.indexOf("call_array") != -1)[0].address;
+        this.call_constructors_ptr = symbols.filter(exp => exp.name.indexOf("call_constructors") != -1)[0].address;
     }
     hook_do_dlopen(callback: (path: string) => void) {
         Interceptor.attach(this.do_dlopen_ptr, {
