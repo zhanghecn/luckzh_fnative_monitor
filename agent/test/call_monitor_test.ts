@@ -1,10 +1,14 @@
 import chalk from "chalk";
 import { alinker, module_help } from "../assist/module_assist";
 import { StalkerMonitor, ThreadInfo, module_map, unixlibc } from "../monitor/stalker_monitor";
+import { CallLevenLogger } from "../monitor/call_event_log";
+import { Chalk } from 'chalk';
+import { EventLogger } from '../monitor/interface_eventlog';
 
 export class CallStalkerTest extends StalkerMonitor {
 
     stalkerOptions(tinfo: ThreadInfo): StalkerOptions {
+        const _this = this;
         function array_is_not_empty(_array: any[]) {
             return _array && _array.length > 0;
         }
@@ -17,7 +21,7 @@ export class CallStalkerTest extends StalkerMonitor {
                 ret: true
             },
             onReceive(rawEvents) {
-                let stalkerEventFulls = (Stalker.parse(rawEvents, { annotate: true, stringify: false }) as any);
+                let stalkerEventFulls = (Stalker.parse(rawEvents, { annotate: true, stringify: true }) as any);
                 console.log(tag + "onReceive...:" + stalkerEventFulls.length)
 
                 // call/blr instructions
@@ -33,20 +37,17 @@ export class CallStalkerTest extends StalkerMonitor {
                 const set = new Set();
                 if (array_is_not_empty(retEvents)) {
                     console.log(tag + "-----------stalker retEvents:" + retEvents.length)
-                    retEvents.forEach(event => {
-                        const [type, location, target, depth] = event as [string, NativePointer, NativePointer, number];
-                        const localSym = DebugSymbol.fromAddress(location);
-                        const content = `${depth} ${localSym.moduleName} ${localSym.name}`;
-                        if (!set.has(content)) {
-                            set.add(content);
-                            const targetSym = DebugSymbol.fromAddress(target);
-                            const m = module_map.find(target);
-                            console.log(`${m?.name} ${targetSym.name} -> ${content}`)
+                    const _retEvents = retEvents.filter(event => {
+                        const [type, location, target, depth] = event as [string, string, string, number];
+                        const location_m = module_map.find(ptr(location));
+                        const target_m = module_map.find(ptr(target));
+                        if ((!location_m && !target_m) || _this.isExcludeModule(location_m) && _this.isExcludeModule(target_m)) {
+                            return false;
                         }
-                        // if(localSym.name === "libsvcdemo1.so"){
-                        //     console.log(`${depth} ${localSym}`)
-                        // }
+                        return true;
                     })
+                    const logger = new CallLevenLogger(_retEvents);
+                    logger.printLog(chalk.blue);
                 }
 
                 // if (array_is_not_empty(callEvents)) {
@@ -122,6 +123,22 @@ export namespace call_monitor {
         // cst.watchJniInvoke();
         cst.watchElfInit();
         // cst.watchPthreadCreate();
-        
+
     }
+    export function eventLoggerTest() {
+        const data: StalkerRetEventFull[] = [
+            ["ret", "2", "1", 1],
+            ["ret", "3", "1", 1],
+            ["ret", "3", "2", 1],
+        ]
+        console.log(ptr(0).toString())
+        new CallLevenLogger(data).printLog(chalk.red);
+    }
+}
+declare global {
+    var eventLoggerTest: () => void
+}
+
+globalThis.eventLoggerTest = () => {
+    call_monitor.eventLoggerTest()
 }

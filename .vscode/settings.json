@@ -51,5 +51,9 @@
         "link.h": "c",
         "stddef.h": "c",
         "elf.h": "c"
-    }
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.python"
+    },
+    "python.formatting.provider": "none"
 }
