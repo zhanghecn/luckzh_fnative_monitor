@@ -6,9 +6,11 @@ type CallEventFull = [string, string, string, number]
 
 export class CallLevenLogger implements EventLogger {
     events: StalkerEventFull[];
+    backtracer: Backtracer
 
-    constructor(events: CallEvent[]) {
+    constructor(events: CallEvent[], backtracer = Backtracer.ACCURATE) {
         this.events = this.distinct(events);
+        this.backtracer = backtracer
     }
 
     private distinct(events: CallEvent[]) {
@@ -55,7 +57,21 @@ export class CallLevenLogger implements EventLogger {
         return str;
     }
     printLog(chalk: Chalk): void {
-        const eventNodes = generate_event_nodes(this.events as CallEvent[]);
+        let nodeTagConvert: EventNodeTagConvert;
+        if (this.backtracer == Backtracer.ACCURATE) {
+            nodeTagConvert = ptrstr => ptrstr;
+        } else {
+            nodeTagConvert = ptrstr => {
+
+                const dsymbol = DebugSymbol.fromAddress(ptr(ptrstr));
+                if (dsymbol.name && dsymbol.name.indexOf("+") != -1) {
+                    const dsymbolFunNames = dsymbol.name.split("+")
+                    return dsymbolFunNames[0];
+                }
+                return ptrstr;
+            }
+        }
+        const eventNodes = generate_event_nodes(this.events as CallEvent[], nodeTagConvert);
         for (const root of eventNodes) {
             const log = this.trapzoidLogStr(root);
             console.log(chalk(log))
@@ -87,20 +103,27 @@ class CallEventNode {
         }
     }
 }
-function generate_event_nodes(events: CallEvent[]) {
+
+type EventNodeTagConvert = (ptrStr: string) => string;
+
+function generate_event_nodes(events: CallEvent[], nodeTagConvert: EventNodeTagConvert) {
     const eventMap = new Map<string, CallEventNode>();
     for (const event of events) {
         const [type, location, target, depth] = (event as CallEventFull)
-        let parent_node = eventMap.get(target);
+
+        const targetTag = nodeTagConvert(target);
+        const locationTag = nodeTagConvert(location);
+
+        let parent_node = eventMap.get(targetTag);
         if (!parent_node) {
             parent_node = new CallEventNode(target);
-            eventMap.set(target, parent_node);
+            eventMap.set(targetTag, parent_node);
         }
 
-        let child_node = eventMap.get(location);
+        let child_node = eventMap.get(locationTag);
         if (!child_node) {
             child_node = new CallEventNode(location);
-            eventMap.set(location, child_node);
+            eventMap.set(locationTag, child_node);
         }
 
         parent_node.add_child(child_node)

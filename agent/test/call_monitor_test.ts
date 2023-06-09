@@ -46,7 +46,7 @@ export class CallStalkerTest extends StalkerMonitor {
                         }
                         return true;
                     })
-                    const logger = new CallLevenLogger(_retEvents);
+                    const logger = new CallLevenLogger(_retEvents, Backtracer.FUZZY);
                     logger.printLog(chalk.blue);
                 }
 

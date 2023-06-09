@@ -65,7 +65,7 @@ export abstract class StalkerMonitor implements ThreadObserver {
                 }
                 if (initm && !_this.isExcludeModule(initm)) {
                     this.initm = initm;
-                    console.log("trace module:"+initm.name)
+                    // console.log("trace module:"+initm.name)
                     _this.ttrace(this.threadId)
                 }
             },
