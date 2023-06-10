@@ -46,6 +46,13 @@ export class UnixProc {
         this.libc.closeFun(fd);
         return ret;
     }
+    get_linker_fd_path(fd: number): string {
+        if (fd > 0) {
+            const realPath = this.libc.readlink(unix.linux_fcntl.AT_FDCWD, fd);
+            return realPath;
+        }
+        return "";
+    }
 }
 export class UnixLibc {
     //-----------可调用的方法指针
@@ -56,6 +63,8 @@ export class UnixLibc {
     openatFun: NativeFunction<any, any>;
     dlopenFun: NativeFunction<any, any>;
     sleepFun: NativeFunction<any, any>;
+    readlinkat: NativeFunction<any, any>;
+
     //-----------只用于拦截的指针
     dlopen_ext_ptr: NativePointer;
     pthread_create_ptr: NativePointer;
@@ -67,6 +76,7 @@ export class UnixLibc {
         const closePtr = Module.findExportByName("libc.so", "close")!;
         const dlopenPtr = Module.findExportByName("libc.so", "dlopen")!;
         const sleepPtr = Module.findExportByName("libc.so", "sleep")!;
+        const readlinkatPtr = Module.findExportByName("libc.so", "readlinkat")!;
         this.pthread_create_ptr = Module.findExportByName("libc.so", "pthread_create")!;
         // this.dlopen_ext_ptr = Module.findExportByName("libc.so", "dlopen_ext")!;
         this.dlopen_ext_ptr = Module.findExportByName(
@@ -90,6 +100,7 @@ export class UnixLibc {
         this.closeFun = new NativeFunction(closePtr, "int", ["int"]);
         this.dlopenFun = new NativeFunction(dlopenPtr, "void", ["pointer", "int"]);
         this.sleepFun = new NativeFunction(sleepPtr, "int", ["uint"]);
+        this.readlinkat = new NativeFunction(readlinkatPtr, "int", ["int", "pointer", "pointer", "int"]);
     }
 
     open(path: string, flags: number): number {
@@ -104,6 +115,14 @@ export class UnixLibc {
     }
     sleep(seconds: number): number {
         return this.sleepFun(seconds);
+    }
+    readlink(_fd: number, fd: number, len = 512): string {
+        const filepath_v8 = `/proc/self/fd/${fd}`;
+        const filepath = Memory.allocUtf8String(filepath_v8);
+        const buf = Memory.alloc(len);
+        this.readlinkat(_fd, filepath, buf, len);
+
+        return buf.readCString()!;
     }
     readStr(fd: number, len = 512): string {
         const buf = Memory.alloc(len);

@@ -1,3 +1,4 @@
+import { UnixLibc, UnixProc } from '../../native/unix_android';
 import { SignalNameMap } from './signal_name_map';
 
 /**
@@ -12,7 +13,7 @@ export interface SvcTranslation {
     translate_after(context: CpuContext): string
 }
 
-export abstract class AbstractSvcTranslation implements SvcTranslation {
+abstract class AbstractSvcTranslation implements SvcTranslation {
     support(): string {
         return ""
     }
@@ -46,8 +47,11 @@ export abstract class AbstractSvcTranslation implements SvcTranslation {
         return context.x0.toString();
     }
 }
+class DefaultSvcTranslation extends AbstractSvcTranslation {
 
-export class __NR_openatSvcTranslation extends AbstractSvcTranslation {
+}
+const unixproc = new UnixProc();
+class __NR_openatSvcTranslation extends AbstractSvcTranslation {
     support(): string {
         return "__NR_openat"
     }
@@ -61,11 +65,16 @@ export class __NR_openatSvcTranslation extends AbstractSvcTranslation {
         }
         return JSON.stringify(svcContent);
     }
+    translate_after(context: Arm64CpuContext): string {
+        const fd = context.x0.toInt32();
+        const fd_path = unixproc.get_linker_fd_path(fd);
+        return fd_path;
+    }
 }
 
-export class __NR_readSvcTranslation extends AbstractSvcTranslation {
+class __NR_openat2SvcTranslation extends AbstractSvcTranslation {
     support(): string {
-        return "__NR_openat"
+        return "__NR_openat2"
     }
     translate_before(context: Arm64CpuContext): string {
         const fd = context.x0;
@@ -77,6 +86,79 @@ export class __NR_readSvcTranslation extends AbstractSvcTranslation {
         }
         return JSON.stringify(svcContent);
     }
+    translate_after(context: Arm64CpuContext): string {
+        const fd = context.x0.toInt32();
+        const fd_path = unixproc.get_linker_fd_path(fd);
+        return fd_path;
+    }
+}
+class __NR_faccessatSvcTranslation extends AbstractSvcTranslation {
+    support(): string {
+        return "__NR_faccessat"
+    }
+    translate_before(context: Arm64CpuContext): string {
+        const fd = context.x0;
+        const pathname = context.x1.readCString();
+        const model = context.x2;
+        const flags = context.x3;
+        const svcContent = {
+            fd, pathname, flags, model
+        }
+        return JSON.stringify(svcContent);
+    }
+}
+class __NR_faccessat2SvcTranslation extends AbstractSvcTranslation {
+    support(): string {
+        return "__NR_faccessat2"
+    }
+    translate_before(context: Arm64CpuContext): string {
+        const fd = context.x0;
+        const pathname = context.x1.readCString();
+        const model = context.x2;
+        const flags = context.x3;
+        const svcContent = {
+            fd, pathname, flags, model
+        }
+        return JSON.stringify(svcContent);
+    }
+}
+
+class __NR_readSvcTranslation extends AbstractSvcTranslation {
+    support(): string {
+        return "__NR_read"
+    }
+    translate_before(context: Arm64CpuContext): string {
+        const fd = context.x0.toInt32();
+        const fd_path = unixproc.get_linker_fd_path(fd);
+        const svcContent = {
+            fd_path
+        }
+        return JSON.stringify(svcContent);
+    }
 }
 
 
+export default class SvcTranslationMap {
+    translations = new Map<string, SvcTranslation>();
+
+    constructor() {
+        this.add(new DefaultSvcTranslation());
+        this.add(new __NR_openatSvcTranslation());
+        this.add(new __NR_openat2SvcTranslation());
+        this.add(new __NR_faccessatSvcTranslation());
+        this.add(new __NR_faccessat2SvcTranslation());
+        this.add(new __NR_readSvcTranslation());
+    }
+    add(translate: SvcTranslation) {
+        const supportSignal = translate.support();
+        this.translations.set(supportSignal, translate);
+    }
+
+    get(signal: string) {
+        const translate = this.translations.get(signal);
+        if (translate) {
+            return translate;
+        }
+        return this.translations.get("");
+    }
+}

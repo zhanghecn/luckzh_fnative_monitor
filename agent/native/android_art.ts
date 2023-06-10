@@ -6,7 +6,7 @@ export namespace art {
 
     export const artso: Module = Process.findModuleByName("libart.so")!;
 
-    export const _ArtMethodSpec:ArtMethodSpec = getArtMethodSpec();
+    export const _ArtMethodSpec: ArtMethodSpec = getArtMethodSpec();
     export type ArtQuickInvokeType = "art_quick_invoke_stub" | "art_quick_invoke_static_stub";
     function _hook_art_quick_invoke_stub(quickInvokeType: ArtQuickInvokeType, enter_callback: (_this: InvocationContext, args: InvocationArguments) => void, leave_callback: (_this: InvocationContext) => void) {
         const art_quick_invoke_stub_ptr = artso.enumerateSymbols().filter(symbol => {
@@ -59,9 +59,10 @@ export class ArtMethod {
 
     prettyMethod(withSignature = true) {
         const result = new StdString();
-        // frida gum js 会自动 读取 ObjectWrapper,handle  
+        // frida gum js 会自动 读取 ObjectWrapper,handle
         // 'art::ArtMethod::PrettyMethod' 实际是个包装方法 将返回值会写入到 result.handle 内
         // 具体参考 Memory.patchCode 使用 x0 放入 x8 的逻辑 
+        // arm64 中 x8 用于 将x0结果放入 x8 指针内
         android.getApi()['art::ArtMethod::PrettyMethod'](result, this.handle, withSignature ? 1 : 0);
         return result.disposeToString();
     }

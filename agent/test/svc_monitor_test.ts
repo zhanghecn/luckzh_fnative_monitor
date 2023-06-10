@@ -1,6 +1,6 @@
 import { StalkerMonitor, ThreadInfo, module_map } from "../monitor/stalker_monitor";
 import { SignalNameMap } from "../monitor/svc/signal_name_map";
-import { SvcTranslation, SvcCallInfoChain } from '../monitor/svc/svc_log_translation';
+import SvcTranslationMap from '../monitor/svc/svc_log_translation';
 
 export class SvcStalkerTest extends StalkerMonitor {
 
@@ -20,12 +20,12 @@ export class SvcStalkerTest extends StalkerMonitor {
                     // }
 
                     if (instruction.mnemonic === "svc") {
-                        iterator.putCallout(onSvcMonite);
+                        iterator.putCallout(onSvcMoniteBefore);
                         // iterator.putCallout(onSvcMonite);
                     }
                     iterator.keep();
                     if (instruction.mnemonic === "svc") {
-                        iterator.putCallout(onSvcMonite);
+                        iterator.putCallout(onSvcMoniteAfter);
                         // iterator.putCallout(onSvcMonite);
                     }
                 }
@@ -37,28 +37,36 @@ export class SvcStalkerTest extends StalkerMonitor {
 
 }
 const signalNameMap = new SignalNameMap();
-function onSvcMonite(context: CpuContext): void {
+const svcTranslationMap = new SvcTranslationMap();
+function onSvcMoniteBefore(context: CpuContext): void {
     const arm64context = context as Arm64CpuContext;
     const lr = arm64context.lr;
     const pc = arm64context.pc;
-    const x0 = arm64context.x0;
-    const x1 = arm64context.x1;
-    const x2 = arm64context.x2;
-    const x3 = arm64context.x3;
-    const x4 = arm64context.x4;
-    const x5 = arm64context.x5;
-    const x6 = arm64context.x6;
-    const x7 = arm64context.x7;
     const x8 = arm64context.x8;
-
-    console.log("--------svc");
+    console.log("--------svc before");
     const lrSymbol = DebugSymbol.fromAddress(lr);
     const pcSymbol = DebugSymbol.fromAddress(pc);
     const logSymbol = `lrSymbol:${lrSymbol}\n\tpcSymbol:${pcSymbol}`
     console.log(logSymbol);
     const signalName = signalNameMap.getSignalName(x8.toInt32())
-    const reglog = `\nsignalName:${signalName}\nx0:${x0}\nx1:${x1}\nx2:${x2}\nx3:${x3}\nx4:${x4}\nx5:${x5}\nx6:${x6}\nx7:${x7}\nx8:${x8}\nx8i:${x8.toInt32()}`
-    console.log(reglog);
+    const svcTranslation = svcTranslationMap.get(signalName);
+    console.log("inentry", svcTranslation?.translate_before(arm64context));
+    // const backtraceInfo = Thread.backtrace(context).map(ptr => DebugSymbol.fromAddress(ptr)).join("\n\t");
+    // console.log(backtraceInfo)
+}
+function onSvcMoniteAfter(context: CpuContext): void {
+    const arm64context = context as Arm64CpuContext;
+    const lr = arm64context.lr;
+    const pc = arm64context.pc;
+    const x8 = arm64context.x8;
+    console.log("--------svc after");
+    const lrSymbol = DebugSymbol.fromAddress(lr);
+    const pcSymbol = DebugSymbol.fromAddress(pc);
+    const logSymbol = `lrSymbol:${lrSymbol}\n\tpcSymbol:${pcSymbol}`
+    console.log(logSymbol);
+    const signalName = signalNameMap.getSignalName(x8.toInt32())
+    const svcTranslation = svcTranslationMap.get(signalName);
+    console.log("svc result:", svcTranslation?.translate_after(arm64context));
     // const backtraceInfo = Thread.backtrace(context).map(ptr => DebugSymbol.fromAddress(ptr)).join("\n\t");
     // console.log(backtraceInfo)
 }
