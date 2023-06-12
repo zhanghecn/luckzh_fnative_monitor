@@ -64,9 +64,11 @@ export abstract class StalkerMonitor implements ThreadObserver {
                     initm = module_map.find(iptr);
                 }
                 if (initm && !_this.isExcludeModule(initm)) {
+                    // if (initm.name.indexOf("svc") != -1) {
                     this.initm = initm;
                     // console.log("trace module:"+initm.name)
                     _this.ttrace(this.threadId)
+                    // }
                 }
             },
             onLeave(retval) {
@@ -87,8 +89,8 @@ export abstract class StalkerMonitor implements ThreadObserver {
         if (!this.traceThreads.has(tid)) {
             return;
         }
-        console.log("----------unttrace:" + tid);
         this.traceThreads.delete(tid);
+        Stalker.flush();
         Stalker.unfollow(tid);
         // Stalker.garbageCollect();
     }
@@ -100,6 +102,7 @@ export abstract class StalkerMonitor implements ThreadObserver {
     }
     private updateExclude() {
         const excludes = module_help.nagationModules(module_map, this.get_library_path_prefix(), this.mname);
+
         module_help.toModuleNames(excludes).forEach(name => {
             this.excludeModules.add(name);
         })

@@ -11,7 +11,6 @@ export namespace module_help {
         return modules.map(m => m.name);
     }
     export function nagationModules(mm: ModuleMap, path: string | null, name: string | null) {
-        // console.log("path:" + path, "name:" + name);
         const ms = mm.values()
             .filter(m => {
                 if (path == null) return true;

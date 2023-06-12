@@ -43,7 +43,7 @@ export class CallLevenLogger implements EventLogger {
             let dn: DepthNode = stack.pop()!;
             const dbg = DebugSymbol.fromAddress(ptr(dn.node.target));
             // const dbg_info = dbg ? dbg.toString() : dn.node.target.toString()
-            let split = `${multipartStr("--", dn.depth)}|${dbg}`;
+            let split = `${multipartStr("   ", dn.depth)}|${dbg}`;
             str = `${str}${split}\n`
 
             if (!visited.has(dn.node)) {

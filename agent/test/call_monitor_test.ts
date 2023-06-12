@@ -4,6 +4,7 @@ import { StalkerMonitor, ThreadInfo, module_map, unixlibc } from "../monitor/sta
 import { CallLevenLogger } from "../monitor/call_event_log";
 import { Chalk } from 'chalk';
 import { EventLogger } from '../monitor/interface_eventlog';
+import { CallMonitor } from "../monitor/impl/call_monitor";
 
 export class CallStalkerTest extends StalkerMonitor {
 
@@ -124,6 +125,10 @@ export namespace call_monitor {
         cst.watchElfInit();
         // cst.watchPthreadCreate();
 
+    }
+    export function callDemoRun() {
+        const cst = new CallMonitor("user");
+        cst.watchElfInit();
     }
     export function eventLoggerTest() {
         const data: StalkerRetEventFull[] = [

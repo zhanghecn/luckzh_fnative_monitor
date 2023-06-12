@@ -123,6 +123,22 @@ class __NR_faccessat2SvcTranslation extends AbstractSvcTranslation {
     }
 }
 
+class __NR3264_fstatatSvcTranslation extends AbstractSvcTranslation {
+    support(): string {
+        return "__NR3264_fstatat"
+    }
+    translate_before(context: Arm64CpuContext): string {
+        const fd = context.x0;
+        const pathname = context.x1.readCString();
+        // const model = context.x2;
+        const flags = context.x3;
+        const svcContent = {
+            fd, pathname, flags
+        }
+        return JSON.stringify(svcContent);
+    }
+}
+
 class __NR_readSvcTranslation extends AbstractSvcTranslation {
     support(): string {
         return "__NR_read"
@@ -136,7 +152,25 @@ class __NR_readSvcTranslation extends AbstractSvcTranslation {
         return JSON.stringify(svcContent);
     }
 }
+class __NR3264_mmapSvcTranslation extends AbstractSvcTranslation {
+    support(): string {
+        return "__NR3264_mmap"
+    }
+    translate_before(context: Arm64CpuContext): string {
+        const addr = context.x0;
+        const length = context.x1;
+        const prot = context.x2;
+        const flags = context.x3;
+        const fd = context.x4;
+        const offset = context.x5;
+        const fd_path = unixproc.get_linker_fd_path(fd.toInt32());
+        const svcContent = {
+            addr, length, prot, flags, fd, offset, fd_path
+        }
+        return JSON.stringify(svcContent);
+    }
 
+}
 
 export default class SvcTranslationMap {
     translations = new Map<string, SvcTranslation>();
@@ -148,6 +182,8 @@ export default class SvcTranslationMap {
         this.add(new __NR_faccessatSvcTranslation());
         this.add(new __NR_faccessat2SvcTranslation());
         this.add(new __NR_readSvcTranslation());
+        this.add(new __NR3264_fstatatSvcTranslation())
+        this.add(new __NR3264_mmapSvcTranslation())
     }
     add(translate: SvcTranslation) {
         const supportSignal = translate.support();
