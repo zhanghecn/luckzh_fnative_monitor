@@ -30,6 +30,16 @@ export namespace art {
         _hook_art_quick_invoke_stub("art_quick_invoke_static_stub", enter_callback, leave_callback);
     }
 
+    export function get_art_jni_dlsym_lookup_stub_ptr() {
+        const symbols = art.artso.enumerateSymbols().filter(symbol => {
+            return symbol.name == "art_jni_dlsym_lookup_stub"
+        });
+        if (symbols.length > 0) {
+            return symbols[0].address;
+        }
+        return null;
+    }
+
     /**
      * 获取 ArtMethod 常用 属性 偏移
      * 原理 通过 找一个合适的 methodId(ArtMethod) 

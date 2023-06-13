@@ -3,6 +3,7 @@ import { ThreadObserver } from './interface_monitor';
 import { module_help, alinker } from '../assist/module_assist';
 import { ArtMethod, art } from '../native/android_art';
 import { SoInfo } from '../native/soinfo';
+import chalk from 'chalk';
 export const module_map = new ModuleMap();
 export const unixproc = new UnixProc();
 export const unixlibc = new UnixLibc();
@@ -29,6 +30,8 @@ export abstract class StalkerMonitor implements ThreadObserver {
     tracePtrs = new Set<NativePointer>();
     //排除跟踪的模块
     excludeModules = new Set<string>();
+    //排除的art 方法
+    excludeArtFun = new Set();
     /**
      * 是否只观察一次
      * 方法重复调用过多 容易崩溃
@@ -95,7 +98,7 @@ export abstract class StalkerMonitor implements ThreadObserver {
         // Stalker.garbageCollect();
     }
     isExcludeModule(module: Module | null | undefined | string) {
-        if (!module) return false;
+        if (!module) return true;
 
         const mname = module instanceof Module ? module.name : module;
         return this.excludeModules.has(mname)
@@ -113,6 +116,9 @@ export abstract class StalkerMonitor implements ThreadObserver {
         this.updateExclude()
 
         //当 spawn 启动的时候 可能部分library 没有加载进去
+        // alinker.hook_find_libraries((path) => {
+        //     this.updateExclude();
+        // })
         module_help.watchModule(path => {
             this.updateExclude();
         });
@@ -125,15 +131,57 @@ export abstract class StalkerMonitor implements ThreadObserver {
      * 对于 native 方法 会调用 两个方法
      * art_quick_invoke_stub
      * art_quick_invoke_static_stub
+     * 
+     * 注意 有的时候一开始注册是 RegisterNative(GetJniDlsymLookupStub(), false);
+     * art_jni_dlsym_lookup_stub 函数会调用 artFindNativeMethod 查找本地方法指针
+     * void* native_code = soa.Vm()->FindCodeForNativeMethod(method);
+     * 随后才会重新注册实际 native 指针
+     * method->RegisterNative(native_code, false);
+     * 
+     * @ 暂时缺点部分
+     * 根据 https://source.android.google.cn/docs/core/runtime/jit-compiler?hl=zh-cn 官网所说
+     * 部分情况 jit 会对 dex 进行 编译成 .oat 二进制文件
+     * 这对 excludeModules 排除范围照成了阻力。可能会将 oat 范围给排除。以后在看吧。
      */
     javaNativeWatch(tid: number | null) {
         const _this = this;
+        const art_jni_dlsym_lookup_stub_ptr = art.get_art_jni_dlsym_lookup_stub_ptr();
+        // console.log("art_jni_dlsym_lookup_stub_ptr:", art_jni_dlsym_lookup_stub_ptr);
         function checkSoRange(methodId: NativePointer): boolean {
-            const am = new ArtMethod(methodId);
-            const jniCodePtr = am.jniCodePtr();
-            const m = module_map.find(jniCodePtr);
+            const methodIdString = methodId.toString();
+            const exclude_method = _this.excludeArtFun.has(methodIdString);
+            if (exclude_method) {
+                /**
+                 * java 方法太多
+                 * native
+                 * abstract/interface method
+                 * proxy method
+                 * other methods
+                 * 如果不将之前过滤的method 缓存起来。
+                 * 每次判断拖慢了速度。
+                 * 但是内存肯定指数增长
+                 * 但愿这块没bug把。。。
+                 *  */
+            } else {
+                const am = new ArtMethod(methodId);
+                const jniCodePtr = am.jniCodePtr();
+                const m = module_map.find(jniCodePtr);
+                const include = !_this.isExcludeModule(m);
+                const is_lookup_dlsym_jni = jniCodePtr != null &&
+                    art_jni_dlsym_lookup_stub_ptr != null &&
+                    jniCodePtr.compare(art_jni_dlsym_lookup_stub_ptr) == 0;
 
-            return !_this.isExcludeModule(m);
+                if (include || is_lookup_dlsym_jni) {
+                    const method = am.prettyMethod();
+                    console.log(chalk.red("\n" + method))
+                    return true;
+                } else if (!is_lookup_dlsym_jni) {
+                    _this.excludeArtFun.add(methodIdString);
+                }
+                return false;
+            }
+
+            return false;
         }
         art.hook_art_quick_invoke_stub((invocontext: InvocationContext, args: InvocationArguments) => {
             const methodId = args[0];
