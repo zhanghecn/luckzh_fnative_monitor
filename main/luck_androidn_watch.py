@@ -4,7 +4,7 @@ import frida
 
 
 def _parse_args():
-     parser = argparse.ArgumentParser(usage="luckjwatch [options] -f target")
+     parser = argparse.ArgumentParser(usage="luck_androidn_watch [options] -f target")
      parser.add_argument("-f","--file",help="target")
      parser.add_argument("-t","--type",help="watch type",choices=["svc","call"],default="call")
      parser.add_argument("-range","--range",help="watch range",choices=["jni","init_array","pthread_create"],default="init_array")
@@ -18,7 +18,7 @@ def on_message(message, data):
      
 def main():
     # com.example.svcdemo1
-    # print("main")
+    print("luck android native watch")
     args = _parse_args()
     
     device = frida.get_usb_device()
@@ -33,13 +33,7 @@ def main():
     script.on("message", on_message)
 
     script.load()
-    script.post({
-        "type": "config",
-        "payload": {
-            "type": args.type,
-            "range": args.range
-        }
-    })
+    script.exports.monitor(args.type,args.range)
     device.resume(pid)
     
     try:
