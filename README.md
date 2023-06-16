@@ -1,19 +1,24 @@
 # luckzh_fnative_monitor
 
+地址:**https://github.com/zhanghecn/luckzh_fnative_monitor**
+
+吾爱破解: **https://www.52pojie.cn/thread-1798143-1-1.html**
+
 写这个项目 本意是想 监控native 下的 svc 调用来协助我分析 anti_frida。
-但发现写完并不好用
-看来还是多学学 elf结构 和 so修复 才管用。
 
-所以这个项目 由于逆向经验少,和技术 代码质量问题,我并不能完全写完。
+**但发现写完并不怎么好用 哎~**
 
-**但是弃之可惜,所以我发在github上让各位和我一样的萌新可以学习下,如果是大佬希望可以协助完善下**
+看来还是得看 elf结构和so修复才能有帮助。
+所以这个项目 由于逆向经验少,和技术 代码质量问题,我并没能写好。
+
+**但是弃之可惜,所以我发在github上各位看一下,也希望大佬希望可以协助完善下**
 
 不过目前来说功能还是可以用的,各位可以尝试用用看
 
 个人测试 android 10. 理论上 android9~ 以上都行。
 现在只支持 **arm64**
 
-当然我觉得肯定大家会遇到问题,因为我很穷 只有一台手机可以测,其他不敢保证
+当然我觉得肯定大家会遇到问题,因为我有点寒酸 只有一台手机可以测,其他不敢保证
 
 ## 使用方法
 观察我只观察重要区域,默认全部都是 **"user"** 范围 也就是 
@@ -43,7 +48,7 @@ python luck_androidn_watch.py -f packname [-t (svc|call)] [-range ("jni"|"init_a
 ![img](./doc/img02.png)
 
 ### frida js
-如果您想附加使用,那么直接用 
+如果您想**附加**使用,那么直接用 
 ```
 cd agent
 frida -U -l _agent.js  [应用名称]
@@ -103,7 +108,8 @@ void ArtMethod::Invoke(Thread* self, uint32_t* args, uint32_t args_size, JValue*
 一般使用动态注册 会使用到 **jni.h** 中的 **RegisterNatives**。
 其最终会通过 **class_linker**将我们传入的 **native** 方法指针 对应上 
 **artMethod**的  **data_** 属性
-``` cpp
+
+```cpp
 // 1.jni.h
 jint        (*RegisterNatives)(JNIEnv*, jclass, const JNINativeMethod*,
                         jint);
@@ -359,3 +365,8 @@ void* Thread::CreateCallback(void* arg) {
 }
 
 ```
+
+## 参考来源
+https://github.com/zhanghecn/sktrace
+https://github.com/zhanghecn/frida-trace
+https://github.com/frida/frida-java-bridge
