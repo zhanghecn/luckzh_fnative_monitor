@@ -1,3 +1,5 @@
+import chalk from "chalk";
+
 export namespace unix {
 
     export enum fcntl {
@@ -141,7 +143,11 @@ export class AndroidLinker {
     call_constructors_ptr: NativePointer
     find_libraries: NativePointer
     constructor() {
-        const linker64Module = Process.findModuleByName("linker64");
+        let linker64Module = Process.findModuleByName("linker64");
+        if (linker64Module == null) {
+            console.error(chalk.red("未找到 linker64,请确认应用是否是 64 位"))
+            linker64Module = Process.findModuleByName("linker");
+        }
         const symbols = linker64Module?.enumerateSymbols()!;
         this.do_dlopen_ptr = symbols.filter(exp => exp.name.indexOf("dlopen_ext") != -1)[0].address;
         this.call_array_ptr = symbols.filter(exp => exp.name.indexOf("call_array") != -1)[0].address;

@@ -1,5295 +1,10070 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 "use strict";
-
-var e = this && this.__importDefault || function(e) {
-  return e && e.__esModule ? e : {
-    default: e
-  };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.ChalkSelector = void 0;
-
-const t = e(require("chalk"));
-
-class l {
-  chalks=[ t.default.cyan, t.default.blue, t.default.yellow, t.default.gray, t.default.green, t.default.magenta ];
-  chalks_i=0;
-  getChalk() {
-    this.chalks_i >= this.chalks.length && (this.chalks_i = 0);
-    const e = this.chalks_i;
-    this.chalks_i++;
-    return this.chalks[e % this.chalks.length];
-  }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ChalkSelector = void 0;
+const chalk_1 = __importDefault(require("chalk"));
+class ChalkSelector {
+    chalks = [chalk_1.default.cyan, chalk_1.default.blue, chalk_1.default.yellow, chalk_1.default.gray, chalk_1.default.green, chalk_1.default.magenta];
+    chalks_i = 0;
+    getChalk() {
+        if (this.chalks_i >= this.chalks.length) {
+            this.chalks_i = 0;
+        }
+        const i = this.chalks_i;
+        this.chalks_i++;
+        const chalk = this.chalks[i % this.chalks.length];
+        return chalk;
+    }
 }
-
-exports.ChalkSelector = l;
-
+exports.ChalkSelector = ChalkSelector;
 },{"chalk":17}],2:[function(require,module,exports){
 "use strict";
-
-var e;
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.str_fuzzy = void 0, function(e) {
-  e.match = function(e, t) {
-    const r = `^${t.replaceAll("*", ".*")}$`;
-    return new RegExp(r, "i").test(e);
-  };
-}(e = exports.str_fuzzy || (exports.str_fuzzy = {}));
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.str_fuzzy = void 0;
+var str_fuzzy;
+(function (str_fuzzy) {
+    function match(mainstr, needstr) {
+        const pateern = `^${needstr.replaceAll("*", ".*")}$`;
+        const fuzzy_reg = new RegExp(pateern, "i");
+        return fuzzy_reg.test(mainstr);
+    }
+    str_fuzzy.match = match;
+})(str_fuzzy = exports.str_fuzzy || (exports.str_fuzzy = {}));
 },{}],3:[function(require,module,exports){
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.module_help = exports.alinker = void 0;
-
-const e = require("../native/unix_android"), t = require("./fuzzy_match_assist");
-
-var n;
-
-exports.alinker = new e.AndroidLinker, function(e) {
-  e.watchModule = function(e) {
-    exports.alinker.hook_do_dlopen(e);
-  }, e.toModuleNames = function(e) {
-    return e.map((e => e.name));
-  }, e.nagationModules = function(e, n, r) {
-    e.values().filter((e => null == n || !t.str_fuzzy.match(e.path, n))).filter((e => null == r || !t.str_fuzzy.match(e.name, r)));
-    const a = e.values().filter((e => null == n || t.str_fuzzy.match(e.path, n))).filter((e => null == r || t.str_fuzzy.match(e.name, r))).map((e => e.name)).reduce(((e, t, n, r) => (e.add(t), 
-    e)), new Set);
-    return e.values().filter((e => !a.has(e.name)));
-  };
-}(n = exports.module_help || (exports.module_help = {}));
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.module_help = exports.alinker = void 0;
+const unix_android_1 = require("../native/unix_android");
+const fuzzy_match_assist_1 = require("./fuzzy_match_assist");
+exports.alinker = new unix_android_1.AndroidLinker();
+var module_help;
+(function (module_help) {
+    function watchModule(callback) {
+        exports.alinker.hook_do_dlopen(callback);
+    }
+    module_help.watchModule = watchModule;
+    function toModuleNames(modules) {
+        return modules.map(m => m.name);
+    }
+    module_help.toModuleNames = toModuleNames;
+    function nagationModules(mm, path, name) {
+        const ms = mm.values()
+            .filter(m => {
+            if (path == null)
+                return true;
+            return !fuzzy_match_assist_1.str_fuzzy.match(m.path, path);
+        }).filter(m => {
+            if (name == null)
+                return true;
+            return !fuzzy_match_assist_1.str_fuzzy.match(m.name, name);
+        });
+        const check_m_names = mm.values()
+            .filter(m => {
+            if (path == null)
+                return true;
+            return fuzzy_match_assist_1.str_fuzzy.match(m.path, path);
+        }).filter(m => {
+            if (name == null)
+                return true;
+            return fuzzy_match_assist_1.str_fuzzy.match(m.name, name);
+        })
+            .map(m => m.name)
+            .reduce((previous, cur, i, array) => {
+            previous.add(cur);
+            return previous;
+        }, new Set());
+        ;
+        const excludes = mm.values()
+            .filter(m => {
+            return !check_m_names.has(m.name);
+        });
+        // console.log("check_m_names:",check_m_names)
+        return excludes;
+    }
+    module_help.nagationModules = nagationModules;
+})(module_help = exports.module_help || (exports.module_help = {}));
 },{"../native/unix_android":15,"./fuzzy_match_assist":2}],4:[function(require,module,exports){
 (function (setImmediate){(function (){
 "use strict";
-
-function e() {}
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), require("./main"), setImmediate(e);
-
+Object.defineProperty(exports, "__esModule", { value: true });
+require("./main");
+function main() {
+    // main_monitor_test.selectJniSvcDemoRun();
+}
+setImmediate(main);
 }).call(this)}).call(this,require("timers").setImmediate)
 
 },{"./main":5,"timers":34}],5:[function(require,module,exports){
 (function (setImmediate){(function (){
 "use strict";
-
-var t = this && this.__importDefault || function(t) {
-  return t && t.__esModule ? t : {
-    default: t
-  };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-});
-
-const e = t(require("chalk")), o = require("./monitor/impl/monitor_selector");
-
-let r = null;
-
-const n = new o.MonitorSelectors, a = {
-  rpcExports: {
-    jniWatch: function(t) {
-      n.monitorMap.get(t)().watchJniInvoke();
-    },
-    pthreadCreateWatch: function(t) {
-      n.monitorMap.get(t)().watchPthreadCreate();
-    },
-    monitor: function(t, o) {
-      setImmediate((() => {
-        if (console.log(e.default.bgBlackBright("luck android native watch...")), r = n.monitorMap.get(t), 
-        null != r) {
-          const t = r("user");
-          "init_array" == o ? (console.log(e.default.green("watch init_array")), t.watchElfInit()) : "jni" == o ? (console.log(e.default.green("watch jni")), 
-          t.watchJniInvoke()) : (console.log(e.default.green("watch pthread_create")), t.watchPthreadCreate());
+Object.defineProperty(exports, "__esModule", { value: true });
+const chalk_1 = __importDefault(require("chalk"));
+const monitor_selector_1 = require("./monitor/impl/monitor_selector");
+let monitorCreate = null;
+const monitorSelector = new monitor_selector_1.MonitorSelectors();
+const rpcFunctions = {
+    rpcExports: {
+        "jniWatch": function (type) {
+            setImmediate(() => {
+                const monitor = monitorSelector.monitorMap.get(type)();
+                monitor.watchJniInvoke();
+            });
+        },
+        "pthreadCreateWatch": function (type) {
+            setImmediate(() => {
+                const monitor = monitorSelector.monitorMap.get(type)();
+                monitor.watchPthreadCreate();
+            });
+        },
+        "monitor": function (type, range) {
+            setImmediate(() => {
+                console.log(chalk_1.default.bgBlackBright("luck android native watch..."));
+                monitorCreate = monitorSelector.monitorMap.get(type);
+                if (monitorCreate != null) {
+                    const monitor = monitorCreate("user");
+                    if (range == "init_array") {
+                        console.log(chalk_1.default.green("watch init_array"));
+                        monitor.watchElfInit();
+                    }
+                    else if (range == "jni") {
+                        console.log(chalk_1.default.green("watch jni"));
+                        monitor.watchJniInvoke();
+                    }
+                    else {
+                        console.log(chalk_1.default.green("watch pthread_create"));
+                        monitor.watchPthreadCreate();
+                    }
+                }
+            });
         }
-      }));
     }
-  }
 };
-
-Reflect.ownKeys(a.rpcExports).forEach((t => {
-  const e = Reflect.get(a.rpcExports, t);
-  Reflect.set(globalThis, t, e);
-})), rpc.exports = a.rpcExports;
-
+Reflect.ownKeys(rpcFunctions.rpcExports).forEach(k => {
+    const v = Reflect.get(rpcFunctions.rpcExports, k);
+    Reflect.set(globalThis, k, v);
+});
+rpc.exports = rpcFunctions.rpcExports;
 }).call(this)}).call(this,require("timers").setImmediate)
 
 },{"./monitor/impl/monitor_selector":8,"chalk":17,"timers":34}],6:[function(require,module,exports){
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.CallLevenLogger = void 0;
-
-class e {
-  events;
-  backtracer;
-  constructor(e, t = Backtracer.ACCURATE) {
-    this.events = this.distinct(e), this.backtracer = t;
-  }
-  distinct(e) {
-    const t = e.reduce(((e, t, r, n) => {
-      const [s, o, c, i] = t, d = `${c} - ${o}`;
-      return e.set(d, t), e;
-    }), new Map), r = [];
-    for (const e of t.values()) r.push(e);
-    return r;
-  }
-  trapzoidLogStr(e) {
-    let r = "";
-    const n = [ new s(e, 0) ], o = new Set;
-    for (;n.length > 0; ) {
-      let e = n.pop();
-      const c = DebugSymbol.fromAddress(ptr(e.node.target));
-      if (r = `${r}${`${t("   ", e.depth)}|${c}`}\n`, !o.has(e.node)) {
-        o.add(e.node);
-        for (const t of e.node.children) n.push(new s(t, e.depth + 1));
-      }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CallLevenLogger = void 0;
+class CallLevenLogger {
+    events;
+    backtracer;
+    constructor(events, backtracer = Backtracer.ACCURATE) {
+        this.events = this.distinct(events);
+        this.backtracer = backtracer;
     }
-    return r;
-  }
-  printLog(e) {
-    let t;
-    t = this.backtracer == Backtracer.ACCURATE ? e => e : e => {
-      const t = DebugSymbol.fromAddress(ptr(e));
-      if (t.name && -1 != t.name.indexOf("+")) {
-        return t.name.split("+")[0];
-      }
-      return e;
-    };
-    const r = n(this.events, t);
-    for (const t of r) {
-      const r = this.trapzoidLogStr(t);
-      console.log(e(r));
+    distinct(events) {
+        const reduceEventMap = events.reduce((previous, currentValue, currentIndex, array) => {
+            const [type, location, target, depth] = currentValue;
+            const key = `${target} - ${location}`;
+            previous.set(key, currentValue);
+            return previous;
+        }, new Map());
+        const distinctEvents = [];
+        for (const e of reduceEventMap.values()) {
+            distinctEvents.push(e);
+        }
+        return distinctEvents;
     }
-  }
-}
-
-function t(e, t) {
-  let r = "";
-  for (let n = 0; n < t; n++) r += e;
-  return r;
-}
-
-exports.CallLevenLogger = e;
-
-class r {
-  target;
-  children=[];
-  children_view=new Set;
-  constructor(e) {
-    this.target = e;
-  }
-  add_child(e) {
-    this.children_view.has(e) || (this.children_view.add(e), this.children.push(e));
-  }
-}
-
-function n(e, t) {
-  const n = new Map;
-  for (const s of e) {
-    const [e, o, c, i] = s, d = t(c), a = t(o);
-    let l = n.get(d);
-    l || (l = new r(c), n.set(d, l));
-    let h = n.get(a);
-    h || (h = new r(o), n.set(a, h)), l.add_child(h);
-  }
-  const s = [];
-  for (const e of n.values()) {
-    let t = !1;
-    for (const r of n.values()) if (r.children_view.has(e)) {
-      t = !0;
-      break;
+    /**
+     * detph first search log
+     * @param root
+     * @returns
+     */
+    trapzoidLogStr(root) {
+        let str = "";
+        const stack = [new DepthNode(root, 0)];
+        const visited = new Set();
+        while (stack.length > 0) {
+            let dn = stack.pop();
+            const dbg = DebugSymbol.fromAddress(ptr(dn.node.target));
+            // const dbg_info = dbg ? dbg.toString() : dn.node.target.toString()
+            let split = `${multipartStr("   ", dn.depth)}|${dbg}`;
+            str = `${str}${split}\n`;
+            if (!visited.has(dn.node)) {
+                visited.add(dn.node);
+                for (const child of dn.node.children) {
+                    stack.push(new DepthNode(child, dn.depth + 1));
+                }
+            }
+        }
+        return str;
     }
-    t || s.push(e);
-  }
-  return s;
+    printLog(chalk) {
+        let nodeTagConvert;
+        if (this.backtracer == Backtracer.ACCURATE) {
+            nodeTagConvert = ptrstr => ptrstr;
+        }
+        else {
+            nodeTagConvert = ptrstr => {
+                const dsymbol = DebugSymbol.fromAddress(ptr(ptrstr));
+                if (dsymbol.name && dsymbol.name.indexOf("+") != -1) {
+                    const dsymbolFunNames = dsymbol.name.split("+");
+                    return dsymbolFunNames[0];
+                }
+                return ptrstr;
+            };
+        }
+        const eventNodes = generate_event_nodes(this.events, nodeTagConvert);
+        for (const root of eventNodes) {
+            const log = this.trapzoidLogStr(root);
+            console.log(chalk(log));
+        }
+    }
 }
-
-class s {
-  node;
-  depth;
-  constructor(e, t) {
-    this.node = e, this.depth = t;
-  }
+exports.CallLevenLogger = CallLevenLogger;
+function multipartStr(str, time) {
+    let _str = "";
+    for (let index = 0; index < time; index++) {
+        _str += str;
+    }
+    return _str;
 }
-
+class CallEventNode {
+    target;
+    children = [];
+    children_view = new Set();
+    constructor(target) {
+        this.target = target;
+    }
+    add_child(cnode) {
+        if (!this.children_view.has(cnode)) {
+            this.children_view.add(cnode);
+            this.children.push(cnode);
+        }
+    }
+}
+function generate_event_nodes(events, nodeTagConvert) {
+    const eventMap = new Map();
+    for (const event of events) {
+        const [type, location, target, depth] = event;
+        const targetTag = nodeTagConvert(target);
+        const locationTag = nodeTagConvert(location);
+        let parent_node = eventMap.get(targetTag);
+        if (!parent_node) {
+            parent_node = new CallEventNode(target);
+            eventMap.set(targetTag, parent_node);
+        }
+        let child_node = eventMap.get(locationTag);
+        if (!child_node) {
+            child_node = new CallEventNode(location);
+            eventMap.set(locationTag, child_node);
+        }
+        parent_node.add_child(child_node);
+    }
+    const roots = [];
+    // 没有 children 的根节点
+    for (const node of eventMap.values()) {
+        let include = false;
+        for (const n of eventMap.values()) {
+            if (n.children_view.has(node)) {
+                include = true;
+                break;
+            }
+        }
+        if (!include)
+            roots.push(node);
+    }
+    return roots;
+}
+class DepthNode {
+    node;
+    depth;
+    constructor(node, depth) {
+        this.node = node;
+        this.depth = depth;
+    }
+}
 },{}],7:[function(require,module,exports){
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.CallMonitor = void 0;
-
-const e = require("../call_event_log"), t = require("../stalker_monitor"), r = require("../../assist/chalk_selector");
-
-class o extends t.StalkerMonitor {
-  chalkSelector=new r.ChalkSelector;
-  stalkerOptions(r) {
-    const o = this;
-    const l = `${r.tid} - ${r.tname} >  `;
-    return {
-      events: {
-        ret: !0
-      },
-      onReceive(r) {
-        const n = o.chalkSelector.getChalk();
-        const s = Stalker.parse(r, {
-          annotate: !0,
-          stringify: !0
-        }).filter((e => "ret" == e[0]));
-        if ((a = s) && a.length > 0) {
-          console.log(n("\n" + l + "-----------retEvents:" + s.length));
-          const r = s.filter((e => {
-            const [r, l, n, s] = e, a = t.module_map.find(ptr(l)), i = t.module_map.find(ptr(n));
-            return !(!a && !i || o.isExcludeModule(a) && o.isExcludeModule(i));
-          }));
-          new e.CallLevenLogger(r, Backtracer.FUZZY).printLog(n);
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CallMonitor = void 0;
+const call_event_log_1 = require("../call_event_log");
+const stalker_monitor_1 = require("../stalker_monitor");
+const chalk_selector_1 = require("../../assist/chalk_selector");
+class CallMonitor extends stalker_monitor_1.StalkerMonitor {
+    chalkSelector = new chalk_selector_1.ChalkSelector();
+    stalkerOptions(tinfo) {
+        const _this = this;
+        function array_is_not_empty(_array) {
+            return _array && _array.length > 0;
         }
-        var a;
-      }
-    };
-  }
+        const tag = `${tinfo.tid} - ${tinfo.tname} >  `;
+        return {
+            events: {
+                ret: true
+            },
+            onReceive(rawEvents) {
+                const chalk = _this.chalkSelector.getChalk();
+                let stalkerEventFulls = Stalker.parse(rawEvents, { annotate: true, stringify: true });
+                // ret 或者 bx 指令
+                const retEvents = stalkerEventFulls.filter((even) => even[0] == "ret");
+                if (array_is_not_empty(retEvents)) {
+                    console.log(chalk("\n" + tag + "-----------retEvents:" + retEvents.length));
+                    const _retEvents = retEvents.filter(event => {
+                        const [type, location, target, depth] = event;
+                        const location_m = stalker_monitor_1.module_map.find(ptr(location));
+                        const target_m = stalker_monitor_1.module_map.find(ptr(target));
+                        if ((!location_m && !target_m) || _this.isExcludeModule(location_m) && _this.isExcludeModule(target_m)) {
+                            return false;
+                        }
+                        return true;
+                    });
+                    const logger = new call_event_log_1.CallLevenLogger(_retEvents, Backtracer.FUZZY);
+                    logger.printLog(chalk);
+                }
+            }
+        };
+    }
 }
-
-exports.CallMonitor = o;
-
+exports.CallMonitor = CallMonitor;
 },{"../../assist/chalk_selector":1,"../call_event_log":6,"../stalker_monitor":10}],8:[function(require,module,exports){
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.MonitorSelectors = void 0;
-
-const o = require("./call_monitor"), t = require("./svc_monitor");
-
-class r {
-  monitorMap=new Map;
-  addMonitor(o, t) {
-    this.monitorMap.set(o, t);
-  }
-  constructor() {
-    this.addMonitor("call", function(...t) {
-      return new o.CallMonitor(...t);
-    }.bind(null)), this.addMonitor("svc", function(...o) {
-      return new t.SvcMonitor(...o);
-    }.bind(null));
-  }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MonitorSelectors = void 0;
+const call_monitor_1 = require("./call_monitor");
+const svc_monitor_1 = require("./svc_monitor");
+class MonitorSelectors {
+    monitorMap = new Map();
+    addMonitor(key, monitorCreator) {
+        this.monitorMap.set(key, monitorCreator);
+    }
+    constructor() {
+        this.addMonitor("call", (function (...args) {
+            return new call_monitor_1.CallMonitor(...args);
+        }).bind(null));
+        this.addMonitor("svc", (function (...args) {
+            return new svc_monitor_1.SvcMonitor(...args);
+        }).bind(null));
+    }
 }
-
-exports.MonitorSelectors = r;
-
+exports.MonitorSelectors = MonitorSelectors;
 },{"./call_monitor":7,"./svc_monitor":9}],9:[function(require,module,exports){
 "use strict";
-
-var e = this && this.__importDefault || function(e) {
-  return e && e.__esModule ? e : {
-    default: e
-  };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.SvcMonitor = void 0;
-
-const t = require("../stalker_monitor"), o = require("../../assist/chalk_selector"), n = require("../svc/signal_name_map"), l = e(require("../svc/svc_log_translation")), s = new n.SignalNameMap, r = new l.default;
-
-class c extends t.StalkerMonitor {
-  chalkSelector=new o.ChalkSelector;
-  stalkerOptions(e) {
-    const t = this;
-    e.tid, e.tname;
-    return {
-      transform: function(e) {
-        let o, n = t.chalkSelector.getChalk();
-        for (;null != (o = e.next()); ) "svc" === o.mnemonic && e.putCallout((function(e) {
-          const t = e, o = t.x8;
-          a(s.getSignalName(o.toInt32()), t, n);
-        })), e.keep(), "svc" === o.mnemonic && e.putCallout((function(e) {
-          const t = e, o = t.x8;
-          i(s.getSignalName(o.toInt32()), t, n);
-        }));
-      }
-    };
-  }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SvcMonitor = void 0;
+const stalker_monitor_1 = require("../stalker_monitor");
+const chalk_selector_1 = require("../../assist/chalk_selector");
+const signal_name_map_1 = require("../svc/signal_name_map");
+const svc_log_translation_1 = __importDefault(require("../svc/svc_log_translation"));
+const signalNameMap = new signal_name_map_1.SignalNameMap();
+const svcTranslationMap = new svc_log_translation_1.default();
+class SvcMonitor extends stalker_monitor_1.StalkerMonitor {
+    chalkSelector = new chalk_selector_1.ChalkSelector();
+    stalkerOptions(tinfo) {
+        const _this = this;
+        const tag = `${tinfo.tid} - ${tinfo.tname} >  `;
+        return {
+            transform: function (iterator) {
+                let chalk = _this.chalkSelector.getChalk();
+                let instruction;
+                while ((instruction = iterator.next()) != null) {
+                    if (instruction.mnemonic === "svc") {
+                        iterator.putCallout(function (context) {
+                            const arm64context = context;
+                            const x8 = arm64context.x8;
+                            const signalName = signalNameMap.getSignalName(x8.toInt32());
+                            svcMoniteBefore(signalName, arm64context, chalk);
+                        });
+                    }
+                    iterator.keep();
+                    if (instruction.mnemonic === "svc") {
+                        iterator.putCallout(function (context) {
+                            const arm64context = context;
+                            const x8 = arm64context.x8;
+                            const signalName = signalNameMap.getSignalName(x8.toInt32());
+                            svcMoniteAfter(signalName, arm64context, chalk);
+                        });
+                    }
+                }
+            }
+        };
+    }
 }
-
-function a(e, t, o) {
-  const n = t.lr, l = t.pc, s = DebugSymbol.fromAddress(n), c = DebugSymbol.fromAddress(l), a = r.get(e);
-  console.log(o(`\n-------------------svc ${e}--------------`));
-  const i = `\nlrSymbol:${s}\n\tpcSymbol:${c}`;
-  console.log(o(i)), console.log(o(`\n${a?.translate_before(t)}`));
+exports.SvcMonitor = SvcMonitor;
+function svcMoniteBefore(signalName, arm64context, chalk) {
+    const lr = arm64context.lr;
+    const pc = arm64context.pc;
+    const lrSymbol = DebugSymbol.fromAddress(lr);
+    const pcSymbol = DebugSymbol.fromAddress(pc);
+    const svcTranslation = svcTranslationMap.get(signalName);
+    console.log(chalk(`\n-------------------svc ${signalName}--------------`));
+    const logSymbol = `\nlrSymbol:${lrSymbol}\n\tpcSymbol:${pcSymbol}`;
+    console.log(chalk(logSymbol));
+    console.log(chalk(`\n${svcTranslation?.translate_before(arm64context)}`));
 }
-
-function i(e, t, o) {
-  const n = r.get(e);
-  console.log(o(`\n${e} result:${n?.translate_after(t)}`));
+function svcMoniteAfter(signalName, arm64context, chalk) {
+    const svcTranslation = svcTranslationMap.get(signalName);
+    console.log(chalk(`\n${signalName} result:${svcTranslation?.translate_after(arm64context)}`));
 }
-
-exports.SvcMonitor = c;
-
 },{"../../assist/chalk_selector":1,"../stalker_monitor":10,"../svc/signal_name_map":11,"../svc/svc_log_translation":12}],10:[function(require,module,exports){
 "use strict";
-
-var t = this && this.__importDefault || function(t) {
-  return t && t.__esModule ? t : {
-    default: t
-  };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.StalkerMonitor = exports.unixlibc = exports.unixproc = exports.module_map = void 0;
-
-const e = require("../native/unix_android"), r = require("../assist/module_assist"), a = require("../native/android_art"), s = require("../native/soinfo"), n = t(require("chalk"));
-
-function o() {
-  r.alinker.hook_find_libraries((t => {
-    exports.module_map.update();
-  }));
-}
-
-exports.module_map = new ModuleMap, exports.unixproc = new e.UnixProc, exports.unixlibc = new e.UnixLibc, 
-o();
-
-class i {
-  mpath="user";
-  mname="*";
-  symbol="*";
-  initThreadIds=[];
-  mainThreadId=-1;
-  traceThreads=new Map;
-  tracePtrs=new Set;
-  excludeModules=new Set;
-  excludeArtFun=new Set;
-  once=!0;
-  constructor(t = "user", e = "*", r = "*") {
-    this.mpath = t, this.mname = e, this.symbol = r, this.initThreads(), this.watchModule();
-  }
-  watchJniInvoke() {
-    this.javaNativeWatch(null);
-  }
-  watchElfInit() {
-    const t = this;
-    Interceptor.attach(r.alinker.call_constructors_ptr, {
-      onEnter(e) {
-        const r = e[0], a = new s.SoInfo(r), n = a.init_array_ptrs(), o = a.init_ptr();
-        let i = null;
-        n.length > 0 && (i = exports.module_map.find(n[0])), o.compare(0) && (i = exports.module_map.find(o)), 
-        i && !t.isExcludeModule(i) && (this.initm = i, t.ttrace(this.threadId));
-      },
-      onLeave(e) {
-        this.initm && t.unttrace(this.threadId);
-      }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.StalkerMonitor = exports.unixlibc = exports.unixproc = exports.module_map = void 0;
+const unix_android_1 = require("../native/unix_android");
+const module_assist_1 = require("../assist/module_assist");
+const android_art_1 = require("../native/android_art");
+const soinfo_1 = require("../native/soinfo");
+const chalk_1 = __importDefault(require("chalk"));
+exports.module_map = new ModuleMap();
+exports.unixproc = new unix_android_1.UnixProc();
+exports.unixlibc = new unix_android_1.UnixLibc();
+function ensureNewestModuleMap() {
+    module_assist_1.alinker.hook_find_libraries((path) => {
+        exports.module_map.update();
     });
-  }
-  unwatch() {
-    for (const t of this.traceThreads.keys()) this.unttrace(t);
-  }
-  unttrace(t) {
-    this.traceThreads.has(t) && (this.traceThreads.delete(t), Stalker.flush(), Stalker.unfollow(t));
-  }
-  isExcludeModule(t) {
-    if (!t) return !0;
-    const e = t instanceof Module ? t.name : t;
-    return this.excludeModules.has(e);
-  }
-  updateExclude() {
-    const t = r.module_help.nagationModules(exports.module_map, this.get_library_path_prefix(), this.mname);
-    r.module_help.toModuleNames(t).forEach((t => {
-      this.excludeModules.add(t);
-    })), u(t);
-  }
-  watchModule() {
-    this.updateExclude(), r.module_help.watchModule((t => {
-      this.updateExclude();
-    }));
-  }
-  watchMain() {
-    this.javaNativeWatch(this.mainThreadId);
-  }
-  javaNativeWatch(t) {
-    const e = this, r = a.art.get_art_jni_dlsym_lookup_stub_ptr();
-    function s(t) {
-      const s = t.toString();
-      if (!e.excludeArtFun.has(s)) {
-        const o = new a.ArtMethod(t), i = o.jniCodePtr(), d = exports.module_map.find(i), u = !e.isExcludeModule(d), c = null != i && null != r && 0 == i.compare(r);
-        if (u || c) {
-          const t = o.prettyMethod();
-          return console.log(n.default.red("\n" + t)), !0;
-        }
-        return c || e.excludeArtFun.add(s), !1;
-      }
-      return !1;
+}
+ensureNewestModuleMap();
+class StalkerMonitor {
+    // 监控的 module  路径
+    mpath = "user";
+    // 监控的 module 名称
+    mname = "*";
+    // 监控的 symbol
+    symbol = "*";
+    //  初始化线程
+    initThreadIds = [];
+    //  主线程
+    mainThreadId = -1;
+    // 正在跟踪的线程
+    traceThreads = new Map();
+    // 跟踪的方法指针
+    tracePtrs = new Set();
+    //排除跟踪的模块
+    excludeModules = new Set();
+    //排除的art 方法
+    excludeArtFun = new Set();
+    /**
+     * 是否只观察一次
+     * 方法重复调用过多 容易崩溃
+     * 建议默认开启
+     */
+    once = true;
+    constructor(mpath = "user", mname = "*", symbol = "*") {
+        this.mpath = mpath;
+        this.mname = mname;
+        this.symbol = symbol;
+        this.initThreads();
+        this.watchModule();
     }
-    a.art.hook_art_quick_invoke_stub(((r, a) => {
-      const n = a[0], o = r.threadId;
-      !s(n) || t && o != t || e.ttrace(o);
-    }), (t => {
-      e.unttrace(t.threadId);
-    })), a.art.hook_art_quick_invoke_static_stub(((r, a) => {
-      const n = a[0], o = r.threadId;
-      !s(n) || t && o != t || e.ttrace(o);
-    }), (t => {
-      e.unttrace(t.threadId);
-    }));
-  }
-  watchPthreadCreate() {
-    const t = this;
-    Interceptor.attach(exports.unixlibc.pthread_create_ptr, {
-      onEnter(e) {
-        const r = e[2];
-        t.isExcludeModule(exports.module_map.find(r)) ? console.log("skip art or system thread...") : t.tracePtrs.has(r) || (t.tracePtrs.add(r), 
-        Interceptor.attach(r, {
-          onEnter(e) {
-            t.ttrace(this.threadId);
-          },
-          onLeave(e) {
-            t.unttrace(this.threadId);
-          }
-        }));
-      }
+    watchJniInvoke() {
+        this.javaNativeWatch(null);
+    }
+    watchElfInit() {
+        const _this = this;
+        Interceptor.attach(module_assist_1.alinker.call_constructors_ptr, {
+            onEnter(args) {
+                const soinfo_ptr = args[0];
+                const sinfo = new soinfo_1.SoInfo(soinfo_ptr);
+                const array_ptrs = sinfo.init_array_ptrs();
+                const iptr = sinfo.init_ptr();
+                let initm = null;
+                if (array_ptrs.length > 0) {
+                    initm = exports.module_map.find(array_ptrs[0]);
+                }
+                if (iptr.compare(0)) {
+                    initm = exports.module_map.find(iptr);
+                }
+                if (initm && !_this.isExcludeModule(initm)) {
+                    // if (initm.name.indexOf("svc") != -1) {
+                    this.initm = initm;
+                    // console.log("trace module:"+initm.name)
+                    _this.ttrace(this.threadId);
+                    // }
+                }
+            },
+            onLeave(retval) {
+                if (this.initm) {
+                    _this.unttrace(this.threadId);
+                }
+            },
+        });
+    }
+    unwatch() {
+        for (const tid of this.traceThreads.keys()) {
+            this.unttrace(tid);
+        }
+    }
+    unttrace(tid) {
+        if (!this.traceThreads.has(tid)) {
+            return;
+        }
+        this.traceThreads.delete(tid);
+        Stalker.flush();
+        Stalker.unfollow(tid);
+        // Stalker.garbageCollect();
+    }
+    isExcludeModule(module) {
+        if (!module)
+            return true;
+        const mname = module instanceof Module ? module.name : module;
+        return this.excludeModules.has(mname);
+    }
+    updateExclude() {
+        const excludes = module_assist_1.module_help.nagationModules(exports.module_map, this.get_library_path_prefix(), this.mname);
+        module_assist_1.module_help.toModuleNames(excludes).forEach(name => {
+            this.excludeModules.add(name);
+        });
+        exclude_modules(excludes);
+    }
+    watchModule() {
+        this.updateExclude();
+        //当 spawn 启动的时候 可能部分library 没有加载进去
+        // alinker.hook_find_libraries((path) => {
+        //     this.updateExclude();
+        // })
+        module_assist_1.module_help.watchModule(path => {
+            this.updateExclude();
+        });
+    }
+    watchMain() {
+        this.javaNativeWatch(this.mainThreadId);
+    }
+    /**
+     * 在 art 中 方法执行 通过 ArtMethod::Invoke
+     * 对于 native 方法 会调用 两个方法
+     * art_quick_invoke_stub
+     * art_quick_invoke_static_stub
+     *
+     * 注意 有的时候一开始注册是 RegisterNative(GetJniDlsymLookupStub(), false);
+     * art_jni_dlsym_lookup_stub 函数会调用 artFindNativeMethod 查找本地方法指针
+     * void* native_code = soa.Vm()->FindCodeForNativeMethod(method);
+     * 随后才会重新注册实际 native 指针
+     * method->RegisterNative(native_code, false);
+     *
+     * @ 暂时缺点部分
+     * 根据 https://source.android.google.cn/docs/core/runtime/jit-compiler?hl=zh-cn 官网所说
+     * 部分情况 jit 会对 dex 进行 编译成 .oat 二进制文件
+     * 这对 excludeModules 排除范围照成了阻力。可能会将 oat 范围给排除。以后在看吧。
+     */
+    javaNativeWatch(tid) {
+        const _this = this;
+        const art_jni_dlsym_lookup_stub_ptr = android_art_1.art.get_art_jni_dlsym_lookup_stub_ptr();
+        // console.log("art_jni_dlsym_lookup_stub_ptr:", art_jni_dlsym_lookup_stub_ptr);
+        function checkSoRange(methodId) {
+            const methodIdString = methodId.toString();
+            const exclude_method = _this.excludeArtFun.has(methodIdString);
+            if (exclude_method) {
+                /**
+                 * java 方法太多
+                 * native
+                 * abstract/interface method
+                 * proxy method
+                 * other methods
+                 * 如果不将之前过滤的method 缓存起来。
+                 * 每次判断拖慢了速度。
+                 * 但是内存肯定指数增长
+                 * 但愿这块没bug把。。。
+                 *  */
+            }
+            else {
+                const am = new android_art_1.ArtMethod(methodId);
+                const jniCodePtr = am.jniCodePtr();
+                const m = exports.module_map.find(jniCodePtr);
+                const include = !_this.isExcludeModule(m);
+                const is_lookup_dlsym_jni = jniCodePtr != null &&
+                    art_jni_dlsym_lookup_stub_ptr != null &&
+                    jniCodePtr.compare(art_jni_dlsym_lookup_stub_ptr) == 0;
+                if (include || is_lookup_dlsym_jni) {
+                    const method = am.prettyMethod();
+                    console.log(chalk_1.default.red("\n" + method));
+                    return true;
+                }
+                else if (!is_lookup_dlsym_jni) {
+                    _this.excludeArtFun.add(methodIdString);
+                }
+                return false;
+            }
+            return false;
+        }
+        android_art_1.art.hook_art_quick_invoke_stub((invocontext, args) => {
+            const methodId = args[0];
+            const _tid = invocontext.threadId;
+            if (checkSoRange(methodId) && (!tid || _tid == tid)) {
+                _this.ttrace(_tid);
+            }
+        }, (invocontext) => {
+            _this.unttrace(invocontext.threadId);
+        });
+        android_art_1.art.hook_art_quick_invoke_static_stub((invocontext, args) => {
+            const methodId = args[0];
+            const _tid = invocontext.threadId;
+            if (checkSoRange(methodId) && (!tid || _tid == tid)) {
+                _this.ttrace(_tid);
+            }
+        }, (invocontext) => {
+            _this.unttrace(invocontext.threadId);
+        });
+    }
+    watchPthreadCreate() {
+        const _this = this;
+        Interceptor.attach(exports.unixlibc.pthread_create_ptr, {
+            onEnter(args) {
+                const fun_ptr = args[2];
+                const isArt = _this.isExcludeModule(exports.module_map.find(fun_ptr));
+                if (isArt) {
+                    console.log("skip art or system thread...");
+                }
+                else {
+                    if (!_this.tracePtrs.has(fun_ptr)) {
+                        _this.tracePtrs.add(fun_ptr);
+                        Interceptor.attach(fun_ptr, {
+                            onEnter(args) {
+                                _this.ttrace(this.threadId);
+                            },
+                            onLeave(retval) {
+                                _this.unttrace(this.threadId);
+                            },
+                        });
+                    }
+                }
+            }
+        });
+    }
+    get_library_path_prefix() {
+        if (this.mpath == "user") {
+            return "/data/app/**";
+        }
+        return null;
+    }
+    ttrace(tid) {
+        if (this.traceThreads.has(tid)) {
+            return;
+        }
+        const tinfo = createThreadInfo(tid);
+        this.traceThreads.set(tid, tinfo);
+        Stalker.follow(tid, this.stalkerOptions(tinfo));
+    }
+    initThreads() {
+        const _tids = Process.enumerateThreads().map(tDetail => tDetail.id);
+        const ctid = Process.getCurrentThreadId();
+        const firstTid = _tids[0];
+        const mainTid = Math.min(ctid, firstTid);
+        let tids = _tids;
+        if (mainTid != firstTid) {
+            tids = [mainTid, ...tids];
+        }
+        this.initThreadIds = tids;
+        this.mainThreadId = mainTid;
+    }
+}
+exports.StalkerMonitor = StalkerMonitor;
+function createThreadInfo(tid) {
+    const tname = exports.unixproc.getThreadComm(tid);
+    return { tname, tid };
+}
+function exclude_modules(ms) {
+    ms.forEach(m => {
+        Stalker.exclude(m);
     });
-  }
-  get_library_path_prefix() {
-    return "user" == this.mpath ? "/data/app/**" : null;
-  }
-  ttrace(t) {
-    if (this.traceThreads.has(t)) return;
-    const e = d(t);
-    this.traceThreads.set(t, e), Stalker.follow(t, this.stalkerOptions(e));
-  }
-  initThreads() {
-    const t = Process.enumerateThreads().map((t => t.id)), e = Process.getCurrentThreadId(), r = t[0], a = Math.min(e, r);
-    let s = t;
-    a != r && (s = [ a, ...s ]), this.initThreadIds = s, this.mainThreadId = a;
-  }
 }
-
-function d(t) {
-  return {
-    tname: exports.unixproc.getThreadComm(t),
-    tid: t
-  };
-}
-
-function u(t) {
-  t.forEach((t => {
-    Stalker.exclude(t);
-  }));
-}
-
-exports.StalkerMonitor = i;
-
 },{"../assist/module_assist":3,"../native/android_art":13,"../native/soinfo":14,"../native/unix_android":15,"chalk":17}],11:[function(require,module,exports){
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.SignalNameMap = void 0;
-
-class _ {
-  sinal_map=new Map;
-  constructor() {
-    this.auto_asm_generic_unistd_map();
-  }
-  getSignalName(_, s = "未知") {
-    const t = this.sinal_map.get(_);
-    return t || s;
-  }
-  auto_asm_generic_unistd_map() {
-    this.sinal_map.set(0, "__NR_io_setup"), this.sinal_map.set(1, "__NR_io_destroy"), 
-    this.sinal_map.set(2, "__NR_io_submit"), this.sinal_map.set(3, "__NR_io_cancel"), 
-    this.sinal_map.set(4, "__NR_io_getevents"), this.sinal_map.set(5, "__NR_setxattr"), 
-    this.sinal_map.set(6, "__NR_lsetxattr"), this.sinal_map.set(7, "__NR_fsetxattr"), 
-    this.sinal_map.set(8, "__NR_getxattr"), this.sinal_map.set(9, "__NR_lgetxattr"), 
-    this.sinal_map.set(10, "__NR_fgetxattr"), this.sinal_map.set(11, "__NR_listxattr"), 
-    this.sinal_map.set(12, "__NR_llistxattr"), this.sinal_map.set(13, "__NR_flistxattr"), 
-    this.sinal_map.set(14, "__NR_removexattr"), this.sinal_map.set(15, "__NR_lremovexattr"), 
-    this.sinal_map.set(16, "__NR_fremovexattr"), this.sinal_map.set(17, "__NR_getcwd"), 
-    this.sinal_map.set(18, "__NR_lookup_dcookie"), this.sinal_map.set(19, "__NR_eventfd2"), 
-    this.sinal_map.set(20, "__NR_epoll_create1"), this.sinal_map.set(21, "__NR_epoll_ctl"), 
-    this.sinal_map.set(22, "__NR_epoll_pwait"), this.sinal_map.set(23, "__NR_dup"), 
-    this.sinal_map.set(24, "__NR_dup3"), this.sinal_map.set(25, "__NR3264_fcntl"), this.sinal_map.set(26, "__NR_inotify_init1"), 
-    this.sinal_map.set(27, "__NR_inotify_add_watch"), this.sinal_map.set(28, "__NR_inotify_rm_watch"), 
-    this.sinal_map.set(29, "__NR_ioctl"), this.sinal_map.set(30, "__NR_ioprio_set"), 
-    this.sinal_map.set(31, "__NR_ioprio_get"), this.sinal_map.set(32, "__NR_flock"), 
-    this.sinal_map.set(33, "__NR_mknodat"), this.sinal_map.set(34, "__NR_mkdirat"), 
-    this.sinal_map.set(35, "__NR_unlinkat"), this.sinal_map.set(36, "__NR_symlinkat"), 
-    this.sinal_map.set(37, "__NR_linkat"), this.sinal_map.set(38, "__NR_renameat"), 
-    this.sinal_map.set(39, "__NR_umount2"), this.sinal_map.set(40, "__NR_mount"), this.sinal_map.set(41, "__NR_pivot_root"), 
-    this.sinal_map.set(42, "__NR_nfsservctl"), this.sinal_map.set(43, "__NR3264_statfs"), 
-    this.sinal_map.set(44, "__NR3264_fstatfs"), this.sinal_map.set(45, "__NR3264_truncate"), 
-    this.sinal_map.set(46, "__NR3264_ftruncate"), this.sinal_map.set(47, "__NR_fallocate"), 
-    this.sinal_map.set(48, "__NR_faccessat"), this.sinal_map.set(49, "__NR_chdir"), 
-    this.sinal_map.set(50, "__NR_fchdir"), this.sinal_map.set(51, "__NR_chroot"), this.sinal_map.set(52, "__NR_fchmod"), 
-    this.sinal_map.set(53, "__NR_fchmodat"), this.sinal_map.set(54, "__NR_fchownat"), 
-    this.sinal_map.set(55, "__NR_fchown"), this.sinal_map.set(56, "__NR_openat"), this.sinal_map.set(57, "__NR_close"), 
-    this.sinal_map.set(58, "__NR_vhangup"), this.sinal_map.set(59, "__NR_pipe2"), this.sinal_map.set(60, "__NR_quotactl"), 
-    this.sinal_map.set(61, "__NR_getdents64"), this.sinal_map.set(62, "__NR3264_lseek"), 
-    this.sinal_map.set(63, "__NR_read"), this.sinal_map.set(64, "__NR_write"), this.sinal_map.set(65, "__NR_readv"), 
-    this.sinal_map.set(66, "__NR_writev"), this.sinal_map.set(67, "__NR_pread64"), this.sinal_map.set(68, "__NR_pwrite64"), 
-    this.sinal_map.set(69, "__NR_preadv"), this.sinal_map.set(70, "__NR_pwritev"), this.sinal_map.set(71, "__NR3264_sendfile"), 
-    this.sinal_map.set(72, "__NR_pselect6"), this.sinal_map.set(73, "__NR_ppoll"), this.sinal_map.set(74, "__NR_signalfd4"), 
-    this.sinal_map.set(75, "__NR_vmsplice"), this.sinal_map.set(76, "__NR_splice"), 
-    this.sinal_map.set(77, "__NR_tee"), this.sinal_map.set(78, "__NR_readlinkat"), this.sinal_map.set(79, "__NR3264_fstatat"), 
-    this.sinal_map.set(80, "__NR3264_fstat"), this.sinal_map.set(81, "__NR_sync"), this.sinal_map.set(82, "__NR_fsync"), 
-    this.sinal_map.set(83, "__NR_fdatasync"), this.sinal_map.set(84, "__NR_sync_file_range2"), 
-    this.sinal_map.set(84, "__NR_sync_file_range"), this.sinal_map.set(85, "__NR_timerfd_create"), 
-    this.sinal_map.set(86, "__NR_timerfd_settime"), this.sinal_map.set(87, "__NR_timerfd_gettime"), 
-    this.sinal_map.set(88, "__NR_utimensat"), this.sinal_map.set(89, "__NR_acct"), this.sinal_map.set(90, "__NR_capget"), 
-    this.sinal_map.set(91, "__NR_capset"), this.sinal_map.set(92, "__NR_personality"), 
-    this.sinal_map.set(93, "__NR_exit"), this.sinal_map.set(94, "__NR_exit_group"), 
-    this.sinal_map.set(95, "__NR_waitid"), this.sinal_map.set(96, "__NR_set_tid_address"), 
-    this.sinal_map.set(97, "__NR_unshare"), this.sinal_map.set(98, "__NR_futex"), this.sinal_map.set(99, "__NR_set_robust_list"), 
-    this.sinal_map.set(100, "__NR_get_robust_list"), this.sinal_map.set(101, "__NR_nanosleep"), 
-    this.sinal_map.set(102, "__NR_getitimer"), this.sinal_map.set(103, "__NR_setitimer"), 
-    this.sinal_map.set(104, "__NR_kexec_load"), this.sinal_map.set(105, "__NR_init_module"), 
-    this.sinal_map.set(106, "__NR_delete_module"), this.sinal_map.set(107, "__NR_timer_create"), 
-    this.sinal_map.set(108, "__NR_timer_gettime"), this.sinal_map.set(109, "__NR_timer_getoverrun"), 
-    this.sinal_map.set(110, "__NR_timer_settime"), this.sinal_map.set(111, "__NR_timer_delete"), 
-    this.sinal_map.set(112, "__NR_clock_settime"), this.sinal_map.set(113, "__NR_clock_gettime"), 
-    this.sinal_map.set(114, "__NR_clock_getres"), this.sinal_map.set(115, "__NR_clock_nanosleep"), 
-    this.sinal_map.set(116, "__NR_syslog"), this.sinal_map.set(117, "__NR_ptrace"), 
-    this.sinal_map.set(118, "__NR_sched_setparam"), this.sinal_map.set(119, "__NR_sched_setscheduler"), 
-    this.sinal_map.set(120, "__NR_sched_getscheduler"), this.sinal_map.set(121, "__NR_sched_getparam"), 
-    this.sinal_map.set(122, "__NR_sched_setaffinity"), this.sinal_map.set(123, "__NR_sched_getaffinity"), 
-    this.sinal_map.set(124, "__NR_sched_yield"), this.sinal_map.set(125, "__NR_sched_get_priority_max"), 
-    this.sinal_map.set(126, "__NR_sched_get_priority_min"), this.sinal_map.set(127, "__NR_sched_rr_get_interval"), 
-    this.sinal_map.set(128, "__NR_restart_syscall"), this.sinal_map.set(129, "__NR_kill"), 
-    this.sinal_map.set(130, "__NR_tkill"), this.sinal_map.set(131, "__NR_tgkill"), this.sinal_map.set(132, "__NR_sigaltstack"), 
-    this.sinal_map.set(133, "__NR_rt_sigsuspend"), this.sinal_map.set(134, "__NR_rt_sigaction"), 
-    this.sinal_map.set(135, "__NR_rt_sigprocmask"), this.sinal_map.set(136, "__NR_rt_sigpending"), 
-    this.sinal_map.set(137, "__NR_rt_sigtimedwait"), this.sinal_map.set(138, "__NR_rt_sigqueueinfo"), 
-    this.sinal_map.set(139, "__NR_rt_sigreturn"), this.sinal_map.set(140, "__NR_setpriority"), 
-    this.sinal_map.set(141, "__NR_getpriority"), this.sinal_map.set(142, "__NR_reboot"), 
-    this.sinal_map.set(143, "__NR_setregid"), this.sinal_map.set(144, "__NR_setgid"), 
-    this.sinal_map.set(145, "__NR_setreuid"), this.sinal_map.set(146, "__NR_setuid"), 
-    this.sinal_map.set(147, "__NR_setresuid"), this.sinal_map.set(148, "__NR_getresuid"), 
-    this.sinal_map.set(149, "__NR_setresgid"), this.sinal_map.set(150, "__NR_getresgid"), 
-    this.sinal_map.set(151, "__NR_setfsuid"), this.sinal_map.set(152, "__NR_setfsgid"), 
-    this.sinal_map.set(153, "__NR_times"), this.sinal_map.set(154, "__NR_setpgid"), 
-    this.sinal_map.set(155, "__NR_getpgid"), this.sinal_map.set(156, "__NR_getsid"), 
-    this.sinal_map.set(157, "__NR_setsid"), this.sinal_map.set(158, "__NR_getgroups"), 
-    this.sinal_map.set(159, "__NR_setgroups"), this.sinal_map.set(160, "__NR_uname"), 
-    this.sinal_map.set(161, "__NR_sethostname"), this.sinal_map.set(162, "__NR_setdomainname"), 
-    this.sinal_map.set(163, "__NR_getrlimit"), this.sinal_map.set(164, "__NR_setrlimit"), 
-    this.sinal_map.set(165, "__NR_getrusage"), this.sinal_map.set(166, "__NR_umask"), 
-    this.sinal_map.set(167, "__NR_prctl"), this.sinal_map.set(168, "__NR_getcpu"), this.sinal_map.set(169, "__NR_gettimeofday"), 
-    this.sinal_map.set(170, "__NR_settimeofday"), this.sinal_map.set(171, "__NR_adjtimex"), 
-    this.sinal_map.set(172, "__NR_getpid"), this.sinal_map.set(173, "__NR_getppid"), 
-    this.sinal_map.set(174, "__NR_getuid"), this.sinal_map.set(175, "__NR_geteuid"), 
-    this.sinal_map.set(176, "__NR_getgid"), this.sinal_map.set(177, "__NR_getegid"), 
-    this.sinal_map.set(178, "__NR_gettid"), this.sinal_map.set(179, "__NR_sysinfo"), 
-    this.sinal_map.set(180, "__NR_mq_open"), this.sinal_map.set(181, "__NR_mq_unlink"), 
-    this.sinal_map.set(182, "__NR_mq_timedsend"), this.sinal_map.set(183, "__NR_mq_timedreceive"), 
-    this.sinal_map.set(184, "__NR_mq_notify"), this.sinal_map.set(185, "__NR_mq_getsetattr"), 
-    this.sinal_map.set(186, "__NR_msgget"), this.sinal_map.set(187, "__NR_msgctl"), 
-    this.sinal_map.set(188, "__NR_msgrcv"), this.sinal_map.set(189, "__NR_msgsnd"), 
-    this.sinal_map.set(190, "__NR_semget"), this.sinal_map.set(191, "__NR_semctl"), 
-    this.sinal_map.set(192, "__NR_semtimedop"), this.sinal_map.set(193, "__NR_semop"), 
-    this.sinal_map.set(194, "__NR_shmget"), this.sinal_map.set(195, "__NR_shmctl"), 
-    this.sinal_map.set(196, "__NR_shmat"), this.sinal_map.set(197, "__NR_shmdt"), this.sinal_map.set(198, "__NR_socket"), 
-    this.sinal_map.set(199, "__NR_socketpair"), this.sinal_map.set(200, "__NR_bind"), 
-    this.sinal_map.set(201, "__NR_listen"), this.sinal_map.set(202, "__NR_accept"), 
-    this.sinal_map.set(203, "__NR_connect"), this.sinal_map.set(204, "__NR_getsockname"), 
-    this.sinal_map.set(205, "__NR_getpeername"), this.sinal_map.set(206, "__NR_sendto"), 
-    this.sinal_map.set(207, "__NR_recvfrom"), this.sinal_map.set(208, "__NR_setsockopt"), 
-    this.sinal_map.set(209, "__NR_getsockopt"), this.sinal_map.set(210, "__NR_shutdown"), 
-    this.sinal_map.set(211, "__NR_sendmsg"), this.sinal_map.set(212, "__NR_recvmsg"), 
-    this.sinal_map.set(213, "__NR_readahead"), this.sinal_map.set(214, "__NR_brk"), 
-    this.sinal_map.set(215, "__NR_munmap"), this.sinal_map.set(216, "__NR_mremap"), 
-    this.sinal_map.set(217, "__NR_add_key"), this.sinal_map.set(218, "__NR_request_key"), 
-    this.sinal_map.set(219, "__NR_keyctl"), this.sinal_map.set(220, "__NR_clone"), this.sinal_map.set(221, "__NR_execve"), 
-    this.sinal_map.set(222, "__NR3264_mmap"), this.sinal_map.set(223, "__NR3264_fadvise64"), 
-    this.sinal_map.set(224, "__NR_swapon"), this.sinal_map.set(225, "__NR_swapoff"), 
-    this.sinal_map.set(226, "__NR_mprotect"), this.sinal_map.set(227, "__NR_msync"), 
-    this.sinal_map.set(228, "__NR_mlock"), this.sinal_map.set(229, "__NR_munlock"), 
-    this.sinal_map.set(230, "__NR_mlockall"), this.sinal_map.set(231, "__NR_munlockall"), 
-    this.sinal_map.set(232, "__NR_mincore"), this.sinal_map.set(233, "__NR_madvise"), 
-    this.sinal_map.set(234, "__NR_remap_file_pages"), this.sinal_map.set(235, "__NR_mbind"), 
-    this.sinal_map.set(236, "__NR_get_mempolicy"), this.sinal_map.set(237, "__NR_set_mempolicy"), 
-    this.sinal_map.set(238, "__NR_migrate_pages"), this.sinal_map.set(239, "__NR_move_pages"), 
-    this.sinal_map.set(240, "__NR_rt_tgsigqueueinfo"), this.sinal_map.set(241, "__NR_perf_event_open"), 
-    this.sinal_map.set(242, "__NR_accept4"), this.sinal_map.set(243, "__NR_recvmmsg"), 
-    this.sinal_map.set(244, "__NR_arch_specific_syscall"), this.sinal_map.set(260, "__NR_wait4"), 
-    this.sinal_map.set(261, "__NR_prlimit64"), this.sinal_map.set(262, "__NR_fanotify_init"), 
-    this.sinal_map.set(263, "__NR_fanotify_mark"), this.sinal_map.set(264, "__NR_name_to_handle_at"), 
-    this.sinal_map.set(265, "__NR_open_by_handle_at"), this.sinal_map.set(266, "__NR_clock_adjtime"), 
-    this.sinal_map.set(267, "__NR_syncfs"), this.sinal_map.set(268, "__NR_setns"), this.sinal_map.set(269, "__NR_sendmmsg"), 
-    this.sinal_map.set(270, "__NR_process_vm_readv"), this.sinal_map.set(271, "__NR_process_vm_writev"), 
-    this.sinal_map.set(272, "__NR_kcmp"), this.sinal_map.set(273, "__NR_finit_module"), 
-    this.sinal_map.set(274, "__NR_sched_setattr"), this.sinal_map.set(275, "__NR_sched_getattr"), 
-    this.sinal_map.set(276, "__NR_renameat2"), this.sinal_map.set(277, "__NR_seccomp"), 
-    this.sinal_map.set(278, "__NR_getrandom"), this.sinal_map.set(279, "__NR_memfd_create"), 
-    this.sinal_map.set(280, "__NR_bpf"), this.sinal_map.set(281, "__NR_execveat"), this.sinal_map.set(282, "__NR_userfaultfd"), 
-    this.sinal_map.set(283, "__NR_membarrier"), this.sinal_map.set(284, "__NR_mlock2"), 
-    this.sinal_map.set(285, "__NR_copy_file_range"), this.sinal_map.set(286, "__NR_preadv2"), 
-    this.sinal_map.set(287, "__NR_pwritev2"), this.sinal_map.set(288, "__NR_pkey_mprotect"), 
-    this.sinal_map.set(289, "__NR_pkey_alloc"), this.sinal_map.set(290, "__NR_pkey_free"), 
-    this.sinal_map.set(291, "__NR_statx"), this.sinal_map.set(292, "__NR_io_pgetevents"), 
-    this.sinal_map.set(293, "__NR_rseq"), this.sinal_map.set(294, "__NR_kexec_file_load"), 
-    this.sinal_map.set(403, "__NR_clock_gettime64"), this.sinal_map.set(404, "__NR_clock_settime64"), 
-    this.sinal_map.set(405, "__NR_clock_adjtime64"), this.sinal_map.set(406, "__NR_clock_getres_time64"), 
-    this.sinal_map.set(407, "__NR_clock_nanosleep_time64"), this.sinal_map.set(408, "__NR_timer_gettime64"), 
-    this.sinal_map.set(409, "__NR_timer_settime64"), this.sinal_map.set(410, "__NR_timerfd_gettime64"), 
-    this.sinal_map.set(411, "__NR_timerfd_settime64"), this.sinal_map.set(412, "__NR_utimensat_time64"), 
-    this.sinal_map.set(413, "__NR_pselect6_time64"), this.sinal_map.set(414, "__NR_ppoll_time64"), 
-    this.sinal_map.set(416, "__NR_io_pgetevents_time64"), this.sinal_map.set(417, "__NR_recvmmsg_time64"), 
-    this.sinal_map.set(418, "__NR_mq_timedsend_time64"), this.sinal_map.set(419, "__NR_mq_timedreceive_time64"), 
-    this.sinal_map.set(420, "__NR_semtimedop_time64"), this.sinal_map.set(421, "__NR_rt_sigtimedwait_time64"), 
-    this.sinal_map.set(422, "__NR_futex_time64"), this.sinal_map.set(423, "__NR_sched_rr_get_interval_time64"), 
-    this.sinal_map.set(424, "__NR_pidfd_send_signal"), this.sinal_map.set(425, "__NR_io_uring_setup"), 
-    this.sinal_map.set(426, "__NR_io_uring_enter"), this.sinal_map.set(427, "__NR_io_uring_register"), 
-    this.sinal_map.set(428, "__NR_open_tree"), this.sinal_map.set(429, "__NR_move_mount"), 
-    this.sinal_map.set(430, "__NR_fsopen"), this.sinal_map.set(431, "__NR_fsconfig"), 
-    this.sinal_map.set(432, "__NR_fsmount"), this.sinal_map.set(433, "__NR_fspick"), 
-    this.sinal_map.set(434, "__NR_pidfd_open"), this.sinal_map.set(435, "__NR_clone3"), 
-    this.sinal_map.set(436, "__NR_close_range"), this.sinal_map.set(437, "__NR_openat2"), 
-    this.sinal_map.set(438, "__NR_pidfd_getfd"), this.sinal_map.set(439, "__NR_faccessat2"), 
-    this.sinal_map.set(440, "__NR_process_madvise"), this.sinal_map.set(441, "__NR_epoll_pwait2"), 
-    this.sinal_map.set(442, "__NR_mount_setattr"), this.sinal_map.set(443, "__NR_quotactl_fd"), 
-    this.sinal_map.set(444, "__NR_landlock_create_ruleset"), this.sinal_map.set(445, "__NR_landlock_add_rule"), 
-    this.sinal_map.set(446, "__NR_landlock_restrict_self"), this.sinal_map.set(447, "__NR_memfd_secret"), 
-    this.sinal_map.set(448, "__NR_process_mrelease"), this.sinal_map.set(449, "__NR_futex_waitv"), 
-    this.sinal_map.set(450, "__NR_set_mempolicy_home_node"), this.sinal_map.set(451, "__NR_syscalls");
-  }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SignalNameMap = void 0;
+class SignalNameMap {
+    sinal_map = new Map();
+    constructor() {
+        this.auto_asm_generic_unistd_map();
+    }
+    getSignalName(signal, defaultName = "未知") {
+        const name = this.sinal_map.get(signal);
+        return name ? name : defaultName;
+    }
+    auto_asm_generic_unistd_map() {
+        this.sinal_map.set(0, "__NR_io_setup");
+        this.sinal_map.set(1, "__NR_io_destroy");
+        this.sinal_map.set(2, "__NR_io_submit");
+        this.sinal_map.set(3, "__NR_io_cancel");
+        this.sinal_map.set(4, "__NR_io_getevents");
+        this.sinal_map.set(5, "__NR_setxattr");
+        this.sinal_map.set(6, "__NR_lsetxattr");
+        this.sinal_map.set(7, "__NR_fsetxattr");
+        this.sinal_map.set(8, "__NR_getxattr");
+        this.sinal_map.set(9, "__NR_lgetxattr");
+        this.sinal_map.set(10, "__NR_fgetxattr");
+        this.sinal_map.set(11, "__NR_listxattr");
+        this.sinal_map.set(12, "__NR_llistxattr");
+        this.sinal_map.set(13, "__NR_flistxattr");
+        this.sinal_map.set(14, "__NR_removexattr");
+        this.sinal_map.set(15, "__NR_lremovexattr");
+        this.sinal_map.set(16, "__NR_fremovexattr");
+        this.sinal_map.set(17, "__NR_getcwd");
+        this.sinal_map.set(18, "__NR_lookup_dcookie");
+        this.sinal_map.set(19, "__NR_eventfd2");
+        this.sinal_map.set(20, "__NR_epoll_create1");
+        this.sinal_map.set(21, "__NR_epoll_ctl");
+        this.sinal_map.set(22, "__NR_epoll_pwait");
+        this.sinal_map.set(23, "__NR_dup");
+        this.sinal_map.set(24, "__NR_dup3");
+        this.sinal_map.set(25, "__NR3264_fcntl");
+        this.sinal_map.set(26, "__NR_inotify_init1");
+        this.sinal_map.set(27, "__NR_inotify_add_watch");
+        this.sinal_map.set(28, "__NR_inotify_rm_watch");
+        this.sinal_map.set(29, "__NR_ioctl");
+        this.sinal_map.set(30, "__NR_ioprio_set");
+        this.sinal_map.set(31, "__NR_ioprio_get");
+        this.sinal_map.set(32, "__NR_flock");
+        this.sinal_map.set(33, "__NR_mknodat");
+        this.sinal_map.set(34, "__NR_mkdirat");
+        this.sinal_map.set(35, "__NR_unlinkat");
+        this.sinal_map.set(36, "__NR_symlinkat");
+        this.sinal_map.set(37, "__NR_linkat");
+        this.sinal_map.set(38, "__NR_renameat");
+        this.sinal_map.set(39, "__NR_umount2");
+        this.sinal_map.set(40, "__NR_mount");
+        this.sinal_map.set(41, "__NR_pivot_root");
+        this.sinal_map.set(42, "__NR_nfsservctl");
+        this.sinal_map.set(43, "__NR3264_statfs");
+        this.sinal_map.set(44, "__NR3264_fstatfs");
+        this.sinal_map.set(45, "__NR3264_truncate");
+        this.sinal_map.set(46, "__NR3264_ftruncate");
+        this.sinal_map.set(47, "__NR_fallocate");
+        this.sinal_map.set(48, "__NR_faccessat");
+        this.sinal_map.set(49, "__NR_chdir");
+        this.sinal_map.set(50, "__NR_fchdir");
+        this.sinal_map.set(51, "__NR_chroot");
+        this.sinal_map.set(52, "__NR_fchmod");
+        this.sinal_map.set(53, "__NR_fchmodat");
+        this.sinal_map.set(54, "__NR_fchownat");
+        this.sinal_map.set(55, "__NR_fchown");
+        this.sinal_map.set(56, "__NR_openat");
+        this.sinal_map.set(57, "__NR_close");
+        this.sinal_map.set(58, "__NR_vhangup");
+        this.sinal_map.set(59, "__NR_pipe2");
+        this.sinal_map.set(60, "__NR_quotactl");
+        this.sinal_map.set(61, "__NR_getdents64");
+        this.sinal_map.set(62, "__NR3264_lseek");
+        this.sinal_map.set(63, "__NR_read");
+        this.sinal_map.set(64, "__NR_write");
+        this.sinal_map.set(65, "__NR_readv");
+        this.sinal_map.set(66, "__NR_writev");
+        this.sinal_map.set(67, "__NR_pread64");
+        this.sinal_map.set(68, "__NR_pwrite64");
+        this.sinal_map.set(69, "__NR_preadv");
+        this.sinal_map.set(70, "__NR_pwritev");
+        this.sinal_map.set(71, "__NR3264_sendfile");
+        this.sinal_map.set(72, "__NR_pselect6");
+        this.sinal_map.set(73, "__NR_ppoll");
+        this.sinal_map.set(74, "__NR_signalfd4");
+        this.sinal_map.set(75, "__NR_vmsplice");
+        this.sinal_map.set(76, "__NR_splice");
+        this.sinal_map.set(77, "__NR_tee");
+        this.sinal_map.set(78, "__NR_readlinkat");
+        this.sinal_map.set(79, "__NR3264_fstatat");
+        this.sinal_map.set(80, "__NR3264_fstat");
+        this.sinal_map.set(81, "__NR_sync");
+        this.sinal_map.set(82, "__NR_fsync");
+        this.sinal_map.set(83, "__NR_fdatasync");
+        this.sinal_map.set(84, "__NR_sync_file_range2");
+        this.sinal_map.set(84, "__NR_sync_file_range");
+        this.sinal_map.set(85, "__NR_timerfd_create");
+        this.sinal_map.set(86, "__NR_timerfd_settime");
+        this.sinal_map.set(87, "__NR_timerfd_gettime");
+        this.sinal_map.set(88, "__NR_utimensat");
+        this.sinal_map.set(89, "__NR_acct");
+        this.sinal_map.set(90, "__NR_capget");
+        this.sinal_map.set(91, "__NR_capset");
+        this.sinal_map.set(92, "__NR_personality");
+        this.sinal_map.set(93, "__NR_exit");
+        this.sinal_map.set(94, "__NR_exit_group");
+        this.sinal_map.set(95, "__NR_waitid");
+        this.sinal_map.set(96, "__NR_set_tid_address");
+        this.sinal_map.set(97, "__NR_unshare");
+        this.sinal_map.set(98, "__NR_futex");
+        this.sinal_map.set(99, "__NR_set_robust_list");
+        this.sinal_map.set(100, "__NR_get_robust_list");
+        this.sinal_map.set(101, "__NR_nanosleep");
+        this.sinal_map.set(102, "__NR_getitimer");
+        this.sinal_map.set(103, "__NR_setitimer");
+        this.sinal_map.set(104, "__NR_kexec_load");
+        this.sinal_map.set(105, "__NR_init_module");
+        this.sinal_map.set(106, "__NR_delete_module");
+        this.sinal_map.set(107, "__NR_timer_create");
+        this.sinal_map.set(108, "__NR_timer_gettime");
+        this.sinal_map.set(109, "__NR_timer_getoverrun");
+        this.sinal_map.set(110, "__NR_timer_settime");
+        this.sinal_map.set(111, "__NR_timer_delete");
+        this.sinal_map.set(112, "__NR_clock_settime");
+        this.sinal_map.set(113, "__NR_clock_gettime");
+        this.sinal_map.set(114, "__NR_clock_getres");
+        this.sinal_map.set(115, "__NR_clock_nanosleep");
+        this.sinal_map.set(116, "__NR_syslog");
+        this.sinal_map.set(117, "__NR_ptrace");
+        this.sinal_map.set(118, "__NR_sched_setparam");
+        this.sinal_map.set(119, "__NR_sched_setscheduler");
+        this.sinal_map.set(120, "__NR_sched_getscheduler");
+        this.sinal_map.set(121, "__NR_sched_getparam");
+        this.sinal_map.set(122, "__NR_sched_setaffinity");
+        this.sinal_map.set(123, "__NR_sched_getaffinity");
+        this.sinal_map.set(124, "__NR_sched_yield");
+        this.sinal_map.set(125, "__NR_sched_get_priority_max");
+        this.sinal_map.set(126, "__NR_sched_get_priority_min");
+        this.sinal_map.set(127, "__NR_sched_rr_get_interval");
+        this.sinal_map.set(128, "__NR_restart_syscall");
+        this.sinal_map.set(129, "__NR_kill");
+        this.sinal_map.set(130, "__NR_tkill");
+        this.sinal_map.set(131, "__NR_tgkill");
+        this.sinal_map.set(132, "__NR_sigaltstack");
+        this.sinal_map.set(133, "__NR_rt_sigsuspend");
+        this.sinal_map.set(134, "__NR_rt_sigaction");
+        this.sinal_map.set(135, "__NR_rt_sigprocmask");
+        this.sinal_map.set(136, "__NR_rt_sigpending");
+        this.sinal_map.set(137, "__NR_rt_sigtimedwait");
+        this.sinal_map.set(138, "__NR_rt_sigqueueinfo");
+        this.sinal_map.set(139, "__NR_rt_sigreturn");
+        this.sinal_map.set(140, "__NR_setpriority");
+        this.sinal_map.set(141, "__NR_getpriority");
+        this.sinal_map.set(142, "__NR_reboot");
+        this.sinal_map.set(143, "__NR_setregid");
+        this.sinal_map.set(144, "__NR_setgid");
+        this.sinal_map.set(145, "__NR_setreuid");
+        this.sinal_map.set(146, "__NR_setuid");
+        this.sinal_map.set(147, "__NR_setresuid");
+        this.sinal_map.set(148, "__NR_getresuid");
+        this.sinal_map.set(149, "__NR_setresgid");
+        this.sinal_map.set(150, "__NR_getresgid");
+        this.sinal_map.set(151, "__NR_setfsuid");
+        this.sinal_map.set(152, "__NR_setfsgid");
+        this.sinal_map.set(153, "__NR_times");
+        this.sinal_map.set(154, "__NR_setpgid");
+        this.sinal_map.set(155, "__NR_getpgid");
+        this.sinal_map.set(156, "__NR_getsid");
+        this.sinal_map.set(157, "__NR_setsid");
+        this.sinal_map.set(158, "__NR_getgroups");
+        this.sinal_map.set(159, "__NR_setgroups");
+        this.sinal_map.set(160, "__NR_uname");
+        this.sinal_map.set(161, "__NR_sethostname");
+        this.sinal_map.set(162, "__NR_setdomainname");
+        this.sinal_map.set(163, "__NR_getrlimit");
+        this.sinal_map.set(164, "__NR_setrlimit");
+        this.sinal_map.set(165, "__NR_getrusage");
+        this.sinal_map.set(166, "__NR_umask");
+        this.sinal_map.set(167, "__NR_prctl");
+        this.sinal_map.set(168, "__NR_getcpu");
+        this.sinal_map.set(169, "__NR_gettimeofday");
+        this.sinal_map.set(170, "__NR_settimeofday");
+        this.sinal_map.set(171, "__NR_adjtimex");
+        this.sinal_map.set(172, "__NR_getpid");
+        this.sinal_map.set(173, "__NR_getppid");
+        this.sinal_map.set(174, "__NR_getuid");
+        this.sinal_map.set(175, "__NR_geteuid");
+        this.sinal_map.set(176, "__NR_getgid");
+        this.sinal_map.set(177, "__NR_getegid");
+        this.sinal_map.set(178, "__NR_gettid");
+        this.sinal_map.set(179, "__NR_sysinfo");
+        this.sinal_map.set(180, "__NR_mq_open");
+        this.sinal_map.set(181, "__NR_mq_unlink");
+        this.sinal_map.set(182, "__NR_mq_timedsend");
+        this.sinal_map.set(183, "__NR_mq_timedreceive");
+        this.sinal_map.set(184, "__NR_mq_notify");
+        this.sinal_map.set(185, "__NR_mq_getsetattr");
+        this.sinal_map.set(186, "__NR_msgget");
+        this.sinal_map.set(187, "__NR_msgctl");
+        this.sinal_map.set(188, "__NR_msgrcv");
+        this.sinal_map.set(189, "__NR_msgsnd");
+        this.sinal_map.set(190, "__NR_semget");
+        this.sinal_map.set(191, "__NR_semctl");
+        this.sinal_map.set(192, "__NR_semtimedop");
+        this.sinal_map.set(193, "__NR_semop");
+        this.sinal_map.set(194, "__NR_shmget");
+        this.sinal_map.set(195, "__NR_shmctl");
+        this.sinal_map.set(196, "__NR_shmat");
+        this.sinal_map.set(197, "__NR_shmdt");
+        this.sinal_map.set(198, "__NR_socket");
+        this.sinal_map.set(199, "__NR_socketpair");
+        this.sinal_map.set(200, "__NR_bind");
+        this.sinal_map.set(201, "__NR_listen");
+        this.sinal_map.set(202, "__NR_accept");
+        this.sinal_map.set(203, "__NR_connect");
+        this.sinal_map.set(204, "__NR_getsockname");
+        this.sinal_map.set(205, "__NR_getpeername");
+        this.sinal_map.set(206, "__NR_sendto");
+        this.sinal_map.set(207, "__NR_recvfrom");
+        this.sinal_map.set(208, "__NR_setsockopt");
+        this.sinal_map.set(209, "__NR_getsockopt");
+        this.sinal_map.set(210, "__NR_shutdown");
+        this.sinal_map.set(211, "__NR_sendmsg");
+        this.sinal_map.set(212, "__NR_recvmsg");
+        this.sinal_map.set(213, "__NR_readahead");
+        this.sinal_map.set(214, "__NR_brk");
+        this.sinal_map.set(215, "__NR_munmap");
+        this.sinal_map.set(216, "__NR_mremap");
+        this.sinal_map.set(217, "__NR_add_key");
+        this.sinal_map.set(218, "__NR_request_key");
+        this.sinal_map.set(219, "__NR_keyctl");
+        this.sinal_map.set(220, "__NR_clone");
+        this.sinal_map.set(221, "__NR_execve");
+        this.sinal_map.set(222, "__NR3264_mmap");
+        this.sinal_map.set(223, "__NR3264_fadvise64");
+        this.sinal_map.set(224, "__NR_swapon");
+        this.sinal_map.set(225, "__NR_swapoff");
+        this.sinal_map.set(226, "__NR_mprotect");
+        this.sinal_map.set(227, "__NR_msync");
+        this.sinal_map.set(228, "__NR_mlock");
+        this.sinal_map.set(229, "__NR_munlock");
+        this.sinal_map.set(230, "__NR_mlockall");
+        this.sinal_map.set(231, "__NR_munlockall");
+        this.sinal_map.set(232, "__NR_mincore");
+        this.sinal_map.set(233, "__NR_madvise");
+        this.sinal_map.set(234, "__NR_remap_file_pages");
+        this.sinal_map.set(235, "__NR_mbind");
+        this.sinal_map.set(236, "__NR_get_mempolicy");
+        this.sinal_map.set(237, "__NR_set_mempolicy");
+        this.sinal_map.set(238, "__NR_migrate_pages");
+        this.sinal_map.set(239, "__NR_move_pages");
+        this.sinal_map.set(240, "__NR_rt_tgsigqueueinfo");
+        this.sinal_map.set(241, "__NR_perf_event_open");
+        this.sinal_map.set(242, "__NR_accept4");
+        this.sinal_map.set(243, "__NR_recvmmsg");
+        this.sinal_map.set(244, "__NR_arch_specific_syscall");
+        this.sinal_map.set(260, "__NR_wait4");
+        this.sinal_map.set(261, "__NR_prlimit64");
+        this.sinal_map.set(262, "__NR_fanotify_init");
+        this.sinal_map.set(263, "__NR_fanotify_mark");
+        this.sinal_map.set(264, "__NR_name_to_handle_at");
+        this.sinal_map.set(265, "__NR_open_by_handle_at");
+        this.sinal_map.set(266, "__NR_clock_adjtime");
+        this.sinal_map.set(267, "__NR_syncfs");
+        this.sinal_map.set(268, "__NR_setns");
+        this.sinal_map.set(269, "__NR_sendmmsg");
+        this.sinal_map.set(270, "__NR_process_vm_readv");
+        this.sinal_map.set(271, "__NR_process_vm_writev");
+        this.sinal_map.set(272, "__NR_kcmp");
+        this.sinal_map.set(273, "__NR_finit_module");
+        this.sinal_map.set(274, "__NR_sched_setattr");
+        this.sinal_map.set(275, "__NR_sched_getattr");
+        this.sinal_map.set(276, "__NR_renameat2");
+        this.sinal_map.set(277, "__NR_seccomp");
+        this.sinal_map.set(278, "__NR_getrandom");
+        this.sinal_map.set(279, "__NR_memfd_create");
+        this.sinal_map.set(280, "__NR_bpf");
+        this.sinal_map.set(281, "__NR_execveat");
+        this.sinal_map.set(282, "__NR_userfaultfd");
+        this.sinal_map.set(283, "__NR_membarrier");
+        this.sinal_map.set(284, "__NR_mlock2");
+        this.sinal_map.set(285, "__NR_copy_file_range");
+        this.sinal_map.set(286, "__NR_preadv2");
+        this.sinal_map.set(287, "__NR_pwritev2");
+        this.sinal_map.set(288, "__NR_pkey_mprotect");
+        this.sinal_map.set(289, "__NR_pkey_alloc");
+        this.sinal_map.set(290, "__NR_pkey_free");
+        this.sinal_map.set(291, "__NR_statx");
+        this.sinal_map.set(292, "__NR_io_pgetevents");
+        this.sinal_map.set(293, "__NR_rseq");
+        this.sinal_map.set(294, "__NR_kexec_file_load");
+        this.sinal_map.set(403, "__NR_clock_gettime64");
+        this.sinal_map.set(404, "__NR_clock_settime64");
+        this.sinal_map.set(405, "__NR_clock_adjtime64");
+        this.sinal_map.set(406, "__NR_clock_getres_time64");
+        this.sinal_map.set(407, "__NR_clock_nanosleep_time64");
+        this.sinal_map.set(408, "__NR_timer_gettime64");
+        this.sinal_map.set(409, "__NR_timer_settime64");
+        this.sinal_map.set(410, "__NR_timerfd_gettime64");
+        this.sinal_map.set(411, "__NR_timerfd_settime64");
+        this.sinal_map.set(412, "__NR_utimensat_time64");
+        this.sinal_map.set(413, "__NR_pselect6_time64");
+        this.sinal_map.set(414, "__NR_ppoll_time64");
+        this.sinal_map.set(416, "__NR_io_pgetevents_time64");
+        this.sinal_map.set(417, "__NR_recvmmsg_time64");
+        this.sinal_map.set(418, "__NR_mq_timedsend_time64");
+        this.sinal_map.set(419, "__NR_mq_timedreceive_time64");
+        this.sinal_map.set(420, "__NR_semtimedop_time64");
+        this.sinal_map.set(421, "__NR_rt_sigtimedwait_time64");
+        this.sinal_map.set(422, "__NR_futex_time64");
+        this.sinal_map.set(423, "__NR_sched_rr_get_interval_time64");
+        this.sinal_map.set(424, "__NR_pidfd_send_signal");
+        this.sinal_map.set(425, "__NR_io_uring_setup");
+        this.sinal_map.set(426, "__NR_io_uring_enter");
+        this.sinal_map.set(427, "__NR_io_uring_register");
+        this.sinal_map.set(428, "__NR_open_tree");
+        this.sinal_map.set(429, "__NR_move_mount");
+        this.sinal_map.set(430, "__NR_fsopen");
+        this.sinal_map.set(431, "__NR_fsconfig");
+        this.sinal_map.set(432, "__NR_fsmount");
+        this.sinal_map.set(433, "__NR_fspick");
+        this.sinal_map.set(434, "__NR_pidfd_open");
+        this.sinal_map.set(435, "__NR_clone3");
+        this.sinal_map.set(436, "__NR_close_range");
+        this.sinal_map.set(437, "__NR_openat2");
+        this.sinal_map.set(438, "__NR_pidfd_getfd");
+        this.sinal_map.set(439, "__NR_faccessat2");
+        this.sinal_map.set(440, "__NR_process_madvise");
+        this.sinal_map.set(441, "__NR_epoll_pwait2");
+        this.sinal_map.set(442, "__NR_mount_setattr");
+        this.sinal_map.set(443, "__NR_quotactl_fd");
+        this.sinal_map.set(444, "__NR_landlock_create_ruleset");
+        this.sinal_map.set(445, "__NR_landlock_add_rule");
+        this.sinal_map.set(446, "__NR_landlock_restrict_self");
+        this.sinal_map.set(447, "__NR_memfd_secret");
+        this.sinal_map.set(448, "__NR_process_mrelease");
+        this.sinal_map.set(449, "__NR_futex_waitv");
+        this.sinal_map.set(450, "__NR_set_mempolicy_home_node");
+        this.sinal_map.set(451, "__NR_syscalls");
+    }
 }
-
-exports.SignalNameMap = _;
-
+exports.SignalNameMap = SignalNameMap;
 },{}],12:[function(require,module,exports){
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-});
-
-const t = require("../../native/unix_android");
-
-class e {
-  support() {
-    return "";
-  }
-  translate_before(t) {
-    const e = {
-      x0: t.x0,
-      x1: t.x1,
-      x2: t.x2,
-      x3: t.x3,
-      x4: t.x4,
-      x5: t.x5,
-      x6: t.x6,
-      x7: t.x7,
-      x8: t.x8
-    };
-    return JSON.stringify(e);
-  }
-  translate_after(t) {
-    return t.x0.toString();
-  }
+Object.defineProperty(exports, "__esModule", { value: true });
+const unix_android_1 = require("../../native/unix_android");
+class AbstractSvcTranslation {
+    support() {
+        return "";
+    }
+    translate_before(context) {
+        const x0 = context.x0;
+        const x1 = context.x1;
+        const x2 = context.x2;
+        const x3 = context.x3;
+        const x4 = context.x4;
+        const x5 = context.x5;
+        const x6 = context.x6;
+        const x7 = context.x7;
+        const x8 = context.x8;
+        const svcContent = {
+            x0,
+            x1,
+            x2,
+            x3,
+            x4,
+            x5,
+            x6,
+            x7,
+            x8
+        };
+        return JSON.stringify(svcContent);
+    }
+    translate_after(context) {
+        return context.x0.toString();
+    }
 }
-
-class r extends e {}
-
-const s = new t.UnixProc;
-
-class n extends e {
-  support() {
-    return "__NR_openat";
-  }
-  translate_before(t) {
-    const e = {
-      fd: t.x0,
-      pathname: t.x1.readCString(),
-      flags: t.x2,
-      model: t.x3
-    };
-    return JSON.stringify(e);
-  }
-  translate_after(t) {
-    const e = t.x0.toInt32();
-    return s.get_linker_fd_path(e);
-  }
+class DefaultSvcTranslation extends AbstractSvcTranslation {
 }
-
-class a extends e {
-  support() {
-    return "__NR_openat2";
-  }
-  translate_before(t) {
-    const e = {
-      fd: t.x0,
-      pathname: t.x1.readCString(),
-      flags: t.x2,
-      model: t.x3
-    };
-    return JSON.stringify(e);
-  }
-  translate_after(t) {
-    const e = t.x0.toInt32();
-    return s.get_linker_fd_path(e);
-  }
+const unixproc = new unix_android_1.UnixProc();
+class __NR_openatSvcTranslation extends AbstractSvcTranslation {
+    support() {
+        return "__NR_openat";
+    }
+    translate_before(context) {
+        const fd = context.x0;
+        const pathname = context.x1.readCString();
+        const flags = context.x2;
+        const model = context.x3;
+        const svcContent = {
+            fd, pathname, flags, model
+        };
+        return JSON.stringify(svcContent);
+    }
+    translate_after(context) {
+        const fd = context.x0.toInt32();
+        const fd_path = unixproc.get_linker_fd_path(fd);
+        return fd_path;
+    }
 }
-
-class x extends e {
-  support() {
-    return "__NR_faccessat";
-  }
-  translate_before(t) {
-    const e = t.x0, r = t.x1.readCString(), s = t.x2, n = {
-      fd: e,
-      pathname: r,
-      flags: t.x3,
-      model: s
-    };
-    return JSON.stringify(n);
-  }
+class __NR_openat2SvcTranslation extends AbstractSvcTranslation {
+    support() {
+        return "__NR_openat2";
+    }
+    translate_before(context) {
+        const fd = context.x0;
+        const pathname = context.x1.readCString();
+        const flags = context.x2;
+        const model = context.x3;
+        const svcContent = {
+            fd, pathname, flags, model
+        };
+        return JSON.stringify(svcContent);
+    }
+    translate_after(context) {
+        const fd = context.x0.toInt32();
+        const fd_path = unixproc.get_linker_fd_path(fd);
+        return fd_path;
+    }
 }
-
-class o extends e {
-  support() {
-    return "__NR_faccessat2";
-  }
-  translate_before(t) {
-    const e = t.x0, r = t.x1.readCString(), s = t.x2, n = {
-      fd: e,
-      pathname: r,
-      flags: t.x3,
-      model: s
-    };
-    return JSON.stringify(n);
-  }
+class __NR_faccessatSvcTranslation extends AbstractSvcTranslation {
+    support() {
+        return "__NR_faccessat";
+    }
+    translate_before(context) {
+        const fd = context.x0;
+        const pathname = context.x1.readCString();
+        const model = context.x2;
+        const flags = context.x3;
+        const svcContent = {
+            fd, pathname, flags, model
+        };
+        return JSON.stringify(svcContent);
+    }
 }
-
-class d extends e {
-  support() {
-    return "__NR3264_fstatat";
-  }
-  translate_before(t) {
-    const e = {
-      fd: t.x0,
-      pathname: t.x1.readCString(),
-      flags: t.x3
-    };
-    return JSON.stringify(e);
-  }
+class __NR_faccessat2SvcTranslation extends AbstractSvcTranslation {
+    support() {
+        return "__NR_faccessat2";
+    }
+    translate_before(context) {
+        const fd = context.x0;
+        const pathname = context.x1.readCString();
+        const model = context.x2;
+        const flags = context.x3;
+        const svcContent = {
+            fd, pathname, flags, model
+        };
+        return JSON.stringify(svcContent);
+    }
 }
-
-class _ extends e {
-  support() {
-    return "__NR_read";
-  }
-  translate_before(t) {
-    const e = t.x0.toInt32(), r = {
-      fd_path: s.get_linker_fd_path(e)
-    };
-    return JSON.stringify(r);
-  }
+class __NR3264_fstatatSvcTranslation extends AbstractSvcTranslation {
+    support() {
+        return "__NR3264_fstatat";
+    }
+    translate_before(context) {
+        const fd = context.x0;
+        const pathname = context.x1.readCString();
+        // const model = context.x2;
+        const flags = context.x3;
+        const svcContent = {
+            fd, pathname, flags
+        };
+        return JSON.stringify(svcContent);
+    }
 }
-
-class i extends e {
-  support() {
-    return "__NR3264_mmap";
-  }
-  translate_before(t) {
-    const e = t.x0, r = t.x1, n = t.x2, a = t.x3, x = t.x4, o = t.x5, d = s.get_linker_fd_path(x.toInt32()), _ = {
-      addr: e,
-      length: r,
-      prot: n,
-      flags: a,
-      fd: x,
-      offset: o,
-      fd_path: d
-    };
-    return JSON.stringify(_);
-  }
+class __NR_readSvcTranslation extends AbstractSvcTranslation {
+    support() {
+        return "__NR_read";
+    }
+    translate_before(context) {
+        const fd = context.x0.toInt32();
+        const fd_path = unixproc.get_linker_fd_path(fd);
+        const svcContent = {
+            fd_path
+        };
+        return JSON.stringify(svcContent);
+    }
 }
-
-class f {
-  translations=new Map;
-  constructor() {
-    this.add(new r), this.add(new n), this.add(new a), this.add(new x), this.add(new o), 
-    this.add(new _), this.add(new d), this.add(new i);
-  }
-  add(t) {
-    const e = t.support();
-    this.translations.set(e, t);
-  }
-  get(t) {
-    const e = this.translations.get(t);
-    return e || this.translations.get("");
-  }
+class __NR3264_mmapSvcTranslation extends AbstractSvcTranslation {
+    support() {
+        return "__NR3264_mmap";
+    }
+    translate_before(context) {
+        const addr = context.x0;
+        const length = context.x1;
+        const prot = context.x2;
+        const flags = context.x3;
+        const fd = context.x4;
+        const offset = context.x5;
+        const fd_path = unixproc.get_linker_fd_path(fd.toInt32());
+        const svcContent = {
+            addr, length, prot, flags, fd, offset, fd_path
+        };
+        return JSON.stringify(svcContent);
+    }
 }
-
-exports.default = f;
-
+class SvcTranslationMap {
+    translations = new Map();
+    constructor() {
+        this.add(new DefaultSvcTranslation());
+        this.add(new __NR_openatSvcTranslation());
+        this.add(new __NR_openat2SvcTranslation());
+        this.add(new __NR_faccessatSvcTranslation());
+        this.add(new __NR_faccessat2SvcTranslation());
+        this.add(new __NR_readSvcTranslation());
+        this.add(new __NR3264_fstatatSvcTranslation());
+        this.add(new __NR3264_mmapSvcTranslation());
+    }
+    add(translate) {
+        const supportSignal = translate.support();
+        this.translations.set(supportSignal, translate);
+    }
+    get(signal) {
+        const translate = this.translations.get(signal);
+        if (translate) {
+            return translate;
+        }
+        return this.translations.get("");
+    }
+}
+exports.default = SvcTranslationMap;
 },{"../../native/unix_android":15}],13:[function(require,module,exports){
 "use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.ArtMethod = exports.art = void 0;
-
-const t = require("frida-java-bridge/lib/android");
-
-var e;
-
-!function(e) {
-  function r(t, r, s) {
-    const o = e.artso.enumerateSymbols().filter((e => e.name === t))[0].address;
-    Interceptor.attach(o, {
-      onEnter(t) {
-        r(this, t);
-      },
-      onLeave(t) {
-        s(this);
-      }
-    });
-  }
-  function s() {
-    return t.getArtMethodSpec(Java.vm);
-  }
-  e.kAccNative = 256, e.artso = Process.findModuleByName("libart.so"), e._ArtMethodSpec = s(), 
-  e.hook_art_quick_invoke_stub = function(t, e) {
-    r("art_quick_invoke_stub", t, e);
-  }, e.hook_art_quick_invoke_static_stub = function(t, e) {
-    r("art_quick_invoke_static_stub", t, e);
-  }, e.get_art_jni_dlsym_lookup_stub_ptr = function() {
-    const t = e.artso.enumerateSymbols().filter((t => "art_jni_dlsym_lookup_stub" == t.name));
-    return t.length > 0 ? t[0].address : null;
-  }, e.getArtMethodSpec = s;
-}(e = exports.art || (exports.art = {}));
-
-class r {
-  handle;
-  constructor(t) {
-    this.handle = t;
-  }
-  prettyMethod(e = !0) {
-    const r = new n;
-    return t.getApi()["art::ArtMethod::PrettyMethod"](r, this.handle, e ? 1 : 0), r.disposeToString();
-  }
-  accessFlags() {
-    const t = e._ArtMethodSpec;
-    return this.handle.add(t.offset.accessFlags).readU32();
-  }
-  isNative() {
-    return 0 != (this.accessFlags() & e.kAccNative);
-  }
-  jniCodePtr() {
-    const t = e._ArtMethodSpec;
-    return this.handle.add(t.offset.jniCode).readPointer();
-  }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ArtMethod = exports.art = void 0;
+const android = require("frida-java-bridge/lib/android");
+var art;
+(function (art) {
+    art.kAccNative = 0x0100;
+    art.artso = Process.findModuleByName("libart.so");
+    art._ArtMethodSpec = getArtMethodSpec();
+    function _hook_art_quick_invoke_stub(quickInvokeType, enter_callback, leave_callback) {
+        const art_quick_invoke_stub_ptr = art.artso.enumerateSymbols().filter(symbol => {
+            return symbol.name === quickInvokeType;
+        })[0].address;
+        Interceptor.attach(art_quick_invoke_stub_ptr, {
+            onEnter(args) {
+                enter_callback(this, args);
+            },
+            onLeave(retval) {
+                leave_callback(this);
+            }
+        });
+    }
+    function hook_art_quick_invoke_stub(enter_callback, leave_callback) {
+        _hook_art_quick_invoke_stub("art_quick_invoke_stub", enter_callback, leave_callback);
+    }
+    art.hook_art_quick_invoke_stub = hook_art_quick_invoke_stub;
+    function hook_art_quick_invoke_static_stub(enter_callback, leave_callback) {
+        _hook_art_quick_invoke_stub("art_quick_invoke_static_stub", enter_callback, leave_callback);
+    }
+    art.hook_art_quick_invoke_static_stub = hook_art_quick_invoke_static_stub;
+    function get_art_jni_dlsym_lookup_stub_ptr() {
+        const symbols = art.artso.enumerateSymbols().filter(symbol => {
+            return symbol.name == "art_jni_dlsym_lookup_stub";
+        });
+        if (symbols.length > 0) {
+            return symbols[0].address;
+        }
+        return null;
+    }
+    art.get_art_jni_dlsym_lookup_stub_ptr = get_art_jni_dlsym_lookup_stub_ptr;
+    /**
+     * 获取 ArtMethod 常用 属性 偏移
+     * 原理 通过 找一个合适的 methodId(ArtMethod)
+     * 遍历内存 0~0x60 之间 。 找到的合适的数据判断数据范围 对应上偏移
+     * @returns ArtMethodSpec
+     */
+    function getArtMethodSpec() {
+        return android.getArtMethodSpec(Java.vm);
+    }
+    art.getArtMethodSpec = getArtMethodSpec;
+})(art = exports.art || (exports.art = {}));
+class ArtMethod {
+    handle;
+    constructor(handle) {
+        this.handle = handle;
+    }
+    prettyMethod(withSignature = true) {
+        const result = new StdString();
+        // frida gum js 会自动 读取 ObjectWrapper,handle
+        // 'art::ArtMethod::PrettyMethod' 实际是个包装方法 将返回值会写入到 result.handle 内
+        // 具体参考 Memory.patchCode 使用 x0 放入 x8 的逻辑 
+        // arm64 中 x8 用于 将x0结果放入 x8 指针内
+        android.getApi()['art::ArtMethod::PrettyMethod'](result, this.handle, withSignature ? 1 : 0);
+        return result.disposeToString();
+    }
+    accessFlags() {
+        const artMSpec = art._ArtMethodSpec;
+        return this.handle.add(artMSpec.offset.accessFlags).readU32();
+    }
+    isNative() {
+        const accessFlags = this.accessFlags();
+        return (accessFlags & art.kAccNative) != 0;
+    }
+    jniCodePtr() {
+        const artMSpec = art._ArtMethodSpec;
+        return this.handle.add(artMSpec.offset.jniCode).readPointer();
+    }
 }
-
-exports.ArtMethod = r;
-
-const s = Process.pointerSize, o = 3 * s;
-
-class n {
-  handle;
-  constructor() {
-    this.handle = Memory.alloc(o);
-  }
-  dispose() {
-    const [e, r] = this._getData();
-    r || t.getApi().$delete(e);
-  }
-  disposeToString() {
-    const t = this.toString();
-    return this.dispose(), t;
-  }
-  toString() {
-    const [t] = this._getData();
-    return t.readUtf8String();
-  }
-  _getData() {
-    const t = this.handle, e = 0 == (1 & t.readU8());
-    return [ e ? t.add(1) : t.add(2 * s).readPointer(), e ];
-  }
+exports.ArtMethod = ArtMethod;
+const pointerSize = Process.pointerSize;
+const STD_STRING_SIZE = 3 * pointerSize;
+class StdString {
+    handle;
+    constructor() {
+        this.handle = Memory.alloc(STD_STRING_SIZE);
+    }
+    dispose() {
+        const [data, isTiny] = this._getData();
+        if (!isTiny) {
+            android.getApi().$delete(data);
+        }
+    }
+    disposeToString() {
+        const result = this.toString();
+        this.dispose();
+        return result;
+    }
+    toString() {
+        const [data] = this._getData();
+        return data.readUtf8String();
+    }
+    _getData() {
+        const str = this.handle;
+        const isTiny = (str.readU8() & 1) === 0;
+        const data = isTiny ? str.add(1) : str.add(2 * pointerSize).readPointer();
+        return [data, isTiny];
+    }
 }
-
 },{"frida-java-bridge/lib/android":26}],14:[function(require,module,exports){
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SoInfo = exports.somodule = void 0;
+exports.somodule = new CModule(`
+#include <stddef.h>
+#include <stdint.h>
 
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.SoInfo = exports.somodule = void 0, exports.somodule = new CModule("\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef size_t gsize;\ntypedef void * gpointer;\ntypedef uint32_t guint32;\ntypedef char gchar;\n\ntypedef struct _GumSoinfo GumSoinfo;\n\nstruct _GumSoinfo\n{\n\n\n  gpointer phdr;\n  gsize phnum;\n\n  gpointer base;\n  gsize size;\n\n\n\n  gpointer dynamic;\n\n\n\n  gpointer next;\n\n  uint32_t flags;\n\n  const gchar * strtab;\n  gpointer symtab;\n\n  gsize nbucket;\n  gsize nchain;\n  guint32 * bucket;\n  guint32 * chain;\n\n\n\n  gpointer plt_relx;\n  gsize plt_relx_count;\n\n  gpointer relx;\n  gsize relx_count;\n\n  gpointer * preinit_array;\n  gsize preinit_array_count;\n\n  gpointer * init_array;\n  gsize init_array_count;\n  gpointer * fini_array;\n  gsize fini_array_count;\n\n  gpointer init_func;\n  gpointer fini_func;\n};\n\nsize_t get_init_array_offset(){\n    return offsetof(GumSoinfo,init_array);\n} \nsize_t get_init_offset(){\n    return offsetof(GumSoinfo,init_func);\n} \nvoid* get_init_array(GumSoinfo* gsi){\n    return gsi->init_array;\n}\nint get_init_array_count(GumSoinfo* gsi){\n    return gsi->init_array_count;\n}\nvoid* get_init_func(GumSoinfo* gsi){\n    return gsi->init_func;\n}\n");
+typedef size_t gsize;
+typedef void * gpointer;
+typedef uint32_t guint32;
+typedef char gchar;
 
-const n = new NativeFunction(exports.somodule.get_init_func, "pointer", [ "pointer" ]), t = new NativeFunction(exports.somodule.get_init_array_count, "int", [ "pointer" ]), i = new NativeFunction(exports.somodule.get_init_array, "pointer", [ "pointer" ]);
+typedef struct _GumSoinfo GumSoinfo;
 
-class e {
-  handle;
-  constructor(n) {
-    this.handle = n;
-  }
-  init_array_ptrs() {
-    const n = [], e = Process.pointerSize, r = t(this.handle), o = i(this.handle);
-    for (let t = 0; t < r; t += e) n.push(o.add(t).readPointer());
-    return n;
-  }
-  init_ptr() {
-    return n(this.handle);
-  }
+struct _GumSoinfo
+{
+
+
+  gpointer phdr;
+  gsize phnum;
+
+  gpointer base;
+  gsize size;
+
+
+
+  gpointer dynamic;
+
+
+
+  gpointer next;
+
+  uint32_t flags;
+
+  const gchar * strtab;
+  gpointer symtab;
+
+  gsize nbucket;
+  gsize nchain;
+  guint32 * bucket;
+  guint32 * chain;
+
+
+
+  gpointer plt_relx;
+  gsize plt_relx_count;
+
+  gpointer relx;
+  gsize relx_count;
+
+  gpointer * preinit_array;
+  gsize preinit_array_count;
+
+  gpointer * init_array;
+  gsize init_array_count;
+  gpointer * fini_array;
+  gsize fini_array_count;
+
+  gpointer init_func;
+  gpointer fini_func;
+};
+
+size_t get_init_array_offset(){
+    return offsetof(GumSoinfo,init_array);
+} 
+size_t get_init_offset(){
+    return offsetof(GumSoinfo,init_func);
+} 
+void* get_init_array(GumSoinfo* gsi){
+    return gsi->init_array;
 }
-
-exports.SoInfo = e;
-
+int get_init_array_count(GumSoinfo* gsi){
+    return gsi->init_array_count;
+}
+void* get_init_func(GumSoinfo* gsi){
+    return gsi->init_func;
+}
+`);
+const get_init_func = new NativeFunction(exports.somodule.get_init_func, "pointer", ["pointer"]);
+const get_init_array_count = new NativeFunction(exports.somodule.get_init_array_count, "int", ["pointer"]);
+const get_init_array = new NativeFunction(exports.somodule.get_init_array, "pointer", ["pointer"]);
+class SoInfo {
+    handle;
+    constructor(handle) {
+        this.handle = handle;
+    }
+    init_array_ptrs() {
+        const init_ptrs = [];
+        const psize = Process.pointerSize;
+        const count = get_init_array_count(this.handle);
+        const init_array = get_init_array(this.handle);
+        for (let index = 0; index < count; index += psize) {
+            init_ptrs.push(init_array.add(index).readPointer());
+        }
+        return init_ptrs;
+    }
+    init_ptr() {
+        const init_func = get_init_func(this.handle);
+        return init_func;
+    }
+}
+exports.SoInfo = SoInfo;
 },{}],15:[function(require,module,exports){
 "use strict";
-
-var t;
-
-Object.defineProperty(exports, "__esModule", {
-  value: !0
-}), exports.AndroidLinker = exports.UnixLibc = exports.UnixProc = exports.unix = void 0, 
-function(t) {
-  let e, n;
-  !function(t) {
-    t[t.O_ACCMODE = 3] = "O_ACCMODE", t[t.O_RDONLY = 0] = "O_RDONLY", t[t.O_WRONLY = 1] = "O_WRONLY", 
-    t[t.O_RDWR = 2] = "O_RDWR", t[t.O_CREAT = 64] = "O_CREAT", t[t.O_EXCL = 128] = "O_EXCL";
-  }(e = t.fcntl || (t.fcntl = {})), function(t) {
-    t[t.AT_FDCWD = -100] = "AT_FDCWD", t[t.AT_SYMLINK_NOFOLLOW = 256] = "AT_SYMLINK_NOFOLLOW", 
-    t[t.AT_EACCESS = 512] = "AT_EACCESS", t[t.AT_REMOVEDIR = 512] = "AT_REMOVEDIR", 
-    t[t.AT_SYMLINK_FOLLOW = 1024] = "AT_SYMLINK_FOLLOW", t[t.AT_NO_AUTOMOUNT = 2048] = "AT_NO_AUTOMOUNT", 
-    t[t.AT_EMPTY_PATH = 4096] = "AT_EMPTY_PATH";
-  }(n = t.linux_fcntl || (t.linux_fcntl = {}));
-}(t = exports.unix || (exports.unix = {}));
-
-class e {
-  cmdline_path="/proc/self/cmdline";
-  comm_path="/proc/self/task/%s/comm";
-  libc;
-  constructor() {
-    this.libc = new n;
-  }
-  getThreadComm(e) {
-    let n = this.comm_path.replace("%s", e.toString()), i = this.libc.open(n, t.fcntl.O_RDONLY);
-    const r = this.libc.readStr(i).replace("\n", "");
-    return this.libc.closeFun(i), r;
-  }
-  get_cmdline() {
-    let e = this.libc.openat(t.linux_fcntl.AT_FDCWD, this.cmdline_path, t.fcntl.O_RDONLY, 0);
-    const n = this.libc.readStr(e);
-    return this.libc.closeFun(e), n;
-  }
-  get_linker_fd_path(e) {
-    if (e > 0) {
-      return this.libc.readlink(t.linux_fcntl.AT_FDCWD, e);
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AndroidLinker = exports.UnixLibc = exports.UnixProc = exports.unix = void 0;
+const chalk_1 = __importDefault(require("chalk"));
+var unix;
+(function (unix) {
+    let fcntl;
+    (function (fcntl) {
+        fcntl[fcntl["O_ACCMODE"] = 3] = "O_ACCMODE";
+        fcntl[fcntl["O_RDONLY"] = 0] = "O_RDONLY";
+        fcntl[fcntl["O_WRONLY"] = 1] = "O_WRONLY";
+        fcntl[fcntl["O_RDWR"] = 2] = "O_RDWR";
+        fcntl[fcntl["O_CREAT"] = 64] = "O_CREAT";
+        fcntl[fcntl["O_EXCL"] = 128] = "O_EXCL";
+    })(fcntl = unix.fcntl || (unix.fcntl = {}));
+    let linux_fcntl;
+    (function (linux_fcntl) {
+        linux_fcntl[linux_fcntl["AT_FDCWD"] = -100] = "AT_FDCWD";
+        linux_fcntl[linux_fcntl["AT_SYMLINK_NOFOLLOW"] = 256] = "AT_SYMLINK_NOFOLLOW";
+        linux_fcntl[linux_fcntl["AT_EACCESS"] = 512] = "AT_EACCESS";
+        linux_fcntl[linux_fcntl["AT_REMOVEDIR"] = 512] = "AT_REMOVEDIR";
+        linux_fcntl[linux_fcntl["AT_SYMLINK_FOLLOW"] = 1024] = "AT_SYMLINK_FOLLOW";
+        linux_fcntl[linux_fcntl["AT_NO_AUTOMOUNT"] = 2048] = "AT_NO_AUTOMOUNT";
+        linux_fcntl[linux_fcntl["AT_EMPTY_PATH"] = 4096] = "AT_EMPTY_PATH";
+    })(linux_fcntl = unix.linux_fcntl || (unix.linux_fcntl = {}));
+})(unix = exports.unix || (exports.unix = {}));
+class UnixProc {
+    cmdline_path = "/proc/self/cmdline";
+    comm_path = "/proc/self/task/%s/comm";
+    libc;
+    constructor() {
+        this.libc = new UnixLibc();
     }
-    return "";
-  }
+    getThreadComm(threadId) {
+        let openPath = this.comm_path.replace("%s", threadId.toString());
+        let fd = this.libc.open(openPath, unix.fcntl.O_RDONLY);
+        const ret = this.libc.readStr(fd).replace("\n", "");
+        this.libc.closeFun(fd);
+        return ret;
+    }
+    get_cmdline() {
+        let fd = this.libc.openat(unix.linux_fcntl.AT_FDCWD, this.cmdline_path, unix.fcntl.O_RDONLY, 0);
+        const ret = this.libc.readStr(fd);
+        this.libc.closeFun(fd);
+        return ret;
+    }
+    get_linker_fd_path(fd) {
+        if (fd > 0) {
+            const realPath = this.libc.readlink(unix.linux_fcntl.AT_FDCWD, fd);
+            return realPath;
+        }
+        return "";
+    }
 }
-
-exports.UnixProc = e;
-
-class n {
-  openFun;
-  systemFun;
-  readFun;
-  closeFun;
-  openatFun;
-  dlopenFun;
-  sleepFun;
-  readlinkat;
-  dlopen_ext_ptr;
-  pthread_create_ptr;
-  constructor() {
-    const t = Module.findExportByName("libc.so", "open"), e = Module.findExportByName("libc.so", "openat"), n = Module.findExportByName("libc.so", "system"), i = Module.findExportByName("libc.so", "read"), r = Module.findExportByName("libc.so", "close"), o = Module.findExportByName("libc.so", "dlopen"), s = Module.findExportByName("libc.so", "sleep"), l = Module.findExportByName("libc.so", "readlinkat");
-    this.pthread_create_ptr = Module.findExportByName("libc.so", "pthread_create"), 
-    this.dlopen_ext_ptr = Module.findExportByName("libc.so", "android_dlopen_ext"), 
-    this.openFun = new NativeFunction(t, "int", [ "pointer", "int" ]), this.openatFun = new NativeFunction(e, "int", [ "int", "pointer", "int", "int" ]), 
-    this.systemFun = new NativeFunction(n, "int", [ "pointer" ]), this.readFun = new NativeFunction(i, "int", [ "int", "pointer", "int" ]), 
-    this.closeFun = new NativeFunction(r, "int", [ "int" ]), this.dlopenFun = new NativeFunction(o, "void", [ "pointer", "int" ]), 
-    this.sleepFun = new NativeFunction(s, "int", [ "uint" ]), this.readlinkat = new NativeFunction(l, "int", [ "int", "pointer", "pointer", "int" ]);
-  }
-  open(t, e) {
-    return this.openFun(Memory.allocUtf8String(t), e);
-  }
-  openat(t, e, n, i) {
-    return this.openatFun(t, Memory.allocUtf8String(e), n, i);
-  }
-  sleep(t) {
-    return this.sleepFun(t);
-  }
-  readlink(t, e, n = 512) {
-    const i = `/proc/self/fd/${e}`, r = Memory.allocUtf8String(i), o = Memory.alloc(n);
-    return this.readlinkat(t, r, o, n), o.readCString();
-  }
-  readStr(t, e = 512) {
-    const n = Memory.alloc(e);
-    return -1 == this.readFun(t, n, e) ? "" : n.readCString();
-  }
+exports.UnixProc = UnixProc;
+class UnixLibc {
+    //-----------可调用的方法指针
+    openFun;
+    systemFun;
+    readFun;
+    closeFun;
+    openatFun;
+    dlopenFun;
+    sleepFun;
+    readlinkat;
+    //-----------只用于拦截的指针
+    dlopen_ext_ptr;
+    pthread_create_ptr;
+    constructor() {
+        const openPtr = Module.findExportByName("libc.so", "open");
+        const openatPtr = Module.findExportByName("libc.so", "openat");
+        const systemPtr = Module.findExportByName("libc.so", "system");
+        const readPtr = Module.findExportByName("libc.so", "read");
+        const closePtr = Module.findExportByName("libc.so", "close");
+        const dlopenPtr = Module.findExportByName("libc.so", "dlopen");
+        const sleepPtr = Module.findExportByName("libc.so", "sleep");
+        const readlinkatPtr = Module.findExportByName("libc.so", "readlinkat");
+        this.pthread_create_ptr = Module.findExportByName("libc.so", "pthread_create");
+        // this.dlopen_ext_ptr = Module.findExportByName("libc.so", "dlopen_ext")!;
+        this.dlopen_ext_ptr = Module.findExportByName("libc.so", "android_dlopen_ext");
+        this.openFun = new NativeFunction(openPtr, "int", ["pointer", "int"]);
+        this.openatFun = new NativeFunction(openatPtr, "int", [
+            "int",
+            "pointer",
+            "int",
+            "int",
+        ]);
+        this.systemFun = new NativeFunction(systemPtr, "int", ["pointer"]);
+        this.readFun = new NativeFunction(readPtr, "int", [
+            "int",
+            "pointer",
+            "int",
+        ]);
+        this.closeFun = new NativeFunction(closePtr, "int", ["int"]);
+        this.dlopenFun = new NativeFunction(dlopenPtr, "void", ["pointer", "int"]);
+        this.sleepFun = new NativeFunction(sleepPtr, "int", ["uint"]);
+        this.readlinkat = new NativeFunction(readlinkatPtr, "int", ["int", "pointer", "pointer", "int"]);
+    }
+    open(path, flags) {
+        let fd = this.openFun(Memory.allocUtf8String(path), flags);
+        return fd;
+    }
+    openat(_fd, path, flags, mode) {
+        let fd = this.openatFun(_fd, Memory.allocUtf8String(path), flags, mode);
+        return fd;
+    }
+    sleep(seconds) {
+        return this.sleepFun(seconds);
+    }
+    readlink(_fd, fd, len = 512) {
+        const filepath_v8 = `/proc/self/fd/${fd}`;
+        const filepath = Memory.allocUtf8String(filepath_v8);
+        const buf = Memory.alloc(len);
+        this.readlinkat(_fd, filepath, buf, len);
+        return buf.readCString();
+    }
+    readStr(fd, len = 512) {
+        const buf = Memory.alloc(len);
+        const ret = this.readFun(fd, buf, len);
+        if (ret == -1) {
+            return "";
+        }
+        return buf.readCString();
+    }
 }
-
-exports.UnixLibc = n;
-
-class i {
-  do_dlopen_ptr;
-  call_array_ptr;
-  call_constructors_ptr;
-  find_libraries;
-  constructor() {
-    const t = Process.findModuleByName("linker64"), e = t?.enumerateSymbols();
-    this.do_dlopen_ptr = e.filter((t => -1 != t.name.indexOf("dlopen_ext")))[0].address, 
-    this.call_array_ptr = e.filter((t => -1 != t.name.indexOf("call_array")))[0].address, 
-    this.call_constructors_ptr = e.filter((t => -1 != t.name.indexOf("call_constructors")))[0].address, 
-    this.find_libraries = e.filter((t => -1 != t.name.indexOf("find_libraries")))[0].address;
-  }
-  hook_do_dlopen(t) {
-    Interceptor.attach(this.do_dlopen_ptr, {
-      onEnter(t) {
-        this.path = t[0].readCString();
-      },
-      onLeave(e) {
-        t(this.path);
-      }
-    });
-  }
-  hook_find_libraries(t) {
-    Interceptor.attach(this.find_libraries, {
-      onEnter(t) {
-        const e = t[2], n = t[3].toInt32();
-        this.firstLibPath = "", n > 0 && (this.firstLibPath = e.readPointer().readCString());
-      },
-      onLeave(e) {
-        t(this.firstLibPath);
-      }
-    });
-  }
+exports.UnixLibc = UnixLibc;
+class AndroidLinker {
+    do_dlopen_ptr;
+    call_array_ptr;
+    call_constructors_ptr;
+    find_libraries;
+    constructor() {
+        let linker64Module = Process.findModuleByName("linker64");
+        if (linker64Module == null) {
+            console.error(chalk_1.default.red("未找到 linker64,请确认应用是否是 64 位"));
+            linker64Module = Process.findModuleByName("linker");
+        }
+        const symbols = linker64Module?.enumerateSymbols();
+        this.do_dlopen_ptr = symbols.filter(exp => exp.name.indexOf("dlopen_ext") != -1)[0].address;
+        this.call_array_ptr = symbols.filter(exp => exp.name.indexOf("call_array") != -1)[0].address;
+        this.call_constructors_ptr = symbols.filter(exp => exp.name.indexOf("call_constructors") != -1)[0].address;
+        this.find_libraries = symbols.filter(exp => exp.name.indexOf("find_libraries") != -1)[0].address;
+    }
+    hook_do_dlopen(callback) {
+        Interceptor.attach(this.do_dlopen_ptr, {
+            onEnter(args) {
+                this.path = args[0].readCString();
+            },
+            onLeave(retvalue) {
+                callback(this.path);
+            },
+        });
+    }
+    hook_find_libraries(callback) {
+        Interceptor.attach(this.find_libraries, {
+            onEnter(args) {
+                const libsArray = args[2];
+                const libsCount = args[3].toInt32();
+                this.firstLibPath = "";
+                if (libsCount > 0) {
+                    this.firstLibPath = libsArray.readPointer().readCString();
+                }
+            },
+            onLeave(retvalue) {
+                callback(this.firstLibPath);
+            },
+        });
+    }
 }
+exports.AndroidLinker = AndroidLinker;
+},{"chalk":17}],16:[function(require,module,exports){
+'use strict';
 
-exports.AndroidLinker = i;
-
-},{}],16:[function(require,module,exports){
-"use strict";
-
-const e = (e, r) => (...o) => `[${e(...o) + r}m`, r = (e, r) => (...o) => {
-  const t = e(...o);
-  return `[${38 + r};5;${t}m`;
-}, o = (e, r) => (...o) => {
-  const t = e(...o);
-  return `[${38 + r};2;${t[0]};${t[1]};${t[2]}m`;
-}, t = e => e, g = (e, r, o) => [ e, r, o ], n = (e, r, o) => {
-  Object.defineProperty(e, r, {
-    get: () => {
-      const t = o();
-      return Object.defineProperty(e, r, {
-        value: t,
-        enumerable: !0,
-        configurable: !0
-      }), t;
-    },
-    enumerable: !0,
-    configurable: !0
-  });
+const wrapAnsi16 = (fn, offset) => (...args) => {
+	const code = fn(...args);
+	return `\u001B[${code + offset}m`;
 };
 
-let i;
-
-const l = (e, r, o, t) => {
-  void 0 === i && (i = require("color-convert"));
-  const g = t ? 10 : 0, n = {};
-  for (const [t, l] of Object.entries(i)) {
-    const i = "ansi16" === t ? "ansi" : t;
-    t === r ? n[i] = e(o, g) : "object" == typeof l && (n[i] = e(l[r], g));
-  }
-  return n;
+const wrapAnsi256 = (fn, offset) => (...args) => {
+	const code = fn(...args);
+	return `\u001B[${38 + offset};5;${code}m`;
 };
 
-function b() {
-  const i = new Map, b = {
-    modifier: {
-      reset: [ 0, 0 ],
-      bold: [ 1, 22 ],
-      dim: [ 2, 22 ],
-      italic: [ 3, 23 ],
-      underline: [ 4, 24 ],
-      inverse: [ 7, 27 ],
-      hidden: [ 8, 28 ],
-      strikethrough: [ 9, 29 ]
-    },
-    color: {
-      black: [ 30, 39 ],
-      red: [ 31, 39 ],
-      green: [ 32, 39 ],
-      yellow: [ 33, 39 ],
-      blue: [ 34, 39 ],
-      magenta: [ 35, 39 ],
-      cyan: [ 36, 39 ],
-      white: [ 37, 39 ],
-      blackBright: [ 90, 39 ],
-      redBright: [ 91, 39 ],
-      greenBright: [ 92, 39 ],
-      yellowBright: [ 93, 39 ],
-      blueBright: [ 94, 39 ],
-      magentaBright: [ 95, 39 ],
-      cyanBright: [ 96, 39 ],
-      whiteBright: [ 97, 39 ]
-    },
-    bgColor: {
-      bgBlack: [ 40, 49 ],
-      bgRed: [ 41, 49 ],
-      bgGreen: [ 42, 49 ],
-      bgYellow: [ 43, 49 ],
-      bgBlue: [ 44, 49 ],
-      bgMagenta: [ 45, 49 ],
-      bgCyan: [ 46, 49 ],
-      bgWhite: [ 47, 49 ],
-      bgBlackBright: [ 100, 49 ],
-      bgRedBright: [ 101, 49 ],
-      bgGreenBright: [ 102, 49 ],
-      bgYellowBright: [ 103, 49 ],
-      bgBlueBright: [ 104, 49 ],
-      bgMagentaBright: [ 105, 49 ],
-      bgCyanBright: [ 106, 49 ],
-      bgWhiteBright: [ 107, 49 ]
-    }
-  };
-  b.color.gray = b.color.blackBright, b.bgColor.bgGray = b.bgColor.bgBlackBright, 
-  b.color.grey = b.color.blackBright, b.bgColor.bgGrey = b.bgColor.bgBlackBright;
-  for (const [e, r] of Object.entries(b)) {
-    for (const [e, o] of Object.entries(r)) b[e] = {
-      open: `[${o[0]}m`,
-      close: `[${o[1]}m`
-    }, r[e] = b[e], i.set(o[0], o[1]);
-    Object.defineProperty(b, e, {
-      value: r,
-      enumerable: !1
-    });
-  }
-  return Object.defineProperty(b, "codes", {
-    value: i,
-    enumerable: !1
-  }), b.color.close = "[39m", b.bgColor.close = "[49m", n(b.color, "ansi", (() => l(e, "ansi16", t, !1))), 
-  n(b.color, "ansi256", (() => l(r, "ansi256", t, !1))), n(b.color, "ansi16m", (() => l(o, "rgb", g, !1))), 
-  n(b.bgColor, "ansi", (() => l(e, "ansi16", t, !0))), n(b.bgColor, "ansi256", (() => l(r, "ansi256", t, !0))), 
-  n(b.bgColor, "ansi16m", (() => l(o, "rgb", g, !0))), b;
+const wrapAnsi16m = (fn, offset) => (...args) => {
+	const rgb = fn(...args);
+	return `\u001B[${38 + offset};2;${rgb[0]};${rgb[1]};${rgb[2]}m`;
+};
+
+const ansi2ansi = n => n;
+const rgb2rgb = (r, g, b) => [r, g, b];
+
+const setLazyProperty = (object, property, get) => {
+	Object.defineProperty(object, property, {
+		get: () => {
+			const value = get();
+
+			Object.defineProperty(object, property, {
+				value,
+				enumerable: true,
+				configurable: true
+			});
+
+			return value;
+		},
+		enumerable: true,
+		configurable: true
+	});
+};
+
+/** @type {typeof import('color-convert')} */
+let colorConvert;
+const makeDynamicStyles = (wrap, targetSpace, identity, isBackground) => {
+	if (colorConvert === undefined) {
+		colorConvert = require('color-convert');
+	}
+
+	const offset = isBackground ? 10 : 0;
+	const styles = {};
+
+	for (const [sourceSpace, suite] of Object.entries(colorConvert)) {
+		const name = sourceSpace === 'ansi16' ? 'ansi' : sourceSpace;
+		if (sourceSpace === targetSpace) {
+			styles[name] = wrap(identity, offset);
+		} else if (typeof suite === 'object') {
+			styles[name] = wrap(suite[targetSpace], offset);
+		}
+	}
+
+	return styles;
+};
+
+function assembleStyles() {
+	const codes = new Map();
+	const styles = {
+		modifier: {
+			reset: [0, 0],
+			// 21 isn't widely supported and 22 does the same thing
+			bold: [1, 22],
+			dim: [2, 22],
+			italic: [3, 23],
+			underline: [4, 24],
+			inverse: [7, 27],
+			hidden: [8, 28],
+			strikethrough: [9, 29]
+		},
+		color: {
+			black: [30, 39],
+			red: [31, 39],
+			green: [32, 39],
+			yellow: [33, 39],
+			blue: [34, 39],
+			magenta: [35, 39],
+			cyan: [36, 39],
+			white: [37, 39],
+
+			// Bright color
+			blackBright: [90, 39],
+			redBright: [91, 39],
+			greenBright: [92, 39],
+			yellowBright: [93, 39],
+			blueBright: [94, 39],
+			magentaBright: [95, 39],
+			cyanBright: [96, 39],
+			whiteBright: [97, 39]
+		},
+		bgColor: {
+			bgBlack: [40, 49],
+			bgRed: [41, 49],
+			bgGreen: [42, 49],
+			bgYellow: [43, 49],
+			bgBlue: [44, 49],
+			bgMagenta: [45, 49],
+			bgCyan: [46, 49],
+			bgWhite: [47, 49],
+
+			// Bright color
+			bgBlackBright: [100, 49],
+			bgRedBright: [101, 49],
+			bgGreenBright: [102, 49],
+			bgYellowBright: [103, 49],
+			bgBlueBright: [104, 49],
+			bgMagentaBright: [105, 49],
+			bgCyanBright: [106, 49],
+			bgWhiteBright: [107, 49]
+		}
+	};
+
+	// Alias bright black as gray (and grey)
+	styles.color.gray = styles.color.blackBright;
+	styles.bgColor.bgGray = styles.bgColor.bgBlackBright;
+	styles.color.grey = styles.color.blackBright;
+	styles.bgColor.bgGrey = styles.bgColor.bgBlackBright;
+
+	for (const [groupName, group] of Object.entries(styles)) {
+		for (const [styleName, style] of Object.entries(group)) {
+			styles[styleName] = {
+				open: `\u001B[${style[0]}m`,
+				close: `\u001B[${style[1]}m`
+			};
+
+			group[styleName] = styles[styleName];
+
+			codes.set(style[0], style[1]);
+		}
+
+		Object.defineProperty(styles, groupName, {
+			value: group,
+			enumerable: false
+		});
+	}
+
+	Object.defineProperty(styles, 'codes', {
+		value: codes,
+		enumerable: false
+	});
+
+	styles.color.close = '\u001B[39m';
+	styles.bgColor.close = '\u001B[49m';
+
+	setLazyProperty(styles.color, 'ansi', () => makeDynamicStyles(wrapAnsi16, 'ansi16', ansi2ansi, false));
+	setLazyProperty(styles.color, 'ansi256', () => makeDynamicStyles(wrapAnsi256, 'ansi256', ansi2ansi, false));
+	setLazyProperty(styles.color, 'ansi16m', () => makeDynamicStyles(wrapAnsi16m, 'rgb', rgb2rgb, false));
+	setLazyProperty(styles.bgColor, 'ansi', () => makeDynamicStyles(wrapAnsi16, 'ansi16', ansi2ansi, true));
+	setLazyProperty(styles.bgColor, 'ansi256', () => makeDynamicStyles(wrapAnsi256, 'ansi256', ansi2ansi, true));
+	setLazyProperty(styles.bgColor, 'ansi16m', () => makeDynamicStyles(wrapAnsi16m, 'rgb', rgb2rgb, true));
+
+	return styles;
 }
 
-Object.defineProperty(module, "exports", {
-  enumerable: !0,
-  get: b
+// Make the export immutable
+Object.defineProperty(module, 'exports', {
+	enumerable: true,
+	get: assembleStyles
 });
 
 },{"color-convert":21}],17:[function(require,module,exports){
-"use strict";
+'use strict';
+const ansiStyles = require('ansi-styles');
+const {stdout: stdoutColor, stderr: stderrColor} = require('supports-color');
+const {
+	stringReplaceAll,
+	stringEncaseCRLFWithFirstIndex
+} = require('./util');
 
-const e = require("ansi-styles"), {stdout: t, stderr: r} = require("supports-color"), {stringReplaceAll: o, stringEncaseCRLFWithFirstIndex: s} = require("./util"), n = [ "ansi", "ansi", "ansi256", "ansi16m" ], l = Object.create(null), i = (e, r = {}) => {
-  if (r.level > 3 || r.level < 0) throw new Error("The `level` option should be an integer from 0 to 3");
-  const o = t ? t.level : 0;
-  e.level = void 0 === r.level ? o : r.level;
+// `supportsColor.level` → `ansiStyles.color[name]` mapping
+const levelMapping = [
+	'ansi',
+	'ansi',
+	'ansi256',
+	'ansi16m'
+];
+
+const styles = Object.create(null);
+
+const applyOptions = (object, options = {}) => {
+	if (options.level > 3 || options.level < 0) {
+		throw new Error('The `level` option should be an integer from 0 to 3');
+	}
+
+	// Detect level if not set manually
+	const colorLevel = stdoutColor ? stdoutColor.level : 0;
+	object.level = options.level === undefined ? colorLevel : options.level;
 };
 
-class c {
-  constructor(e) {
-    return p(e);
-  }
+class ChalkClass {
+	constructor(options) {
+		return chalkFactory(options);
+	}
 }
 
-const p = e => {
-  const t = {};
-  return i(t, e), t.template = (...e) => g(t.template, ...e), Object.setPrototypeOf(t, u.prototype), 
-  Object.setPrototypeOf(t.template, t), t.template.constructor = () => {
-    throw new Error("`chalk.constructor()` is deprecated. Use `new chalk.Instance()` instead.");
-  }, t.template.Instance = c, t.template;
+const chalkFactory = options => {
+	const chalk = {};
+	applyOptions(chalk, options);
+
+	chalk.template = (...arguments_) => chalkTag(chalk.template, ...arguments_);
+
+	Object.setPrototypeOf(chalk, Chalk.prototype);
+	Object.setPrototypeOf(chalk.template, chalk);
+
+	chalk.template.constructor = () => {
+		throw new Error('`chalk.constructor()` is deprecated. Use `new chalk.Instance()` instead.');
+	};
+
+	chalk.template.Instance = ChalkClass;
+
+	return chalk.template;
 };
 
-function u(e) {
-  return p(e);
+function Chalk(options) {
+	return chalkFactory(options);
 }
 
-for (const [t, r] of Object.entries(e)) l[t] = {
-  get() {
-    const e = f(this, v(r.open, r.close, this._styler), this._isEmpty);
-    return Object.defineProperty(this, t, {
-      value: e
-    }), e;
-  }
-};
-
-l.visible = {
-  get() {
-    const e = f(this, this._styler, !0);
-    return Object.defineProperty(this, "visible", {
-      value: e
-    }), e;
-  }
-};
-
-const a = [ "rgb", "hex", "keyword", "hsl", "hsv", "hwb", "ansi", "ansi256" ];
-
-for (const t of a) l[t] = {
-  get() {
-    const {level: r} = this;
-    return function(...o) {
-      const s = v(e.color[n[r]][t](...o), e.color.close, this._styler);
-      return f(this, s, this._isEmpty);
-    };
-  }
-};
-
-for (const t of a) {
-  l["bg" + t[0].toUpperCase() + t.slice(1)] = {
-    get() {
-      const {level: r} = this;
-      return function(...o) {
-        const s = v(e.bgColor[n[r]][t](...o), e.bgColor.close, this._styler);
-        return f(this, s, this._isEmpty);
-      };
-    }
-  };
+for (const [styleName, style] of Object.entries(ansiStyles)) {
+	styles[styleName] = {
+		get() {
+			const builder = createBuilder(this, createStyler(style.open, style.close, this._styler), this._isEmpty);
+			Object.defineProperty(this, styleName, {value: builder});
+			return builder;
+		}
+	};
 }
 
-const h = Object.defineProperties((() => {}), {
-  ...l,
-  level: {
-    enumerable: !0,
-    get() {
-      return this._generator.level;
-    },
-    set(e) {
-      this._generator.level = e;
-    }
-  }
-}), v = (e, t, r) => {
-  let o, s;
-  return void 0 === r ? (o = e, s = t) : (o = r.openAll + e, s = t + r.closeAll), 
-  {
-    open: e,
-    close: t,
-    openAll: o,
-    closeAll: s,
-    parent: r
-  };
-}, f = (e, t, r) => {
-  const o = (...e) => d(o, 1 === e.length ? "" + e[0] : e.join(" "));
-  return o.__proto__ = h, o._generator = e, o._styler = t, o._isEmpty = r, o;
-}, d = (e, t) => {
-  if (e.level <= 0 || !t) return e._isEmpty ? "" : t;
-  let r = e._styler;
-  if (void 0 === r) return t;
-  const {openAll: n, closeAll: l} = r;
-  if (-1 !== t.indexOf("")) for (;void 0 !== r; ) t = o(t, r.close, r.open), r = r.parent;
-  const i = t.indexOf("\n");
-  return -1 !== i && (t = s(t, l, n, i)), n + t + l;
+styles.visible = {
+	get() {
+		const builder = createBuilder(this, this._styler, true);
+		Object.defineProperty(this, 'visible', {value: builder});
+		return builder;
+	}
 };
 
-let y;
+const usedModels = ['rgb', 'hex', 'keyword', 'hsl', 'hsv', 'hwb', 'ansi', 'ansi256'];
 
-const g = (e, ...t) => {
-  const [r] = t;
-  if (!Array.isArray(r)) return t.join(" ");
-  const o = t.slice(1), s = [ r.raw[0] ];
-  for (let e = 1; e < r.length; e++) s.push(String(o[e - 1]).replace(/[{}\\]/g, "\\$&"), String(r.raw[e]));
-  return void 0 === y && (y = require("./templates")), y(e, s.join(""));
+for (const model of usedModels) {
+	styles[model] = {
+		get() {
+			const {level} = this;
+			return function (...arguments_) {
+				const styler = createStyler(ansiStyles.color[levelMapping[level]][model](...arguments_), ansiStyles.color.close, this._styler);
+				return createBuilder(this, styler, this._isEmpty);
+			};
+		}
+	};
+}
+
+for (const model of usedModels) {
+	const bgModel = 'bg' + model[0].toUpperCase() + model.slice(1);
+	styles[bgModel] = {
+		get() {
+			const {level} = this;
+			return function (...arguments_) {
+				const styler = createStyler(ansiStyles.bgColor[levelMapping[level]][model](...arguments_), ansiStyles.bgColor.close, this._styler);
+				return createBuilder(this, styler, this._isEmpty);
+			};
+		}
+	};
+}
+
+const proto = Object.defineProperties(() => {}, {
+	...styles,
+	level: {
+		enumerable: true,
+		get() {
+			return this._generator.level;
+		},
+		set(level) {
+			this._generator.level = level;
+		}
+	}
+});
+
+const createStyler = (open, close, parent) => {
+	let openAll;
+	let closeAll;
+	if (parent === undefined) {
+		openAll = open;
+		closeAll = close;
+	} else {
+		openAll = parent.openAll + open;
+		closeAll = close + parent.closeAll;
+	}
+
+	return {
+		open,
+		close,
+		openAll,
+		closeAll,
+		parent
+	};
 };
 
-Object.defineProperties(u.prototype, l);
+const createBuilder = (self, _styler, _isEmpty) => {
+	const builder = (...arguments_) => {
+		// Single argument is hot path, implicit coercion is faster than anything
+		// eslint-disable-next-line no-implicit-coercion
+		return applyStyle(builder, (arguments_.length === 1) ? ('' + arguments_[0]) : arguments_.join(' '));
+	};
 
-const _ = u();
+	// `__proto__` is used because we must return a function, but there is
+	// no way to create a function with a different prototype
+	builder.__proto__ = proto; // eslint-disable-line no-proto
 
-_.supportsColor = t, _.stderr = u({
-  level: r ? r.level : 0
-}), _.stderr.supportsColor = r, _.Level = {
-  None: 0,
-  Basic: 1,
-  Ansi256: 2,
-  TrueColor: 3,
-  0: "None",
-  1: "Basic",
-  2: "Ansi256",
-  3: "TrueColor"
-}, module.exports = _;
+	builder._generator = self;
+	builder._styler = _styler;
+	builder._isEmpty = _isEmpty;
+
+	return builder;
+};
+
+const applyStyle = (self, string) => {
+	if (self.level <= 0 || !string) {
+		return self._isEmpty ? '' : string;
+	}
+
+	let styler = self._styler;
+
+	if (styler === undefined) {
+		return string;
+	}
+
+	const {openAll, closeAll} = styler;
+	if (string.indexOf('\u001B') !== -1) {
+		while (styler !== undefined) {
+			// Replace any instances already present with a re-opening code
+			// otherwise only the part of the string until said closing code
+			// will be colored, and the rest will simply be 'plain'.
+			string = stringReplaceAll(string, styler.close, styler.open);
+
+			styler = styler.parent;
+		}
+	}
+
+	// We can move both next actions out of loop, because remaining actions in loop won't have
+	// any/visible effect on parts we add here. Close the styling before a linebreak and reopen
+	// after next line to fix a bleed issue on macOS: https://github.com/chalk/chalk/pull/92
+	const lfIndex = string.indexOf('\n');
+	if (lfIndex !== -1) {
+		string = stringEncaseCRLFWithFirstIndex(string, closeAll, openAll, lfIndex);
+	}
+
+	return openAll + string + closeAll;
+};
+
+let template;
+const chalkTag = (chalk, ...strings) => {
+	const [firstString] = strings;
+
+	if (!Array.isArray(firstString)) {
+		// If chalk() was called by itself or with a string,
+		// return the string itself as a string.
+		return strings.join(' ');
+	}
+
+	const arguments_ = strings.slice(1);
+	const parts = [firstString.raw[0]];
+
+	for (let i = 1; i < firstString.length; i++) {
+		parts.push(
+			String(arguments_[i - 1]).replace(/[{}\\]/g, '\\$&'),
+			String(firstString.raw[i])
+		);
+	}
+
+	if (template === undefined) {
+		template = require('./templates');
+	}
+
+	return template(chalk, parts.join(''));
+};
+
+Object.defineProperties(Chalk.prototype, styles);
+
+const chalk = Chalk(); // eslint-disable-line new-cap
+chalk.supportsColor = stdoutColor;
+chalk.stderr = Chalk({level: stderrColor ? stderrColor.level : 0}); // eslint-disable-line new-cap
+chalk.stderr.supportsColor = stderrColor;
+
+// For TypeScript
+chalk.Level = {
+	None: 0,
+	Basic: 1,
+	Ansi256: 2,
+	TrueColor: 3,
+	0: 'None',
+	1: 'Basic',
+	2: 'Ansi256',
+	3: 'TrueColor'
+};
+
+module.exports = chalk;
 
 },{"./templates":18,"./util":19,"ansi-styles":16,"supports-color":24}],18:[function(require,module,exports){
-"use strict";
+'use strict';
+const TEMPLATE_REGEX = /(?:\\(u(?:[a-f\d]{4}|\{[a-f\d]{1,6}\})|x[a-f\d]{2}|.))|(?:\{(~)?(\w+(?:\([^)]*\))?(?:\.\w+(?:\([^)]*\))?)*)(?:[ \t]|(?=\r?\n)))|(\})|((?:.|[\r\n\f])+?)/gi;
+const STYLE_REGEX = /(?:^|\.)(\w+)(?:\(([^)]*)\))?/g;
+const STRING_REGEX = /^(['"])((?:\\.|(?!\1)[^\\])*)\1$/;
+const ESCAPE_REGEX = /\\(u(?:[a-f\d]{4}|\{[a-f\d]{1,6}\})|x[a-f\d]{2}|.)|([^\\])/gi;
 
-const e = /(?:\\(u(?:[a-f\d]{4}|\{[a-f\d]{1,6}\})|x[a-f\d]{2}|.))|(?:\{(~)?(\w+(?:\([^)]*\))?(?:\.\w+(?:\([^)]*\))?)*)(?:[ \t]|(?=\r?\n)))|(\})|((?:.|[\r\n\f])+?)/gi, t = /(?:^|\.)(\w+)(?:\(([^)]*)\))?/g, n = /^(['"])((?:\\.|(?!\1)[^\\])*)\1$/, r = /\\(u(?:[a-f\d]{4}|\{[a-f\d]{1,6}\})|x[a-f\d]{2}|.)|([^\\])/gi, s = new Map([ [ "n", "\n" ], [ "r", "\r" ], [ "t", "\t" ], [ "b", "\b" ], [ "f", "\f" ], [ "v", "\v" ], [ "0", "\0" ], [ "\\", "\\" ], [ "e", "" ], [ "a", "" ] ]);
+const ESCAPES = new Map([
+	['n', '\n'],
+	['r', '\r'],
+	['t', '\t'],
+	['b', '\b'],
+	['f', '\f'],
+	['v', '\v'],
+	['0', '\0'],
+	['\\', '\\'],
+	['e', '\u001B'],
+	['a', '\u0007']
+]);
 
-function o(e) {
-  const t = "u" === e[0], n = "{" === e[1];
-  return t && !n && 5 === e.length || "x" === e[0] && 3 === e.length ? String.fromCharCode(parseInt(e.slice(1), 16)) : t && n ? String.fromCodePoint(parseInt(e.slice(2, -1), 16)) : s.get(e) || e;
+function unescape(c) {
+	const u = c[0] === 'u';
+	const bracket = c[1] === '{';
+
+	if ((u && !bracket && c.length === 5) || (c[0] === 'x' && c.length === 3)) {
+		return String.fromCharCode(parseInt(c.slice(1), 16));
+	}
+
+	if (u && bracket) {
+		return String.fromCodePoint(parseInt(c.slice(2, -1), 16));
+	}
+
+	return ESCAPES.get(c) || c;
 }
 
-function l(e, t) {
-  const s = [], l = t.trim().split(/\s*,\s*/g);
-  let i;
-  for (const t of l) {
-    const l = Number(t);
-    if (Number.isNaN(l)) {
-      if (!(i = t.match(n))) throw new Error(`Invalid Chalk template style argument: ${t} (in style '${e}')`);
-      s.push(i[2].replace(r, ((e, t, n) => t ? o(t) : n)));
-    } else s.push(l);
-  }
-  return s;
+function parseArguments(name, arguments_) {
+	const results = [];
+	const chunks = arguments_.trim().split(/\s*,\s*/g);
+	let matches;
+
+	for (const chunk of chunks) {
+		const number = Number(chunk);
+		if (!Number.isNaN(number)) {
+			results.push(number);
+		} else if ((matches = chunk.match(STRING_REGEX))) {
+			results.push(matches[2].replace(ESCAPE_REGEX, (m, escape, character) => escape ? unescape(escape) : character));
+		} else {
+			throw new Error(`Invalid Chalk template style argument: ${chunk} (in style '${name}')`);
+		}
+	}
+
+	return results;
 }
 
-function i(e) {
-  t.lastIndex = 0;
-  const n = [];
-  let r;
-  for (;null !== (r = t.exec(e)); ) {
-    const e = r[1];
-    if (r[2]) {
-      const t = l(e, r[2]);
-      n.push([ e ].concat(t));
-    } else n.push([ e ]);
-  }
-  return n;
+function parseStyle(style) {
+	STYLE_REGEX.lastIndex = 0;
+
+	const results = [];
+	let matches;
+
+	while ((matches = STYLE_REGEX.exec(style)) !== null) {
+		const name = matches[1];
+
+		if (matches[2]) {
+			const args = parseArguments(name, matches[2]);
+			results.push([name].concat(args));
+		} else {
+			results.push([name]);
+		}
+	}
+
+	return results;
 }
 
-function f(e, t) {
-  const n = {};
-  for (const e of t) for (const t of e.styles) n[t[0]] = e.inverse ? null : t.slice(1);
-  let r = e;
-  for (const [e, t] of Object.entries(n)) if (Array.isArray(t)) {
-    if (!(e in r)) throw new Error(`Unknown Chalk style: ${e}`);
-    r = t.length > 0 ? r[e](...t) : r[e];
-  }
-  return r;
+function buildStyle(chalk, styles) {
+	const enabled = {};
+
+	for (const layer of styles) {
+		for (const style of layer.styles) {
+			enabled[style[0]] = layer.inverse ? null : style.slice(1);
+		}
+	}
+
+	let current = chalk;
+	for (const [styleName, styles] of Object.entries(enabled)) {
+		if (!Array.isArray(styles)) {
+			continue;
+		}
+
+		if (!(styleName in current)) {
+			throw new Error(`Unknown Chalk style: ${styleName}`);
+		}
+
+		current = styles.length > 0 ? current[styleName](...styles) : current[styleName];
+	}
+
+	return current;
 }
 
-module.exports = (t, n) => {
-  const r = [], s = [];
-  let l = [];
-  if (n.replace(e, ((e, n, a, c, u, h) => {
-    if (n) l.push(o(n)); else if (c) {
-      const e = l.join("");
-      l = [], s.push(0 === r.length ? e : f(t, r)(e)), r.push({
-        inverse: a,
-        styles: i(c)
-      });
-    } else if (u) {
-      if (0 === r.length) throw new Error("Found extraneous } in Chalk template literal");
-      s.push(f(t, r)(l.join(""))), l = [], r.pop();
-    } else l.push(h);
-  })), s.push(l.join("")), r.length > 0) {
-    const e = `Chalk template literal is missing ${r.length} closing bracket${1 === r.length ? "" : "s"} (\`}\`)`;
-    throw new Error(e);
-  }
-  return s.join("");
+module.exports = (chalk, temporary) => {
+	const styles = [];
+	const chunks = [];
+	let chunk = [];
+
+	// eslint-disable-next-line max-params
+	temporary.replace(TEMPLATE_REGEX, (m, escapeCharacter, inverse, style, close, character) => {
+		if (escapeCharacter) {
+			chunk.push(unescape(escapeCharacter));
+		} else if (style) {
+			const string = chunk.join('');
+			chunk = [];
+			chunks.push(styles.length === 0 ? string : buildStyle(chalk, styles)(string));
+			styles.push({inverse, styles: parseStyle(style)});
+		} else if (close) {
+			if (styles.length === 0) {
+				throw new Error('Found extraneous } in Chalk template literal');
+			}
+
+			chunks.push(buildStyle(chalk, styles)(chunk.join('')));
+			chunk = [];
+			styles.pop();
+		} else {
+			chunk.push(character);
+		}
+	});
+
+	chunks.push(chunk.join(''));
+
+	if (styles.length > 0) {
+		const errMsg = `Chalk template literal is missing ${styles.length} closing bracket${styles.length === 1 ? '' : 's'} (\`}\`)`;
+		throw new Error(errMsg);
+	}
+
+	return chunks.join('');
 };
 
 },{}],19:[function(require,module,exports){
-"use strict";
+'use strict';
 
-const t = (t, e, s) => {
-  let n = t.indexOf(e);
-  if (-1 === n) return t;
-  const r = e.length;
-  let i = 0, l = "";
-  do {
-    l += t.substr(i, n - i) + e + s, i = n + r, n = t.indexOf(e, i);
-  } while (-1 !== n);
-  return l += t.substr(i), l;
-}, e = (t, e, s, n) => {
-  let r = 0, i = "";
-  do {
-    const l = "\r" === t[n - 1];
-    i += t.substr(r, (l ? n - 1 : n) - r) + e + (l ? "\r\n" : "\n") + s, r = n + 1, 
-    n = t.indexOf("\n", r);
-  } while (-1 !== n);
-  return i += t.substr(r), i;
+const stringReplaceAll = (string, substring, replacer) => {
+	let index = string.indexOf(substring);
+	if (index === -1) {
+		return string;
+	}
+
+	const substringLength = substring.length;
+	let endIndex = 0;
+	let returnValue = '';
+	do {
+		returnValue += string.substr(endIndex, index - endIndex) + substring + replacer;
+		endIndex = index + substringLength;
+		index = string.indexOf(substring, endIndex);
+	} while (index !== -1);
+
+	returnValue += string.substr(endIndex);
+	return returnValue;
+};
+
+const stringEncaseCRLFWithFirstIndex = (string, prefix, postfix, index) => {
+	let endIndex = 0;
+	let returnValue = '';
+	do {
+		const gotCR = string[index - 1] === '\r';
+		returnValue += string.substr(endIndex, (gotCR ? index - 1 : index) - endIndex) + prefix + (gotCR ? '\r\n' : '\n') + postfix;
+		endIndex = index + 1;
+		index = string.indexOf('\n', endIndex);
+	} while (index !== -1);
+
+	returnValue += string.substr(endIndex);
+	return returnValue;
 };
 
 module.exports = {
-  stringReplaceAll: t,
-  stringEncaseCRLFWithFirstIndex: e
+	stringReplaceAll,
+	stringEncaseCRLFWithFirstIndex
 };
 
 },{}],20:[function(require,module,exports){
-const n = require("color-name"), t = {};
+/* MIT license */
+/* eslint-disable no-mixed-operators */
+const cssKeywords = require('color-name');
 
-for (const r of Object.keys(n)) t[n[r]] = r;
+// NOTE: conversions should only return primitive values (i.e. arrays, or
+//       values that give correct `typeof` results).
+//       do not use box values types (i.e. Number(), String(), etc.)
 
-const r = {
-  rgb: {
-    channels: 3,
-    labels: "rgb"
-  },
-  hsl: {
-    channels: 3,
-    labels: "hsl"
-  },
-  hsv: {
-    channels: 3,
-    labels: "hsv"
-  },
-  hwb: {
-    channels: 3,
-    labels: "hwb"
-  },
-  cmyk: {
-    channels: 4,
-    labels: "cmyk"
-  },
-  xyz: {
-    channels: 3,
-    labels: "xyz"
-  },
-  lab: {
-    channels: 3,
-    labels: "lab"
-  },
-  lch: {
-    channels: 3,
-    labels: "lch"
-  },
-  hex: {
-    channels: 1,
-    labels: [ "hex" ]
-  },
-  keyword: {
-    channels: 1,
-    labels: [ "keyword" ]
-  },
-  ansi16: {
-    channels: 1,
-    labels: [ "ansi16" ]
-  },
-  ansi256: {
-    channels: 1,
-    labels: [ "ansi256" ]
-  },
-  hcg: {
-    channels: 3,
-    labels: [ "h", "c", "g" ]
-  },
-  apple: {
-    channels: 3,
-    labels: [ "r16", "g16", "b16" ]
-  },
-  gray: {
-    channels: 1,
-    labels: [ "gray" ]
-  }
+const reverseKeywords = {};
+for (const key of Object.keys(cssKeywords)) {
+	reverseKeywords[cssKeywords[key]] = key;
+}
+
+const convert = {
+	rgb: {channels: 3, labels: 'rgb'},
+	hsl: {channels: 3, labels: 'hsl'},
+	hsv: {channels: 3, labels: 'hsv'},
+	hwb: {channels: 3, labels: 'hwb'},
+	cmyk: {channels: 4, labels: 'cmyk'},
+	xyz: {channels: 3, labels: 'xyz'},
+	lab: {channels: 3, labels: 'lab'},
+	lch: {channels: 3, labels: 'lch'},
+	hex: {channels: 1, labels: ['hex']},
+	keyword: {channels: 1, labels: ['keyword']},
+	ansi16: {channels: 1, labels: ['ansi16']},
+	ansi256: {channels: 1, labels: ['ansi256']},
+	hcg: {channels: 3, labels: ['h', 'c', 'g']},
+	apple: {channels: 3, labels: ['r16', 'g16', 'b16']},
+	gray: {channels: 1, labels: ['gray']}
 };
 
-module.exports = r;
+module.exports = convert;
 
-for (const n of Object.keys(r)) {
-  if (!("channels" in r[n])) throw new Error("missing channels property: " + n);
-  if (!("labels" in r[n])) throw new Error("missing channel labels property: " + n);
-  if (r[n].labels.length !== r[n].channels) throw new Error("channel and label counts mismatch: " + n);
-  const {channels: t, labels: e} = r[n];
-  delete r[n].channels, delete r[n].labels, Object.defineProperty(r[n], "channels", {
-    value: t
-  }), Object.defineProperty(r[n], "labels", {
-    value: e
-  });
+// Hide .channels and .labels properties
+for (const model of Object.keys(convert)) {
+	if (!('channels' in convert[model])) {
+		throw new Error('missing channels property: ' + model);
+	}
+
+	if (!('labels' in convert[model])) {
+		throw new Error('missing channel labels property: ' + model);
+	}
+
+	if (convert[model].labels.length !== convert[model].channels) {
+		throw new Error('channel and label counts mismatch: ' + model);
+	}
+
+	const {channels, labels} = convert[model];
+	delete convert[model].channels;
+	delete convert[model].labels;
+	Object.defineProperty(convert[model], 'channels', {value: channels});
+	Object.defineProperty(convert[model], 'labels', {value: labels});
 }
 
-function e(n, t) {
-  return (n[0] - t[0]) ** 2 + (n[1] - t[1]) ** 2 + (n[2] - t[2]) ** 2;
+convert.rgb.hsl = function (rgb) {
+	const r = rgb[0] / 255;
+	const g = rgb[1] / 255;
+	const b = rgb[2] / 255;
+	const min = Math.min(r, g, b);
+	const max = Math.max(r, g, b);
+	const delta = max - min;
+	let h;
+	let s;
+
+	if (max === min) {
+		h = 0;
+	} else if (r === max) {
+		h = (g - b) / delta;
+	} else if (g === max) {
+		h = 2 + (b - r) / delta;
+	} else if (b === max) {
+		h = 4 + (r - g) / delta;
+	}
+
+	h = Math.min(h * 60, 360);
+
+	if (h < 0) {
+		h += 360;
+	}
+
+	const l = (min + max) / 2;
+
+	if (max === min) {
+		s = 0;
+	} else if (l <= 0.5) {
+		s = delta / (max + min);
+	} else {
+		s = delta / (2 - max - min);
+	}
+
+	return [h, s * 100, l * 100];
+};
+
+convert.rgb.hsv = function (rgb) {
+	let rdif;
+	let gdif;
+	let bdif;
+	let h;
+	let s;
+
+	const r = rgb[0] / 255;
+	const g = rgb[1] / 255;
+	const b = rgb[2] / 255;
+	const v = Math.max(r, g, b);
+	const diff = v - Math.min(r, g, b);
+	const diffc = function (c) {
+		return (v - c) / 6 / diff + 1 / 2;
+	};
+
+	if (diff === 0) {
+		h = 0;
+		s = 0;
+	} else {
+		s = diff / v;
+		rdif = diffc(r);
+		gdif = diffc(g);
+		bdif = diffc(b);
+
+		if (r === v) {
+			h = bdif - gdif;
+		} else if (g === v) {
+			h = (1 / 3) + rdif - bdif;
+		} else if (b === v) {
+			h = (2 / 3) + gdif - rdif;
+		}
+
+		if (h < 0) {
+			h += 1;
+		} else if (h > 1) {
+			h -= 1;
+		}
+	}
+
+	return [
+		h * 360,
+		s * 100,
+		v * 100
+	];
+};
+
+convert.rgb.hwb = function (rgb) {
+	const r = rgb[0];
+	const g = rgb[1];
+	let b = rgb[2];
+	const h = convert.rgb.hsl(rgb)[0];
+	const w = 1 / 255 * Math.min(r, Math.min(g, b));
+
+	b = 1 - 1 / 255 * Math.max(r, Math.max(g, b));
+
+	return [h, w * 100, b * 100];
+};
+
+convert.rgb.cmyk = function (rgb) {
+	const r = rgb[0] / 255;
+	const g = rgb[1] / 255;
+	const b = rgb[2] / 255;
+
+	const k = Math.min(1 - r, 1 - g, 1 - b);
+	const c = (1 - r - k) / (1 - k) || 0;
+	const m = (1 - g - k) / (1 - k) || 0;
+	const y = (1 - b - k) / (1 - k) || 0;
+
+	return [c * 100, m * 100, y * 100, k * 100];
+};
+
+function comparativeDistance(x, y) {
+	/*
+		See https://en.m.wikipedia.org/wiki/Euclidean_distance#Squared_Euclidean_distance
+	*/
+	return (
+		((x[0] - y[0]) ** 2) +
+		((x[1] - y[1]) ** 2) +
+		((x[2] - y[2]) ** 2)
+	);
 }
 
-r.rgb.hsl = function(n) {
-  const t = n[0] / 255, r = n[1] / 255, e = n[2] / 255, a = Math.min(t, r, e), c = Math.max(t, r, e), s = c - a;
-  let o, l;
-  c === a ? o = 0 : t === c ? o = (r - e) / s : r === c ? o = 2 + (e - t) / s : e === c && (o = 4 + (t - r) / s), 
-  o = Math.min(60 * o, 360), o < 0 && (o += 360);
-  const h = (a + c) / 2;
-  return l = c === a ? 0 : h <= .5 ? s / (c + a) : s / (2 - c - a), [ o, 100 * l, 100 * h ];
-}, r.rgb.hsv = function(n) {
-  let t, r, e, a, c;
-  const s = n[0] / 255, o = n[1] / 255, l = n[2] / 255, h = Math.max(s, o, l), u = h - Math.min(s, o, l), i = function(n) {
-    return (h - n) / 6 / u + .5;
-  };
-  return 0 === u ? (a = 0, c = 0) : (c = u / h, t = i(s), r = i(o), e = i(l), s === h ? a = e - r : o === h ? a = 1 / 3 + t - e : l === h && (a = 2 / 3 + r - t), 
-  a < 0 ? a += 1 : a > 1 && (a -= 1)), [ 360 * a, 100 * c, 100 * h ];
-}, r.rgb.hwb = function(n) {
-  const t = n[0], e = n[1];
-  let a = n[2];
-  const c = r.rgb.hsl(n)[0], s = 1 / 255 * Math.min(t, Math.min(e, a));
-  return a = 1 - 1 / 255 * Math.max(t, Math.max(e, a)), [ c, 100 * s, 100 * a ];
-}, r.rgb.cmyk = function(n) {
-  const t = n[0] / 255, r = n[1] / 255, e = n[2] / 255, a = Math.min(1 - t, 1 - r, 1 - e);
-  return [ 100 * ((1 - t - a) / (1 - a) || 0), 100 * ((1 - r - a) / (1 - a) || 0), 100 * ((1 - e - a) / (1 - a) || 0), 100 * a ];
-}, r.rgb.keyword = function(r) {
-  const a = t[r];
-  if (a) return a;
-  let c, s = 1 / 0;
-  for (const t of Object.keys(n)) {
-    const a = e(r, n[t]);
-    a < s && (s = a, c = t);
-  }
-  return c;
-}, r.keyword.rgb = function(t) {
-  return n[t];
-}, r.rgb.xyz = function(n) {
-  let t = n[0] / 255, r = n[1] / 255, e = n[2] / 255;
-  t = t > .04045 ? ((t + .055) / 1.055) ** 2.4 : t / 12.92, r = r > .04045 ? ((r + .055) / 1.055) ** 2.4 : r / 12.92, 
-  e = e > .04045 ? ((e + .055) / 1.055) ** 2.4 : e / 12.92;
-  return [ 100 * (.4124 * t + .3576 * r + .1805 * e), 100 * (.2126 * t + .7152 * r + .0722 * e), 100 * (.0193 * t + .1192 * r + .9505 * e) ];
-}, r.rgb.lab = function(n) {
-  const t = r.rgb.xyz(n);
-  let e = t[0], a = t[1], c = t[2];
-  e /= 95.047, a /= 100, c /= 108.883, e = e > .008856 ? e ** (1 / 3) : 7.787 * e + 16 / 116, 
-  a = a > .008856 ? a ** (1 / 3) : 7.787 * a + 16 / 116, c = c > .008856 ? c ** (1 / 3) : 7.787 * c + 16 / 116;
-  return [ 116 * a - 16, 500 * (e - a), 200 * (a - c) ];
-}, r.hsl.rgb = function(n) {
-  const t = n[0] / 360, r = n[1] / 100, e = n[2] / 100;
-  let a, c, s;
-  if (0 === r) return s = 255 * e, [ s, s, s ];
-  a = e < .5 ? e * (1 + r) : e + r - e * r;
-  const o = 2 * e - a, l = [ 0, 0, 0 ];
-  for (let n = 0; n < 3; n++) c = t + 1 / 3 * -(n - 1), c < 0 && c++, c > 1 && c--, 
-  s = 6 * c < 1 ? o + 6 * (a - o) * c : 2 * c < 1 ? a : 3 * c < 2 ? o + (a - o) * (2 / 3 - c) * 6 : o, 
-  l[n] = 255 * s;
-  return l;
-}, r.hsl.hsv = function(n) {
-  const t = n[0];
-  let r = n[1] / 100, e = n[2] / 100, a = r;
-  const c = Math.max(e, .01);
-  e *= 2, r *= e <= 1 ? e : 2 - e, a *= c <= 1 ? c : 2 - c;
-  return [ t, 100 * (0 === e ? 2 * a / (c + a) : 2 * r / (e + r)), 100 * ((e + r) / 2) ];
-}, r.hsv.rgb = function(n) {
-  const t = n[0] / 60, r = n[1] / 100;
-  let e = n[2] / 100;
-  const a = Math.floor(t) % 6, c = t - Math.floor(t), s = 255 * e * (1 - r), o = 255 * e * (1 - r * c), l = 255 * e * (1 - r * (1 - c));
-  switch (e *= 255, a) {
-   case 0:
-    return [ e, l, s ];
+convert.rgb.keyword = function (rgb) {
+	const reversed = reverseKeywords[rgb];
+	if (reversed) {
+		return reversed;
+	}
 
-   case 1:
-    return [ o, e, s ];
+	let currentClosestDistance = Infinity;
+	let currentClosestKeyword;
 
-   case 2:
-    return [ s, e, l ];
+	for (const keyword of Object.keys(cssKeywords)) {
+		const value = cssKeywords[keyword];
 
-   case 3:
-    return [ s, o, e ];
+		// Compute comparative distance
+		const distance = comparativeDistance(rgb, value);
 
-   case 4:
-    return [ l, s, e ];
+		// Check if its less, if so set as closest
+		if (distance < currentClosestDistance) {
+			currentClosestDistance = distance;
+			currentClosestKeyword = keyword;
+		}
+	}
 
-   case 5:
-    return [ e, s, o ];
-  }
-}, r.hsv.hsl = function(n) {
-  const t = n[0], r = n[1] / 100, e = n[2] / 100, a = Math.max(e, .01);
-  let c, s;
-  s = (2 - r) * e;
-  const o = (2 - r) * a;
-  return c = r * a, c /= o <= 1 ? o : 2 - o, c = c || 0, s /= 2, [ t, 100 * c, 100 * s ];
-}, r.hwb.rgb = function(n) {
-  const t = n[0] / 360;
-  let r = n[1] / 100, e = n[2] / 100;
-  const a = r + e;
-  let c;
-  a > 1 && (r /= a, e /= a);
-  const s = Math.floor(6 * t), o = 1 - e;
-  c = 6 * t - s, 0 != (1 & s) && (c = 1 - c);
-  const l = r + c * (o - r);
-  let h, u, i;
-  switch (s) {
-   default:
-   case 6:
-   case 0:
-    h = o, u = l, i = r;
-    break;
+	return currentClosestKeyword;
+};
 
-   case 1:
-    h = l, u = o, i = r;
-    break;
+convert.keyword.rgb = function (keyword) {
+	return cssKeywords[keyword];
+};
 
-   case 2:
-    h = r, u = o, i = l;
-    break;
+convert.rgb.xyz = function (rgb) {
+	let r = rgb[0] / 255;
+	let g = rgb[1] / 255;
+	let b = rgb[2] / 255;
 
-   case 3:
-    h = r, u = l, i = o;
-    break;
+	// Assume sRGB
+	r = r > 0.04045 ? (((r + 0.055) / 1.055) ** 2.4) : (r / 12.92);
+	g = g > 0.04045 ? (((g + 0.055) / 1.055) ** 2.4) : (g / 12.92);
+	b = b > 0.04045 ? (((b + 0.055) / 1.055) ** 2.4) : (b / 12.92);
 
-   case 4:
-    h = l, u = r, i = o;
-    break;
+	const x = (r * 0.4124) + (g * 0.3576) + (b * 0.1805);
+	const y = (r * 0.2126) + (g * 0.7152) + (b * 0.0722);
+	const z = (r * 0.0193) + (g * 0.1192) + (b * 0.9505);
 
-   case 5:
-    h = o, u = r, i = l;
-  }
-  return [ 255 * h, 255 * u, 255 * i ];
-}, r.cmyk.rgb = function(n) {
-  const t = n[0] / 100, r = n[1] / 100, e = n[2] / 100, a = n[3] / 100;
-  return [ 255 * (1 - Math.min(1, t * (1 - a) + a)), 255 * (1 - Math.min(1, r * (1 - a) + a)), 255 * (1 - Math.min(1, e * (1 - a) + a)) ];
-}, r.xyz.rgb = function(n) {
-  const t = n[0] / 100, r = n[1] / 100, e = n[2] / 100;
-  let a, c, s;
-  return a = 3.2406 * t + -1.5372 * r + -.4986 * e, c = -.9689 * t + 1.8758 * r + .0415 * e, 
-  s = .0557 * t + -.204 * r + 1.057 * e, a = a > .0031308 ? 1.055 * a ** (1 / 2.4) - .055 : 12.92 * a, 
-  c = c > .0031308 ? 1.055 * c ** (1 / 2.4) - .055 : 12.92 * c, s = s > .0031308 ? 1.055 * s ** (1 / 2.4) - .055 : 12.92 * s, 
-  a = Math.min(Math.max(0, a), 1), c = Math.min(Math.max(0, c), 1), s = Math.min(Math.max(0, s), 1), 
-  [ 255 * a, 255 * c, 255 * s ];
-}, r.xyz.lab = function(n) {
-  let t = n[0], r = n[1], e = n[2];
-  t /= 95.047, r /= 100, e /= 108.883, t = t > .008856 ? t ** (1 / 3) : 7.787 * t + 16 / 116, 
-  r = r > .008856 ? r ** (1 / 3) : 7.787 * r + 16 / 116, e = e > .008856 ? e ** (1 / 3) : 7.787 * e + 16 / 116;
-  return [ 116 * r - 16, 500 * (t - r), 200 * (r - e) ];
-}, r.lab.xyz = function(n) {
-  let t, r, e;
-  r = (n[0] + 16) / 116, t = n[1] / 500 + r, e = r - n[2] / 200;
-  const a = r ** 3, c = t ** 3, s = e ** 3;
-  return r = a > .008856 ? a : (r - 16 / 116) / 7.787, t = c > .008856 ? c : (t - 16 / 116) / 7.787, 
-  e = s > .008856 ? s : (e - 16 / 116) / 7.787, t *= 95.047, r *= 100, e *= 108.883, 
-  [ t, r, e ];
-}, r.lab.lch = function(n) {
-  const t = n[0], r = n[1], e = n[2];
-  let a;
-  a = 360 * Math.atan2(e, r) / 2 / Math.PI, a < 0 && (a += 360);
-  return [ t, Math.sqrt(r * r + e * e), a ];
-}, r.lch.lab = function(n) {
-  const t = n[0], r = n[1], e = n[2] / 360 * 2 * Math.PI;
-  return [ t, r * Math.cos(e), r * Math.sin(e) ];
-}, r.rgb.ansi16 = function(n, t = null) {
-  const [e, a, c] = n;
-  let s = null === t ? r.rgb.hsv(n)[2] : t;
-  if (s = Math.round(s / 50), 0 === s) return 30;
-  let o = 30 + (Math.round(c / 255) << 2 | Math.round(a / 255) << 1 | Math.round(e / 255));
-  return 2 === s && (o += 60), o;
-}, r.hsv.ansi16 = function(n) {
-  return r.rgb.ansi16(r.hsv.rgb(n), n[2]);
-}, r.rgb.ansi256 = function(n) {
-  const t = n[0], r = n[1], e = n[2];
-  if (t === r && r === e) return t < 8 ? 16 : t > 248 ? 231 : Math.round((t - 8) / 247 * 24) + 232;
-  return 16 + 36 * Math.round(t / 255 * 5) + 6 * Math.round(r / 255 * 5) + Math.round(e / 255 * 5);
-}, r.ansi16.rgb = function(n) {
-  let t = n % 10;
-  if (0 === t || 7 === t) return n > 50 && (t += 3.5), t = t / 10.5 * 255, [ t, t, t ];
-  const r = .5 * (1 + ~~(n > 50));
-  return [ (1 & t) * r * 255, (t >> 1 & 1) * r * 255, (t >> 2 & 1) * r * 255 ];
-}, r.ansi256.rgb = function(n) {
-  if (n >= 232) {
-    const t = 10 * (n - 232) + 8;
-    return [ t, t, t ];
-  }
-  let t;
-  n -= 16;
-  return [ Math.floor(n / 36) / 5 * 255, Math.floor((t = n % 36) / 6) / 5 * 255, t % 6 / 5 * 255 ];
-}, r.rgb.hex = function(n) {
-  const t = (((255 & Math.round(n[0])) << 16) + ((255 & Math.round(n[1])) << 8) + (255 & Math.round(n[2]))).toString(16).toUpperCase();
-  return "000000".substring(t.length) + t;
-}, r.hex.rgb = function(n) {
-  const t = n.toString(16).match(/[a-f0-9]{6}|[a-f0-9]{3}/i);
-  if (!t) return [ 0, 0, 0 ];
-  let r = t[0];
-  3 === t[0].length && (r = r.split("").map((n => n + n)).join(""));
-  const e = parseInt(r, 16);
-  return [ e >> 16 & 255, e >> 8 & 255, 255 & e ];
-}, r.rgb.hcg = function(n) {
-  const t = n[0] / 255, r = n[1] / 255, e = n[2] / 255, a = Math.max(Math.max(t, r), e), c = Math.min(Math.min(t, r), e), s = a - c;
-  let o, l;
-  return o = s < 1 ? c / (1 - s) : 0, l = s <= 0 ? 0 : a === t ? (r - e) / s % 6 : a === r ? 2 + (e - t) / s : 4 + (t - r) / s, 
-  l /= 6, l %= 1, [ 360 * l, 100 * s, 100 * o ];
-}, r.hsl.hcg = function(n) {
-  const t = n[1] / 100, r = n[2] / 100, e = r < .5 ? 2 * t * r : 2 * t * (1 - r);
-  let a = 0;
-  return e < 1 && (a = (r - .5 * e) / (1 - e)), [ n[0], 100 * e, 100 * a ];
-}, r.hsv.hcg = function(n) {
-  const t = n[1] / 100, r = n[2] / 100, e = t * r;
-  let a = 0;
-  return e < 1 && (a = (r - e) / (1 - e)), [ n[0], 100 * e, 100 * a ];
-}, r.hcg.rgb = function(n) {
-  const t = n[0] / 360, r = n[1] / 100, e = n[2] / 100;
-  if (0 === r) return [ 255 * e, 255 * e, 255 * e ];
-  const a = [ 0, 0, 0 ], c = t % 1 * 6, s = c % 1, o = 1 - s;
-  let l = 0;
-  switch (Math.floor(c)) {
-   case 0:
-    a[0] = 1, a[1] = s, a[2] = 0;
-    break;
+	return [x * 100, y * 100, z * 100];
+};
 
-   case 1:
-    a[0] = o, a[1] = 1, a[2] = 0;
-    break;
+convert.rgb.lab = function (rgb) {
+	const xyz = convert.rgb.xyz(rgb);
+	let x = xyz[0];
+	let y = xyz[1];
+	let z = xyz[2];
 
-   case 2:
-    a[0] = 0, a[1] = 1, a[2] = s;
-    break;
+	x /= 95.047;
+	y /= 100;
+	z /= 108.883;
 
-   case 3:
-    a[0] = 0, a[1] = o, a[2] = 1;
-    break;
+	x = x > 0.008856 ? (x ** (1 / 3)) : (7.787 * x) + (16 / 116);
+	y = y > 0.008856 ? (y ** (1 / 3)) : (7.787 * y) + (16 / 116);
+	z = z > 0.008856 ? (z ** (1 / 3)) : (7.787 * z) + (16 / 116);
 
-   case 4:
-    a[0] = s, a[1] = 0, a[2] = 1;
-    break;
+	const l = (116 * y) - 16;
+	const a = 500 * (x - y);
+	const b = 200 * (y - z);
 
-   default:
-    a[0] = 1, a[1] = 0, a[2] = o;
-  }
-  return l = (1 - r) * e, [ 255 * (r * a[0] + l), 255 * (r * a[1] + l), 255 * (r * a[2] + l) ];
-}, r.hcg.hsv = function(n) {
-  const t = n[1] / 100, r = t + n[2] / 100 * (1 - t);
-  let e = 0;
-  return r > 0 && (e = t / r), [ n[0], 100 * e, 100 * r ];
-}, r.hcg.hsl = function(n) {
-  const t = n[1] / 100, r = n[2] / 100 * (1 - t) + .5 * t;
-  let e = 0;
-  return r > 0 && r < .5 ? e = t / (2 * r) : r >= .5 && r < 1 && (e = t / (2 * (1 - r))), 
-  [ n[0], 100 * e, 100 * r ];
-}, r.hcg.hwb = function(n) {
-  const t = n[1] / 100, r = t + n[2] / 100 * (1 - t);
-  return [ n[0], 100 * (r - t), 100 * (1 - r) ];
-}, r.hwb.hcg = function(n) {
-  const t = n[1] / 100, r = 1 - n[2] / 100, e = r - t;
-  let a = 0;
-  return e < 1 && (a = (r - e) / (1 - e)), [ n[0], 100 * e, 100 * a ];
-}, r.apple.rgb = function(n) {
-  return [ n[0] / 65535 * 255, n[1] / 65535 * 255, n[2] / 65535 * 255 ];
-}, r.rgb.apple = function(n) {
-  return [ n[0] / 255 * 65535, n[1] / 255 * 65535, n[2] / 255 * 65535 ];
-}, r.gray.rgb = function(n) {
-  return [ n[0] / 100 * 255, n[0] / 100 * 255, n[0] / 100 * 255 ];
-}, r.gray.hsl = function(n) {
-  return [ 0, 0, n[0] ];
-}, r.gray.hsv = r.gray.hsl, r.gray.hwb = function(n) {
-  return [ 0, 100, n[0] ];
-}, r.gray.cmyk = function(n) {
-  return [ 0, 0, 0, n[0] ];
-}, r.gray.lab = function(n) {
-  return [ n[0], 0, 0 ];
-}, r.gray.hex = function(n) {
-  const t = 255 & Math.round(n[0] / 100 * 255), r = ((t << 16) + (t << 8) + t).toString(16).toUpperCase();
-  return "000000".substring(r.length) + r;
-}, r.rgb.gray = function(n) {
-  return [ (n[0] + n[1] + n[2]) / 3 / 255 * 100 ];
+	return [l, a, b];
+};
+
+convert.hsl.rgb = function (hsl) {
+	const h = hsl[0] / 360;
+	const s = hsl[1] / 100;
+	const l = hsl[2] / 100;
+	let t2;
+	let t3;
+	let val;
+
+	if (s === 0) {
+		val = l * 255;
+		return [val, val, val];
+	}
+
+	if (l < 0.5) {
+		t2 = l * (1 + s);
+	} else {
+		t2 = l + s - l * s;
+	}
+
+	const t1 = 2 * l - t2;
+
+	const rgb = [0, 0, 0];
+	for (let i = 0; i < 3; i++) {
+		t3 = h + 1 / 3 * -(i - 1);
+		if (t3 < 0) {
+			t3++;
+		}
+
+		if (t3 > 1) {
+			t3--;
+		}
+
+		if (6 * t3 < 1) {
+			val = t1 + (t2 - t1) * 6 * t3;
+		} else if (2 * t3 < 1) {
+			val = t2;
+		} else if (3 * t3 < 2) {
+			val = t1 + (t2 - t1) * (2 / 3 - t3) * 6;
+		} else {
+			val = t1;
+		}
+
+		rgb[i] = val * 255;
+	}
+
+	return rgb;
+};
+
+convert.hsl.hsv = function (hsl) {
+	const h = hsl[0];
+	let s = hsl[1] / 100;
+	let l = hsl[2] / 100;
+	let smin = s;
+	const lmin = Math.max(l, 0.01);
+
+	l *= 2;
+	s *= (l <= 1) ? l : 2 - l;
+	smin *= lmin <= 1 ? lmin : 2 - lmin;
+	const v = (l + s) / 2;
+	const sv = l === 0 ? (2 * smin) / (lmin + smin) : (2 * s) / (l + s);
+
+	return [h, sv * 100, v * 100];
+};
+
+convert.hsv.rgb = function (hsv) {
+	const h = hsv[0] / 60;
+	const s = hsv[1] / 100;
+	let v = hsv[2] / 100;
+	const hi = Math.floor(h) % 6;
+
+	const f = h - Math.floor(h);
+	const p = 255 * v * (1 - s);
+	const q = 255 * v * (1 - (s * f));
+	const t = 255 * v * (1 - (s * (1 - f)));
+	v *= 255;
+
+	switch (hi) {
+		case 0:
+			return [v, t, p];
+		case 1:
+			return [q, v, p];
+		case 2:
+			return [p, v, t];
+		case 3:
+			return [p, q, v];
+		case 4:
+			return [t, p, v];
+		case 5:
+			return [v, p, q];
+	}
+};
+
+convert.hsv.hsl = function (hsv) {
+	const h = hsv[0];
+	const s = hsv[1] / 100;
+	const v = hsv[2] / 100;
+	const vmin = Math.max(v, 0.01);
+	let sl;
+	let l;
+
+	l = (2 - s) * v;
+	const lmin = (2 - s) * vmin;
+	sl = s * vmin;
+	sl /= (lmin <= 1) ? lmin : 2 - lmin;
+	sl = sl || 0;
+	l /= 2;
+
+	return [h, sl * 100, l * 100];
+};
+
+// http://dev.w3.org/csswg/css-color/#hwb-to-rgb
+convert.hwb.rgb = function (hwb) {
+	const h = hwb[0] / 360;
+	let wh = hwb[1] / 100;
+	let bl = hwb[2] / 100;
+	const ratio = wh + bl;
+	let f;
+
+	// Wh + bl cant be > 1
+	if (ratio > 1) {
+		wh /= ratio;
+		bl /= ratio;
+	}
+
+	const i = Math.floor(6 * h);
+	const v = 1 - bl;
+	f = 6 * h - i;
+
+	if ((i & 0x01) !== 0) {
+		f = 1 - f;
+	}
+
+	const n = wh + f * (v - wh); // Linear interpolation
+
+	let r;
+	let g;
+	let b;
+	/* eslint-disable max-statements-per-line,no-multi-spaces */
+	switch (i) {
+		default:
+		case 6:
+		case 0: r = v;  g = n;  b = wh; break;
+		case 1: r = n;  g = v;  b = wh; break;
+		case 2: r = wh; g = v;  b = n; break;
+		case 3: r = wh; g = n;  b = v; break;
+		case 4: r = n;  g = wh; b = v; break;
+		case 5: r = v;  g = wh; b = n; break;
+	}
+	/* eslint-enable max-statements-per-line,no-multi-spaces */
+
+	return [r * 255, g * 255, b * 255];
+};
+
+convert.cmyk.rgb = function (cmyk) {
+	const c = cmyk[0] / 100;
+	const m = cmyk[1] / 100;
+	const y = cmyk[2] / 100;
+	const k = cmyk[3] / 100;
+
+	const r = 1 - Math.min(1, c * (1 - k) + k);
+	const g = 1 - Math.min(1, m * (1 - k) + k);
+	const b = 1 - Math.min(1, y * (1 - k) + k);
+
+	return [r * 255, g * 255, b * 255];
+};
+
+convert.xyz.rgb = function (xyz) {
+	const x = xyz[0] / 100;
+	const y = xyz[1] / 100;
+	const z = xyz[2] / 100;
+	let r;
+	let g;
+	let b;
+
+	r = (x * 3.2406) + (y * -1.5372) + (z * -0.4986);
+	g = (x * -0.9689) + (y * 1.8758) + (z * 0.0415);
+	b = (x * 0.0557) + (y * -0.2040) + (z * 1.0570);
+
+	// Assume sRGB
+	r = r > 0.0031308
+		? ((1.055 * (r ** (1.0 / 2.4))) - 0.055)
+		: r * 12.92;
+
+	g = g > 0.0031308
+		? ((1.055 * (g ** (1.0 / 2.4))) - 0.055)
+		: g * 12.92;
+
+	b = b > 0.0031308
+		? ((1.055 * (b ** (1.0 / 2.4))) - 0.055)
+		: b * 12.92;
+
+	r = Math.min(Math.max(0, r), 1);
+	g = Math.min(Math.max(0, g), 1);
+	b = Math.min(Math.max(0, b), 1);
+
+	return [r * 255, g * 255, b * 255];
+};
+
+convert.xyz.lab = function (xyz) {
+	let x = xyz[0];
+	let y = xyz[1];
+	let z = xyz[2];
+
+	x /= 95.047;
+	y /= 100;
+	z /= 108.883;
+
+	x = x > 0.008856 ? (x ** (1 / 3)) : (7.787 * x) + (16 / 116);
+	y = y > 0.008856 ? (y ** (1 / 3)) : (7.787 * y) + (16 / 116);
+	z = z > 0.008856 ? (z ** (1 / 3)) : (7.787 * z) + (16 / 116);
+
+	const l = (116 * y) - 16;
+	const a = 500 * (x - y);
+	const b = 200 * (y - z);
+
+	return [l, a, b];
+};
+
+convert.lab.xyz = function (lab) {
+	const l = lab[0];
+	const a = lab[1];
+	const b = lab[2];
+	let x;
+	let y;
+	let z;
+
+	y = (l + 16) / 116;
+	x = a / 500 + y;
+	z = y - b / 200;
+
+	const y2 = y ** 3;
+	const x2 = x ** 3;
+	const z2 = z ** 3;
+	y = y2 > 0.008856 ? y2 : (y - 16 / 116) / 7.787;
+	x = x2 > 0.008856 ? x2 : (x - 16 / 116) / 7.787;
+	z = z2 > 0.008856 ? z2 : (z - 16 / 116) / 7.787;
+
+	x *= 95.047;
+	y *= 100;
+	z *= 108.883;
+
+	return [x, y, z];
+};
+
+convert.lab.lch = function (lab) {
+	const l = lab[0];
+	const a = lab[1];
+	const b = lab[2];
+	let h;
+
+	const hr = Math.atan2(b, a);
+	h = hr * 360 / 2 / Math.PI;
+
+	if (h < 0) {
+		h += 360;
+	}
+
+	const c = Math.sqrt(a * a + b * b);
+
+	return [l, c, h];
+};
+
+convert.lch.lab = function (lch) {
+	const l = lch[0];
+	const c = lch[1];
+	const h = lch[2];
+
+	const hr = h / 360 * 2 * Math.PI;
+	const a = c * Math.cos(hr);
+	const b = c * Math.sin(hr);
+
+	return [l, a, b];
+};
+
+convert.rgb.ansi16 = function (args, saturation = null) {
+	const [r, g, b] = args;
+	let value = saturation === null ? convert.rgb.hsv(args)[2] : saturation; // Hsv -> ansi16 optimization
+
+	value = Math.round(value / 50);
+
+	if (value === 0) {
+		return 30;
+	}
+
+	let ansi = 30
+		+ ((Math.round(b / 255) << 2)
+		| (Math.round(g / 255) << 1)
+		| Math.round(r / 255));
+
+	if (value === 2) {
+		ansi += 60;
+	}
+
+	return ansi;
+};
+
+convert.hsv.ansi16 = function (args) {
+	// Optimization here; we already know the value and don't need to get
+	// it converted for us.
+	return convert.rgb.ansi16(convert.hsv.rgb(args), args[2]);
+};
+
+convert.rgb.ansi256 = function (args) {
+	const r = args[0];
+	const g = args[1];
+	const b = args[2];
+
+	// We use the extended greyscale palette here, with the exception of
+	// black and white. normal palette only has 4 greyscale shades.
+	if (r === g && g === b) {
+		if (r < 8) {
+			return 16;
+		}
+
+		if (r > 248) {
+			return 231;
+		}
+
+		return Math.round(((r - 8) / 247) * 24) + 232;
+	}
+
+	const ansi = 16
+		+ (36 * Math.round(r / 255 * 5))
+		+ (6 * Math.round(g / 255 * 5))
+		+ Math.round(b / 255 * 5);
+
+	return ansi;
+};
+
+convert.ansi16.rgb = function (args) {
+	let color = args % 10;
+
+	// Handle greyscale
+	if (color === 0 || color === 7) {
+		if (args > 50) {
+			color += 3.5;
+		}
+
+		color = color / 10.5 * 255;
+
+		return [color, color, color];
+	}
+
+	const mult = (~~(args > 50) + 1) * 0.5;
+	const r = ((color & 1) * mult) * 255;
+	const g = (((color >> 1) & 1) * mult) * 255;
+	const b = (((color >> 2) & 1) * mult) * 255;
+
+	return [r, g, b];
+};
+
+convert.ansi256.rgb = function (args) {
+	// Handle greyscale
+	if (args >= 232) {
+		const c = (args - 232) * 10 + 8;
+		return [c, c, c];
+	}
+
+	args -= 16;
+
+	let rem;
+	const r = Math.floor(args / 36) / 5 * 255;
+	const g = Math.floor((rem = args % 36) / 6) / 5 * 255;
+	const b = (rem % 6) / 5 * 255;
+
+	return [r, g, b];
+};
+
+convert.rgb.hex = function (args) {
+	const integer = ((Math.round(args[0]) & 0xFF) << 16)
+		+ ((Math.round(args[1]) & 0xFF) << 8)
+		+ (Math.round(args[2]) & 0xFF);
+
+	const string = integer.toString(16).toUpperCase();
+	return '000000'.substring(string.length) + string;
+};
+
+convert.hex.rgb = function (args) {
+	const match = args.toString(16).match(/[a-f0-9]{6}|[a-f0-9]{3}/i);
+	if (!match) {
+		return [0, 0, 0];
+	}
+
+	let colorString = match[0];
+
+	if (match[0].length === 3) {
+		colorString = colorString.split('').map(char => {
+			return char + char;
+		}).join('');
+	}
+
+	const integer = parseInt(colorString, 16);
+	const r = (integer >> 16) & 0xFF;
+	const g = (integer >> 8) & 0xFF;
+	const b = integer & 0xFF;
+
+	return [r, g, b];
+};
+
+convert.rgb.hcg = function (rgb) {
+	const r = rgb[0] / 255;
+	const g = rgb[1] / 255;
+	const b = rgb[2] / 255;
+	const max = Math.max(Math.max(r, g), b);
+	const min = Math.min(Math.min(r, g), b);
+	const chroma = (max - min);
+	let grayscale;
+	let hue;
+
+	if (chroma < 1) {
+		grayscale = min / (1 - chroma);
+	} else {
+		grayscale = 0;
+	}
+
+	if (chroma <= 0) {
+		hue = 0;
+	} else
+	if (max === r) {
+		hue = ((g - b) / chroma) % 6;
+	} else
+	if (max === g) {
+		hue = 2 + (b - r) / chroma;
+	} else {
+		hue = 4 + (r - g) / chroma;
+	}
+
+	hue /= 6;
+	hue %= 1;
+
+	return [hue * 360, chroma * 100, grayscale * 100];
+};
+
+convert.hsl.hcg = function (hsl) {
+	const s = hsl[1] / 100;
+	const l = hsl[2] / 100;
+
+	const c = l < 0.5 ? (2.0 * s * l) : (2.0 * s * (1.0 - l));
+
+	let f = 0;
+	if (c < 1.0) {
+		f = (l - 0.5 * c) / (1.0 - c);
+	}
+
+	return [hsl[0], c * 100, f * 100];
+};
+
+convert.hsv.hcg = function (hsv) {
+	const s = hsv[1] / 100;
+	const v = hsv[2] / 100;
+
+	const c = s * v;
+	let f = 0;
+
+	if (c < 1.0) {
+		f = (v - c) / (1 - c);
+	}
+
+	return [hsv[0], c * 100, f * 100];
+};
+
+convert.hcg.rgb = function (hcg) {
+	const h = hcg[0] / 360;
+	const c = hcg[1] / 100;
+	const g = hcg[2] / 100;
+
+	if (c === 0.0) {
+		return [g * 255, g * 255, g * 255];
+	}
+
+	const pure = [0, 0, 0];
+	const hi = (h % 1) * 6;
+	const v = hi % 1;
+	const w = 1 - v;
+	let mg = 0;
+
+	/* eslint-disable max-statements-per-line */
+	switch (Math.floor(hi)) {
+		case 0:
+			pure[0] = 1; pure[1] = v; pure[2] = 0; break;
+		case 1:
+			pure[0] = w; pure[1] = 1; pure[2] = 0; break;
+		case 2:
+			pure[0] = 0; pure[1] = 1; pure[2] = v; break;
+		case 3:
+			pure[0] = 0; pure[1] = w; pure[2] = 1; break;
+		case 4:
+			pure[0] = v; pure[1] = 0; pure[2] = 1; break;
+		default:
+			pure[0] = 1; pure[1] = 0; pure[2] = w;
+	}
+	/* eslint-enable max-statements-per-line */
+
+	mg = (1.0 - c) * g;
+
+	return [
+		(c * pure[0] + mg) * 255,
+		(c * pure[1] + mg) * 255,
+		(c * pure[2] + mg) * 255
+	];
+};
+
+convert.hcg.hsv = function (hcg) {
+	const c = hcg[1] / 100;
+	const g = hcg[2] / 100;
+
+	const v = c + g * (1.0 - c);
+	let f = 0;
+
+	if (v > 0.0) {
+		f = c / v;
+	}
+
+	return [hcg[0], f * 100, v * 100];
+};
+
+convert.hcg.hsl = function (hcg) {
+	const c = hcg[1] / 100;
+	const g = hcg[2] / 100;
+
+	const l = g * (1.0 - c) + 0.5 * c;
+	let s = 0;
+
+	if (l > 0.0 && l < 0.5) {
+		s = c / (2 * l);
+	} else
+	if (l >= 0.5 && l < 1.0) {
+		s = c / (2 * (1 - l));
+	}
+
+	return [hcg[0], s * 100, l * 100];
+};
+
+convert.hcg.hwb = function (hcg) {
+	const c = hcg[1] / 100;
+	const g = hcg[2] / 100;
+	const v = c + g * (1.0 - c);
+	return [hcg[0], (v - c) * 100, (1 - v) * 100];
+};
+
+convert.hwb.hcg = function (hwb) {
+	const w = hwb[1] / 100;
+	const b = hwb[2] / 100;
+	const v = 1 - b;
+	const c = v - w;
+	let g = 0;
+
+	if (c < 1) {
+		g = (v - c) / (1 - c);
+	}
+
+	return [hwb[0], c * 100, g * 100];
+};
+
+convert.apple.rgb = function (apple) {
+	return [(apple[0] / 65535) * 255, (apple[1] / 65535) * 255, (apple[2] / 65535) * 255];
+};
+
+convert.rgb.apple = function (rgb) {
+	return [(rgb[0] / 255) * 65535, (rgb[1] / 255) * 65535, (rgb[2] / 255) * 65535];
+};
+
+convert.gray.rgb = function (args) {
+	return [args[0] / 100 * 255, args[0] / 100 * 255, args[0] / 100 * 255];
+};
+
+convert.gray.hsl = function (args) {
+	return [0, 0, args[0]];
+};
+
+convert.gray.hsv = convert.gray.hsl;
+
+convert.gray.hwb = function (gray) {
+	return [0, 100, gray[0]];
+};
+
+convert.gray.cmyk = function (gray) {
+	return [0, 0, 0, gray[0]];
+};
+
+convert.gray.lab = function (gray) {
+	return [gray[0], 0, 0];
+};
+
+convert.gray.hex = function (gray) {
+	const val = Math.round(gray[0] / 100 * 255) & 0xFF;
+	const integer = (val << 16) + (val << 8) + val;
+
+	const string = integer.toString(16).toUpperCase();
+	return '000000'.substring(string.length) + string;
+};
+
+convert.rgb.gray = function (rgb) {
+	const val = (rgb[0] + rgb[1] + rgb[2]) / 3;
+	return [val / 255 * 100];
 };
 
 },{"color-name":23}],21:[function(require,module,exports){
-const n = require("./conversions"), e = require("./route"), o = {}, r = Object.keys(n);
+const conversions = require('./conversions');
+const route = require('./route');
 
-function t(n) {
-  const e = function(...e) {
-    const o = e[0];
-    return null == o ? o : (o.length > 1 && (e = o), n(e));
-  };
-  return "conversion" in n && (e.conversion = n.conversion), e;
+const convert = {};
+
+const models = Object.keys(conversions);
+
+function wrapRaw(fn) {
+	const wrappedFn = function (...args) {
+		const arg0 = args[0];
+		if (arg0 === undefined || arg0 === null) {
+			return arg0;
+		}
+
+		if (arg0.length > 1) {
+			args = arg0;
+		}
+
+		return fn(args);
+	};
+
+	// Preserve .conversion property if there is one
+	if ('conversion' in fn) {
+		wrappedFn.conversion = fn.conversion;
+	}
+
+	return wrappedFn;
 }
 
-function c(n) {
-  const e = function(...e) {
-    const o = e[0];
-    if (null == o) return o;
-    o.length > 1 && (e = o);
-    const r = n(e);
-    if ("object" == typeof r) for (let n = r.length, e = 0; e < n; e++) r[e] = Math.round(r[e]);
-    return r;
-  };
-  return "conversion" in n && (e.conversion = n.conversion), e;
+function wrapRounded(fn) {
+	const wrappedFn = function (...args) {
+		const arg0 = args[0];
+
+		if (arg0 === undefined || arg0 === null) {
+			return arg0;
+		}
+
+		if (arg0.length > 1) {
+			args = arg0;
+		}
+
+		const result = fn(args);
+
+		// We're assuming the result is an array here.
+		// see notice in conversions.js; don't use box types
+		// in conversion functions.
+		if (typeof result === 'object') {
+			for (let len = result.length, i = 0; i < len; i++) {
+				result[i] = Math.round(result[i]);
+			}
+		}
+
+		return result;
+	};
+
+	// Preserve .conversion property if there is one
+	if ('conversion' in fn) {
+		wrappedFn.conversion = fn.conversion;
+	}
+
+	return wrappedFn;
 }
 
-r.forEach((r => {
-  o[r] = {}, Object.defineProperty(o[r], "channels", {
-    value: n[r].channels
-  }), Object.defineProperty(o[r], "labels", {
-    value: n[r].labels
-  });
-  const s = e(r);
-  Object.keys(s).forEach((n => {
-    const e = s[n];
-    o[r][n] = c(e), o[r][n].raw = t(e);
-  }));
-})), module.exports = o;
+models.forEach(fromModel => {
+	convert[fromModel] = {};
+
+	Object.defineProperty(convert[fromModel], 'channels', {value: conversions[fromModel].channels});
+	Object.defineProperty(convert[fromModel], 'labels', {value: conversions[fromModel].labels});
+
+	const routes = route(fromModel);
+	const routeModels = Object.keys(routes);
+
+	routeModels.forEach(toModel => {
+		const fn = routes[toModel];
+
+		convert[fromModel][toModel] = wrapRounded(fn);
+		convert[fromModel][toModel].raw = wrapRaw(fn);
+	});
+});
+
+module.exports = convert;
 
 },{"./conversions":20,"./route":22}],22:[function(require,module,exports){
-const n = require("./conversions");
+const conversions = require('./conversions');
 
-function t() {
-  const t = {}, e = Object.keys(n);
-  for (let n = e.length, r = 0; r < n; r++) t[e[r]] = {
-    distance: -1,
-    parent: null
-  };
-  return t;
+/*
+	This function routes a model to all other models.
+
+	all functions that are routed have a property `.conversion` attached
+	to the returned synthetic function. This property is an array
+	of strings, each with the steps in between the 'from' and 'to'
+	color models (inclusive).
+
+	conversions that are not possible simply are not included.
+*/
+
+function buildGraph() {
+	const graph = {};
+	// https://jsperf.com/object-keys-vs-for-in-with-closure/3
+	const models = Object.keys(conversions);
+
+	for (let len = models.length, i = 0; i < len; i++) {
+		graph[models[i]] = {
+			// http://jsperf.com/1-vs-infinity
+			// micro-opt, but this is simple.
+			distance: -1,
+			parent: null
+		};
+	}
+
+	return graph;
 }
 
-function e(e) {
-  const r = t(), o = [ e ];
-  for (r[e].distance = 0; o.length; ) {
-    const t = o.pop(), e = Object.keys(n[t]);
-    for (let n = e.length, c = 0; c < n; c++) {
-      const n = e[c], s = r[n];
-      -1 === s.distance && (s.distance = r[t].distance + 1, s.parent = t, o.unshift(n));
-    }
-  }
-  return r;
+// https://en.wikipedia.org/wiki/Breadth-first_search
+function deriveBFS(fromModel) {
+	const graph = buildGraph();
+	const queue = [fromModel]; // Unshift -> queue -> pop
+
+	graph[fromModel].distance = 0;
+
+	while (queue.length) {
+		const current = queue.pop();
+		const adjacents = Object.keys(conversions[current]);
+
+		for (let len = adjacents.length, i = 0; i < len; i++) {
+			const adjacent = adjacents[i];
+			const node = graph[adjacent];
+
+			if (node.distance === -1) {
+				node.distance = graph[current].distance + 1;
+				node.parent = current;
+				queue.unshift(adjacent);
+			}
+		}
+	}
+
+	return graph;
 }
 
-function r(n, t) {
-  return function(e) {
-    return t(n(e));
-  };
+function link(from, to) {
+	return function (args) {
+		return to(from(args));
+	};
 }
 
-function o(t, e) {
-  const o = [ e[t].parent, t ];
-  let c = n[e[t].parent][t], s = e[t].parent;
-  for (;e[s].parent; ) o.unshift(e[s].parent), c = r(n[e[s].parent][s], c), s = e[s].parent;
-  return c.conversion = o, c;
+function wrapConversion(toModel, graph) {
+	const path = [graph[toModel].parent, toModel];
+	let fn = conversions[graph[toModel].parent][toModel];
+
+	let cur = graph[toModel].parent;
+	while (graph[cur].parent) {
+		path.unshift(graph[cur].parent);
+		fn = link(conversions[graph[cur].parent][cur], fn);
+		cur = graph[cur].parent;
+	}
+
+	fn.conversion = path;
+	return fn;
 }
 
-module.exports = function(n) {
-  const t = e(n), r = {}, c = Object.keys(t);
-  for (let n = c.length, e = 0; e < n; e++) {
-    const n = c[e];
-    null !== t[n].parent && (r[n] = o(n, t));
-  }
-  return r;
+module.exports = function (fromModel) {
+	const graph = deriveBFS(fromModel);
+	const conversion = {};
+
+	const models = Object.keys(graph);
+	for (let len = models.length, i = 0; i < len; i++) {
+		const toModel = models[i];
+		const node = graph[toModel];
+
+		if (node.parent === null) {
+			// No possible conversion, or this node is the source model.
+			continue;
+		}
+
+		conversion[toModel] = wrapConversion(toModel, graph);
+	}
+
+	return conversion;
 };
 
+
 },{"./conversions":20}],23:[function(require,module,exports){
-"use strict";
+'use strict'
 
 module.exports = {
-  aliceblue: [ 240, 248, 255 ],
-  antiquewhite: [ 250, 235, 215 ],
-  aqua: [ 0, 255, 255 ],
-  aquamarine: [ 127, 255, 212 ],
-  azure: [ 240, 255, 255 ],
-  beige: [ 245, 245, 220 ],
-  bisque: [ 255, 228, 196 ],
-  black: [ 0, 0, 0 ],
-  blanchedalmond: [ 255, 235, 205 ],
-  blue: [ 0, 0, 255 ],
-  blueviolet: [ 138, 43, 226 ],
-  brown: [ 165, 42, 42 ],
-  burlywood: [ 222, 184, 135 ],
-  cadetblue: [ 95, 158, 160 ],
-  chartreuse: [ 127, 255, 0 ],
-  chocolate: [ 210, 105, 30 ],
-  coral: [ 255, 127, 80 ],
-  cornflowerblue: [ 100, 149, 237 ],
-  cornsilk: [ 255, 248, 220 ],
-  crimson: [ 220, 20, 60 ],
-  cyan: [ 0, 255, 255 ],
-  darkblue: [ 0, 0, 139 ],
-  darkcyan: [ 0, 139, 139 ],
-  darkgoldenrod: [ 184, 134, 11 ],
-  darkgray: [ 169, 169, 169 ],
-  darkgreen: [ 0, 100, 0 ],
-  darkgrey: [ 169, 169, 169 ],
-  darkkhaki: [ 189, 183, 107 ],
-  darkmagenta: [ 139, 0, 139 ],
-  darkolivegreen: [ 85, 107, 47 ],
-  darkorange: [ 255, 140, 0 ],
-  darkorchid: [ 153, 50, 204 ],
-  darkred: [ 139, 0, 0 ],
-  darksalmon: [ 233, 150, 122 ],
-  darkseagreen: [ 143, 188, 143 ],
-  darkslateblue: [ 72, 61, 139 ],
-  darkslategray: [ 47, 79, 79 ],
-  darkslategrey: [ 47, 79, 79 ],
-  darkturquoise: [ 0, 206, 209 ],
-  darkviolet: [ 148, 0, 211 ],
-  deeppink: [ 255, 20, 147 ],
-  deepskyblue: [ 0, 191, 255 ],
-  dimgray: [ 105, 105, 105 ],
-  dimgrey: [ 105, 105, 105 ],
-  dodgerblue: [ 30, 144, 255 ],
-  firebrick: [ 178, 34, 34 ],
-  floralwhite: [ 255, 250, 240 ],
-  forestgreen: [ 34, 139, 34 ],
-  fuchsia: [ 255, 0, 255 ],
-  gainsboro: [ 220, 220, 220 ],
-  ghostwhite: [ 248, 248, 255 ],
-  gold: [ 255, 215, 0 ],
-  goldenrod: [ 218, 165, 32 ],
-  gray: [ 128, 128, 128 ],
-  green: [ 0, 128, 0 ],
-  greenyellow: [ 173, 255, 47 ],
-  grey: [ 128, 128, 128 ],
-  honeydew: [ 240, 255, 240 ],
-  hotpink: [ 255, 105, 180 ],
-  indianred: [ 205, 92, 92 ],
-  indigo: [ 75, 0, 130 ],
-  ivory: [ 255, 255, 240 ],
-  khaki: [ 240, 230, 140 ],
-  lavender: [ 230, 230, 250 ],
-  lavenderblush: [ 255, 240, 245 ],
-  lawngreen: [ 124, 252, 0 ],
-  lemonchiffon: [ 255, 250, 205 ],
-  lightblue: [ 173, 216, 230 ],
-  lightcoral: [ 240, 128, 128 ],
-  lightcyan: [ 224, 255, 255 ],
-  lightgoldenrodyellow: [ 250, 250, 210 ],
-  lightgray: [ 211, 211, 211 ],
-  lightgreen: [ 144, 238, 144 ],
-  lightgrey: [ 211, 211, 211 ],
-  lightpink: [ 255, 182, 193 ],
-  lightsalmon: [ 255, 160, 122 ],
-  lightseagreen: [ 32, 178, 170 ],
-  lightskyblue: [ 135, 206, 250 ],
-  lightslategray: [ 119, 136, 153 ],
-  lightslategrey: [ 119, 136, 153 ],
-  lightsteelblue: [ 176, 196, 222 ],
-  lightyellow: [ 255, 255, 224 ],
-  lime: [ 0, 255, 0 ],
-  limegreen: [ 50, 205, 50 ],
-  linen: [ 250, 240, 230 ],
-  magenta: [ 255, 0, 255 ],
-  maroon: [ 128, 0, 0 ],
-  mediumaquamarine: [ 102, 205, 170 ],
-  mediumblue: [ 0, 0, 205 ],
-  mediumorchid: [ 186, 85, 211 ],
-  mediumpurple: [ 147, 112, 219 ],
-  mediumseagreen: [ 60, 179, 113 ],
-  mediumslateblue: [ 123, 104, 238 ],
-  mediumspringgreen: [ 0, 250, 154 ],
-  mediumturquoise: [ 72, 209, 204 ],
-  mediumvioletred: [ 199, 21, 133 ],
-  midnightblue: [ 25, 25, 112 ],
-  mintcream: [ 245, 255, 250 ],
-  mistyrose: [ 255, 228, 225 ],
-  moccasin: [ 255, 228, 181 ],
-  navajowhite: [ 255, 222, 173 ],
-  navy: [ 0, 0, 128 ],
-  oldlace: [ 253, 245, 230 ],
-  olive: [ 128, 128, 0 ],
-  olivedrab: [ 107, 142, 35 ],
-  orange: [ 255, 165, 0 ],
-  orangered: [ 255, 69, 0 ],
-  orchid: [ 218, 112, 214 ],
-  palegoldenrod: [ 238, 232, 170 ],
-  palegreen: [ 152, 251, 152 ],
-  paleturquoise: [ 175, 238, 238 ],
-  palevioletred: [ 219, 112, 147 ],
-  papayawhip: [ 255, 239, 213 ],
-  peachpuff: [ 255, 218, 185 ],
-  peru: [ 205, 133, 63 ],
-  pink: [ 255, 192, 203 ],
-  plum: [ 221, 160, 221 ],
-  powderblue: [ 176, 224, 230 ],
-  purple: [ 128, 0, 128 ],
-  rebeccapurple: [ 102, 51, 153 ],
-  red: [ 255, 0, 0 ],
-  rosybrown: [ 188, 143, 143 ],
-  royalblue: [ 65, 105, 225 ],
-  saddlebrown: [ 139, 69, 19 ],
-  salmon: [ 250, 128, 114 ],
-  sandybrown: [ 244, 164, 96 ],
-  seagreen: [ 46, 139, 87 ],
-  seashell: [ 255, 245, 238 ],
-  sienna: [ 160, 82, 45 ],
-  silver: [ 192, 192, 192 ],
-  skyblue: [ 135, 206, 235 ],
-  slateblue: [ 106, 90, 205 ],
-  slategray: [ 112, 128, 144 ],
-  slategrey: [ 112, 128, 144 ],
-  snow: [ 255, 250, 250 ],
-  springgreen: [ 0, 255, 127 ],
-  steelblue: [ 70, 130, 180 ],
-  tan: [ 210, 180, 140 ],
-  teal: [ 0, 128, 128 ],
-  thistle: [ 216, 191, 216 ],
-  tomato: [ 255, 99, 71 ],
-  turquoise: [ 64, 224, 208 ],
-  violet: [ 238, 130, 238 ],
-  wheat: [ 245, 222, 179 ],
-  white: [ 255, 255, 255 ],
-  whitesmoke: [ 245, 245, 245 ],
-  yellow: [ 255, 255, 0 ],
-  yellowgreen: [ 154, 205, 50 ]
+	"aliceblue": [240, 248, 255],
+	"antiquewhite": [250, 235, 215],
+	"aqua": [0, 255, 255],
+	"aquamarine": [127, 255, 212],
+	"azure": [240, 255, 255],
+	"beige": [245, 245, 220],
+	"bisque": [255, 228, 196],
+	"black": [0, 0, 0],
+	"blanchedalmond": [255, 235, 205],
+	"blue": [0, 0, 255],
+	"blueviolet": [138, 43, 226],
+	"brown": [165, 42, 42],
+	"burlywood": [222, 184, 135],
+	"cadetblue": [95, 158, 160],
+	"chartreuse": [127, 255, 0],
+	"chocolate": [210, 105, 30],
+	"coral": [255, 127, 80],
+	"cornflowerblue": [100, 149, 237],
+	"cornsilk": [255, 248, 220],
+	"crimson": [220, 20, 60],
+	"cyan": [0, 255, 255],
+	"darkblue": [0, 0, 139],
+	"darkcyan": [0, 139, 139],
+	"darkgoldenrod": [184, 134, 11],
+	"darkgray": [169, 169, 169],
+	"darkgreen": [0, 100, 0],
+	"darkgrey": [169, 169, 169],
+	"darkkhaki": [189, 183, 107],
+	"darkmagenta": [139, 0, 139],
+	"darkolivegreen": [85, 107, 47],
+	"darkorange": [255, 140, 0],
+	"darkorchid": [153, 50, 204],
+	"darkred": [139, 0, 0],
+	"darksalmon": [233, 150, 122],
+	"darkseagreen": [143, 188, 143],
+	"darkslateblue": [72, 61, 139],
+	"darkslategray": [47, 79, 79],
+	"darkslategrey": [47, 79, 79],
+	"darkturquoise": [0, 206, 209],
+	"darkviolet": [148, 0, 211],
+	"deeppink": [255, 20, 147],
+	"deepskyblue": [0, 191, 255],
+	"dimgray": [105, 105, 105],
+	"dimgrey": [105, 105, 105],
+	"dodgerblue": [30, 144, 255],
+	"firebrick": [178, 34, 34],
+	"floralwhite": [255, 250, 240],
+	"forestgreen": [34, 139, 34],
+	"fuchsia": [255, 0, 255],
+	"gainsboro": [220, 220, 220],
+	"ghostwhite": [248, 248, 255],
+	"gold": [255, 215, 0],
+	"goldenrod": [218, 165, 32],
+	"gray": [128, 128, 128],
+	"green": [0, 128, 0],
+	"greenyellow": [173, 255, 47],
+	"grey": [128, 128, 128],
+	"honeydew": [240, 255, 240],
+	"hotpink": [255, 105, 180],
+	"indianred": [205, 92, 92],
+	"indigo": [75, 0, 130],
+	"ivory": [255, 255, 240],
+	"khaki": [240, 230, 140],
+	"lavender": [230, 230, 250],
+	"lavenderblush": [255, 240, 245],
+	"lawngreen": [124, 252, 0],
+	"lemonchiffon": [255, 250, 205],
+	"lightblue": [173, 216, 230],
+	"lightcoral": [240, 128, 128],
+	"lightcyan": [224, 255, 255],
+	"lightgoldenrodyellow": [250, 250, 210],
+	"lightgray": [211, 211, 211],
+	"lightgreen": [144, 238, 144],
+	"lightgrey": [211, 211, 211],
+	"lightpink": [255, 182, 193],
+	"lightsalmon": [255, 160, 122],
+	"lightseagreen": [32, 178, 170],
+	"lightskyblue": [135, 206, 250],
+	"lightslategray": [119, 136, 153],
+	"lightslategrey": [119, 136, 153],
+	"lightsteelblue": [176, 196, 222],
+	"lightyellow": [255, 255, 224],
+	"lime": [0, 255, 0],
+	"limegreen": [50, 205, 50],
+	"linen": [250, 240, 230],
+	"magenta": [255, 0, 255],
+	"maroon": [128, 0, 0],
+	"mediumaquamarine": [102, 205, 170],
+	"mediumblue": [0, 0, 205],
+	"mediumorchid": [186, 85, 211],
+	"mediumpurple": [147, 112, 219],
+	"mediumseagreen": [60, 179, 113],
+	"mediumslateblue": [123, 104, 238],
+	"mediumspringgreen": [0, 250, 154],
+	"mediumturquoise": [72, 209, 204],
+	"mediumvioletred": [199, 21, 133],
+	"midnightblue": [25, 25, 112],
+	"mintcream": [245, 255, 250],
+	"mistyrose": [255, 228, 225],
+	"moccasin": [255, 228, 181],
+	"navajowhite": [255, 222, 173],
+	"navy": [0, 0, 128],
+	"oldlace": [253, 245, 230],
+	"olive": [128, 128, 0],
+	"olivedrab": [107, 142, 35],
+	"orange": [255, 165, 0],
+	"orangered": [255, 69, 0],
+	"orchid": [218, 112, 214],
+	"palegoldenrod": [238, 232, 170],
+	"palegreen": [152, 251, 152],
+	"paleturquoise": [175, 238, 238],
+	"palevioletred": [219, 112, 147],
+	"papayawhip": [255, 239, 213],
+	"peachpuff": [255, 218, 185],
+	"peru": [205, 133, 63],
+	"pink": [255, 192, 203],
+	"plum": [221, 160, 221],
+	"powderblue": [176, 224, 230],
+	"purple": [128, 0, 128],
+	"rebeccapurple": [102, 51, 153],
+	"red": [255, 0, 0],
+	"rosybrown": [188, 143, 143],
+	"royalblue": [65, 105, 225],
+	"saddlebrown": [139, 69, 19],
+	"salmon": [250, 128, 114],
+	"sandybrown": [244, 164, 96],
+	"seagreen": [46, 139, 87],
+	"seashell": [255, 245, 238],
+	"sienna": [160, 82, 45],
+	"silver": [192, 192, 192],
+	"skyblue": [135, 206, 235],
+	"slateblue": [106, 90, 205],
+	"slategray": [112, 128, 144],
+	"slategrey": [112, 128, 144],
+	"snow": [255, 250, 250],
+	"springgreen": [0, 255, 127],
+	"steelblue": [70, 130, 180],
+	"tan": [210, 180, 140],
+	"teal": [0, 128, 128],
+	"thistle": [216, 191, 216],
+	"tomato": [255, 99, 71],
+	"turquoise": [64, 224, 208],
+	"violet": [238, 130, 238],
+	"wheat": [245, 222, 179],
+	"white": [255, 255, 255],
+	"whitesmoke": [245, 245, 245],
+	"yellow": [255, 255, 0],
+	"yellowgreen": [154, 205, 50]
 };
 
 },{}],24:[function(require,module,exports){
-const s = {
+const caps = {
   level: 3,
-  hasBasic: !0,
-  has256: !0,
-  has16m: !0
+  hasBasic: true,
+  has256: true,
+  has16m: true
 };
 
-function o(o) {
-  return s;
+function supportsColor(stream) {
+  return caps;
 }
 
 module.exports = {
-  supportsColor: o,
-  stdout: s,
-  stderr: s
+  supportsColor,
+  stdout: caps,
+  stderr: caps
 };
 
 },{}],25:[function(require,module,exports){
-const {pageSize: e, pointerSize: s} = Process;
+const {
+  pageSize,
+  pointerSize
+} = Process;
 
-class t {
-  constructor(s) {
-    this.sliceSize = s, this.slicesPerPage = e / s, this.pages = [], this.free = [];
+class CodeAllocator {
+  constructor (sliceSize) {
+    this.sliceSize = sliceSize;
+    this.slicesPerPage = pageSize / sliceSize;
+
+    this.pages = [];
+    this.free = [];
   }
-  allocateSlice(s, t) {
-    const i = void 0 === s.near, r = 1 === t;
-    if (i && r) {
-      const e = this.free.pop();
-      if (void 0 !== e) return e;
-    } else if (t < e) {
-      const {free: e} = this, c = e.length, n = r ? null : ptr(t - 1);
-      for (let t = 0; t !== c; t++) {
-        const c = e[t], o = i || this._isSliceNear(c, s), l = r || c.and(n).isNull();
-        if (o && l) return e.splice(t, 1)[0];
+
+  allocateSlice (spec, alignment) {
+    const anyLocation = spec.near === undefined;
+    const anyAlignment = alignment === 1;
+    if (anyLocation && anyAlignment) {
+      const slice = this.free.pop();
+      if (slice !== undefined) {
+        return slice;
+      }
+    } else if (alignment < pageSize) {
+      const { free } = this;
+      const n = free.length;
+      const alignMask = anyAlignment ? null : ptr(alignment - 1);
+      for (let i = 0; i !== n; i++) {
+        const slice = free[i];
+
+        const satisfiesLocation = anyLocation || this._isSliceNear(slice, spec);
+        const satisfiesAlignment = anyAlignment || slice.and(alignMask).isNull();
+
+        if (satisfiesLocation && satisfiesAlignment) {
+          return free.splice(i, 1)[0];
+        }
       }
     }
-    return this._allocatePage(s);
+
+    return this._allocatePage(spec);
   }
-  _allocatePage(s) {
-    const t = Memory.alloc(e, s), {sliceSize: i, slicesPerPage: r} = this;
-    for (let e = 1; e !== r; e++) {
-      const s = t.add(e * i);
-      this.free.push(s);
+
+  _allocatePage (spec) {
+    const page = Memory.alloc(pageSize, spec);
+
+    const { sliceSize, slicesPerPage } = this;
+
+    for (let i = 1; i !== slicesPerPage; i++) {
+      const slice = page.add(i * sliceSize);
+      this.free.push(slice);
     }
-    return this.pages.push(t), t;
+
+    this.pages.push(page);
+
+    return page;
   }
-  _isSliceNear(e, s) {
-    const t = e.add(this.sliceSize), {near: r, maxDistance: c} = s, n = i(r.sub(e)), o = i(r.sub(t));
-    return n.compare(c) <= 0 && o.compare(c) <= 0;
+
+  _isSliceNear (slice, spec) {
+    const sliceEnd = slice.add(this.sliceSize);
+
+    const { near, maxDistance } = spec;
+
+    const startDistance = abs(near.sub(slice));
+    const endDistance = abs(near.sub(sliceEnd));
+
+    return startDistance.compare(maxDistance) <= 0 &&
+        endDistance.compare(maxDistance) <= 0;
   }
-  freeSlice(e) {
-    this.free.push(e);
+
+  freeSlice (slice) {
+    this.free.push(slice);
   }
 }
 
-function i(e) {
-  const t = 4 === s ? 31 : 63, i = ptr(1).shl(t).not();
-  return e.and(i);
+function abs (nptr) {
+  const shmt = (pointerSize === 4) ? 31 : 63;
+  const mask = ptr(1).shl(shmt).not();
+  return nptr.and(mask);
 }
 
-function r(e) {
-  return new t(e);
+function makeAllocator (sliceSize) {
+  return new CodeAllocator(sliceSize);
 }
 
-module.exports = r;
+module.exports = makeAllocator;
 
 },{}],26:[function(require,module,exports){
 (function (global){(function (){
-const e = require("./alloc"), {jvmtiVersion: t, jvmtiCapabilities: n, EnvJvmti: r} = require("./jvmti"), {parseInstructionsAt: o} = require("./machine-code"), a = require("./memoize"), {checkJniResult: i, JNI_OK: s} = require("./result"), c = require("./vm"), d = 4, l = Process.pointerSize, {readU32: u, readPointer: p, writeU32: _, writePointer: m} = NativePointer.prototype, h = 1, g = 8, f = 16, b = 256, v = 524288, k = 2097152, S = 1073741824, E = 524288, N = 134217728, R = 1048576, w = 2097152, P = 268435456, x = 268435456, M = 0, C = 3, A = 5, y = ptr(1).not(), I = 2147467263, L = 4294963200, T = 17 * l, j = 18 * l, O = 12, z = 112, D = 116, F = 0, V = 56, Z = 4, J = 8, U = 10, G = 12, B = 14, q = 28, W = 36, H = 0, K = 1, Q = 2, $ = 3, X = 4, Y = 5, ee = 6, te = 7, ne = 2147483648, re = 28, oe = 3 * l, ae = 3 * l, ie = 1, se = 1, ce = a(Ze), de = a(Xe), le = a(nt), ue = a(ot), pe = a(at), _e = a(vt), me = a(pt), he = a(_t), ge = a(mt), fe = a(At), be = "ia32" === Process.arch ? Vn : Fn, ve = {
-  exceptions: "propagate"
-}, ke = {};
+const makeCodeAllocator = require('./alloc');
+const {
+  jvmtiVersion,
+  jvmtiCapabilities,
+  EnvJvmti
+} = require('./jvmti');
+const { parseInstructionsAt } = require('./machine-code');
+const memoize = require('./memoize');
+const { checkJniResult, JNI_OK } = require('./result');
+const VM = require('./vm');
 
-let Se = null, Ee = null, Ne = null, Re = null;
+const jsizeSize = 4;
+const pointerSize = Process.pointerSize;
 
-const we = [], Pe = new Map, xe = [];
+const {
+  readU32,
+  readPointer,
+  writeU32,
+  writePointer
+} = NativePointer.prototype;
 
-let Me = null, Ce = 0, Ae = !1, ye = !1, Ie = null;
+const kAccPublic = 0x0001;
+const kAccStatic = 0x0008;
+const kAccFinal = 0x0010;
+const kAccNative = 0x0100;
+const kAccFastNative = 0x00080000;
+const kAccCriticalNative = 0x00200000;
+const kAccFastInterpreterToInterpreterInvoke = 0x40000000;
+const kAccSkipAccessChecks = 0x00080000;
+const kAccSingleImplementation = 0x08000000;
+const kAccNterpEntryPointFastPathFlag = 0x00100000;
+const kAccNterpInvokeFastPathFlag = 0x00200000;
+const kAccPublicApi = 0x10000000;
+const kAccXposedHookedMethod = 0x10000000;
 
-const Le = [];
+const kPointer = 0x0;
 
-let Te = null, je = null;
+const kFullDeoptimization = 3;
+const kSelectiveDeoptimization = 5;
 
-function Oe() {
-  return null === Se && (Se = ze()), Se;
+const THUMB_BIT_REMOVAL_MASK = ptr(1).not();
+
+const X86_JMP_MAX_DISTANCE = 0x7fffbfff;
+const ARM64_ADRP_MAX_DISTANCE = 0xfffff000;
+
+const ENV_VTABLE_OFFSET_EXCEPTION_CLEAR = 17 * pointerSize;
+const ENV_VTABLE_OFFSET_FATAL_ERROR = 18 * pointerSize;
+
+const DVM_JNI_ENV_OFFSET_SELF = 12;
+
+const DVM_CLASS_OBJECT_OFFSET_VTABLE_COUNT = 112;
+const DVM_CLASS_OBJECT_OFFSET_VTABLE = 116;
+
+const DVM_OBJECT_OFFSET_CLAZZ = 0;
+
+const DVM_METHOD_SIZE = 56;
+const DVM_METHOD_OFFSET_ACCESS_FLAGS = 4;
+const DVM_METHOD_OFFSET_METHOD_INDEX = 8;
+const DVM_METHOD_OFFSET_REGISTERS_SIZE = 10;
+const DVM_METHOD_OFFSET_OUTS_SIZE = 12;
+const DVM_METHOD_OFFSET_INS_SIZE = 14;
+const DVM_METHOD_OFFSET_SHORTY = 28;
+const DVM_METHOD_OFFSET_JNI_ARG_INFO = 36;
+
+const DALVIK_JNI_RETURN_VOID = 0;
+const DALVIK_JNI_RETURN_FLOAT = 1;
+const DALVIK_JNI_RETURN_DOUBLE = 2;
+const DALVIK_JNI_RETURN_S8 = 3;
+const DALVIK_JNI_RETURN_S4 = 4;
+const DALVIK_JNI_RETURN_S2 = 5;
+const DALVIK_JNI_RETURN_U2 = 6;
+const DALVIK_JNI_RETURN_S1 = 7;
+const DALVIK_JNI_NO_ARG_INFO = 0x80000000;
+const DALVIK_JNI_RETURN_SHIFT = 28;
+
+const STD_STRING_SIZE = 3 * pointerSize;
+const STD_VECTOR_SIZE = 3 * pointerSize;
+
+const AF_UNIX = 1;
+const SOCK_STREAM = 1;
+
+const getArtRuntimeSpec = memoize(_getArtRuntimeSpec);
+const getArtInstrumentationSpec = memoize(_getArtInstrumentationSpec);
+const getArtMethodSpec = memoize(_getArtMethodSpec);
+const getArtThreadSpec = memoize(_getArtThreadSpec);
+const getArtManagedStackSpec = memoize(_getArtManagedStackSpec);
+const getArtThreadStateTransitionImpl = memoize(_getArtThreadStateTransitionImpl);
+const getAndroidVersion = memoize(_getAndroidVersion);
+const getAndroidCodename = memoize(_getAndroidCodename);
+const getAndroidApiLevel = memoize(_getAndroidApiLevel);
+const getArtQuickFrameInfoGetterThunk = memoize(_getArtQuickFrameInfoGetterThunk);
+
+const makeCxxMethodWrapperReturningPointerByValue =
+    (Process.arch === 'ia32')
+      ? makeCxxMethodWrapperReturningPointerByValueInFirstArg
+      : makeCxxMethodWrapperReturningPointerByValueGeneric;
+
+const nativeFunctionOptions = {
+  exceptions: 'propagate'
+};
+
+const artThreadStateTransitions = {};
+
+let cachedApi = null;
+let cachedArtClassLinkerSpec = null;
+let MethodMangler = null;
+let artController = null;
+const inlineHooks = [];
+const patchedClasses = new Map();
+const artQuickInterceptors = [];
+let thunkPage = null;
+let thunkOffset = 0;
+let taughtArtAboutReplacementMethods = false;
+let taughtArtAboutMethodInstrumentation = false;
+let backtraceModule = null;
+const jdwpSessions = [];
+let socketpair = null;
+
+let trampolineAllocator = null;
+
+function getApi () {
+  if (cachedApi === null) {
+    cachedApi = _getApi();
+  }
+  return cachedApi;
 }
 
-function ze() {
-  const e = Process.enumerateModules().filter((e => /^lib(art|dvm).so$/.test(e.name))).filter((e => !/\/system\/fake-libs/.test(e.path)));
-  if (0 === e.length) return null;
-  const t = e[0], n = -1 !== t.name.indexOf("art") ? "art" : "dalvik", r = "art" === n, o = {
-    module: t,
-    flavor: n,
+function _getApi () {
+  const vmModules = Process.enumerateModules()
+    .filter(m => /^lib(art|dvm).so$/.test(m.name))
+    .filter(m => !/\/system\/fake-libs/.test(m.path));
+  if (vmModules.length === 0) {
+    return null;
+  }
+  const vmModule = vmModules[0];
+
+  const flavor = (vmModule.name.indexOf('art') !== -1) ? 'art' : 'dalvik';
+  const isArt = flavor === 'art';
+
+  const temporaryApi = {
+    module: vmModule,
+    flavor,
     addLocalReference: null
-  }, a = r ? [ {
-    module: t.path,
-    functions: {
-      JNI_GetCreatedJavaVMs: [ "JNI_GetCreatedJavaVMs", "int", [ "pointer", "int", "pointer" ] ],
-      artInterpreterToCompiledCodeBridge: function(e) {
-        this.artInterpreterToCompiledCodeBridge = e;
-      },
-      _ZN3art9JavaVMExt12AddGlobalRefEPNS_6ThreadENS_6ObjPtrINS_6mirror6ObjectEEE: [ "art::JavaVMExt::AddGlobalRef", "pointer", [ "pointer", "pointer", "pointer" ] ],
-      _ZN3art9JavaVMExt12AddGlobalRefEPNS_6ThreadEPNS_6mirror6ObjectE: [ "art::JavaVMExt::AddGlobalRef", "pointer", [ "pointer", "pointer", "pointer" ] ],
-      _ZN3art17ReaderWriterMutex13ExclusiveLockEPNS_6ThreadE: [ "art::ReaderWriterMutex::ExclusiveLock", "void", [ "pointer", "pointer" ] ],
-      _ZN3art17ReaderWriterMutex15ExclusiveUnlockEPNS_6ThreadE: [ "art::ReaderWriterMutex::ExclusiveUnlock", "void", [ "pointer", "pointer" ] ],
-      _ZN3art22IndirectReferenceTable3AddEjPNS_6mirror6ObjectE: function(e) {
-        this["art::IndirectReferenceTable::Add"] = new NativeFunction(e, "pointer", [ "pointer", "uint", "pointer" ], ve);
-      },
-      _ZN3art22IndirectReferenceTable3AddENS_15IRTSegmentStateENS_6ObjPtrINS_6mirror6ObjectEEE: function(e) {
-        this["art::IndirectReferenceTable::Add"] = new NativeFunction(e, "pointer", [ "pointer", "uint", "pointer" ], ve);
-      },
-      _ZN3art9JavaVMExt12DecodeGlobalEPv: function(e) {
-        let t;
-        t = ge() >= 26 ? be(e, [ "pointer", "pointer" ]) : new NativeFunction(e, "pointer", [ "pointer", "pointer" ], ve), 
-        this["art::JavaVMExt::DecodeGlobal"] = function(e, n, r) {
-          return t(e, r);
-        };
-      },
-      _ZN3art9JavaVMExt12DecodeGlobalEPNS_6ThreadEPv: [ "art::JavaVMExt::DecodeGlobal", "pointer", [ "pointer", "pointer", "pointer" ] ],
-      _ZNK3art6Thread13DecodeJObjectEP8_jobject: [ "art::Thread::DecodeJObject", "pointer", [ "pointer", "pointer" ] ],
-      _ZN3art10ThreadList10SuspendAllEPKcb: [ "art::ThreadList::SuspendAll", "void", [ "pointer", "pointer", "bool" ] ],
-      _ZN3art10ThreadList10SuspendAllEv: function(e) {
-        const t = new NativeFunction(e, "void", [ "pointer" ], ve);
-        this["art::ThreadList::SuspendAll"] = function(e, n, r) {
-          return t(e);
-        };
-      },
-      _ZN3art10ThreadList9ResumeAllEv: [ "art::ThreadList::ResumeAll", "void", [ "pointer" ] ],
-      _ZN3art11ClassLinker12VisitClassesEPNS_12ClassVisitorE: [ "art::ClassLinker::VisitClasses", "void", [ "pointer", "pointer" ] ],
-      _ZN3art11ClassLinker12VisitClassesEPFbPNS_6mirror5ClassEPvES4_: function(e) {
-        const t = new NativeFunction(e, "void", [ "pointer", "pointer", "pointer" ], ve);
-        this["art::ClassLinker::VisitClasses"] = function(e, n) {
-          t(e, n, NULL);
-        };
-      },
-      _ZNK3art11ClassLinker17VisitClassLoadersEPNS_18ClassLoaderVisitorE: [ "art::ClassLinker::VisitClassLoaders", "void", [ "pointer", "pointer" ] ],
-      _ZN3art2gc4Heap12VisitObjectsEPFvPNS_6mirror6ObjectEPvES5_: [ "art::gc::Heap::VisitObjects", "void", [ "pointer", "pointer", "pointer" ] ],
-      _ZN3art2gc4Heap12GetInstancesERNS_24VariableSizedHandleScopeENS_6HandleINS_6mirror5ClassEEEiRNSt3__16vectorINS4_INS5_6ObjectEEENS8_9allocatorISB_EEEE: [ "art::gc::Heap::GetInstances", "void", [ "pointer", "pointer", "pointer", "int", "pointer" ] ],
-      _ZN3art2gc4Heap12GetInstancesERNS_24VariableSizedHandleScopeENS_6HandleINS_6mirror5ClassEEEbiRNSt3__16vectorINS4_INS5_6ObjectEEENS8_9allocatorISB_EEEE: function(e) {
-        const t = new NativeFunction(e, "void", [ "pointer", "pointer", "pointer", "bool", "int", "pointer" ], ve);
-        this["art::gc::Heap::GetInstances"] = function(e, n, r, o, a) {
-          t(e, n, r, 0, o, a);
-        };
-      },
-      _ZN3art12StackVisitorC2EPNS_6ThreadEPNS_7ContextENS0_13StackWalkKindEjb: [ "art::StackVisitor::StackVisitor", "void", [ "pointer", "pointer", "pointer", "uint", "uint", "bool" ] ],
-      _ZN3art12StackVisitorC2EPNS_6ThreadEPNS_7ContextENS0_13StackWalkKindEmb: [ "art::StackVisitor::StackVisitor", "void", [ "pointer", "pointer", "pointer", "uint", "size_t", "bool" ] ],
-      _ZN3art12StackVisitor9WalkStackILNS0_16CountTransitionsE0EEEvb: [ "art::StackVisitor::WalkStack", "void", [ "pointer", "bool" ] ],
-      _ZNK3art12StackVisitor9GetMethodEv: [ "art::StackVisitor::GetMethod", "pointer", [ "pointer" ] ],
-      _ZNK3art12StackVisitor16DescribeLocationEv: function(e) {
-        this["art::StackVisitor::DescribeLocation"] = Zn(e, [ "pointer" ]);
-      },
-      _ZNK3art12StackVisitor24GetCurrentQuickFrameInfoEv: function(e) {
-        this["art::StackVisitor::GetCurrentQuickFrameInfo"] = Ct(e);
-      },
-      _ZN3art6Thread18GetLongJumpContextEv: [ "art::Thread::GetLongJumpContext", "pointer", [ "pointer" ] ],
-      _ZN3art6mirror5Class13GetDescriptorEPNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE: function(e) {
-        this["art::mirror::Class::GetDescriptor"] = e;
-      },
-      _ZN3art6mirror5Class11GetLocationEv: function(e) {
-        this["art::mirror::Class::GetLocation"] = Zn(e, [ "pointer" ]);
-      },
-      _ZN3art9ArtMethod12PrettyMethodEb: function(e) {
-        this["art::ArtMethod::PrettyMethod"] = Zn(e, [ "pointer", "bool" ]);
-      },
-      _ZN3art12PrettyMethodEPNS_9ArtMethodEb: function(e) {
-        this["art::ArtMethod::PrettyMethodNullSafe"] = Zn(e, [ "pointer", "bool" ]);
-      },
-      _ZN3art6Thread14CurrentFromGdbEv: [ "art::Thread::CurrentFromGdb", "pointer", [] ],
-      _ZN3art6mirror6Object5CloneEPNS_6ThreadE: function(e) {
-        this["art::mirror::Object::Clone"] = new NativeFunction(e, "pointer", [ "pointer", "pointer" ], ve);
-      },
-      _ZN3art6mirror6Object5CloneEPNS_6ThreadEm: function(e) {
-        const t = new NativeFunction(e, "pointer", [ "pointer", "pointer", "pointer" ], ve);
-        this["art::mirror::Object::Clone"] = function(e, n) {
-          const r = NULL;
-          return t(e, n, r);
-        };
-      },
-      _ZN3art6mirror6Object5CloneEPNS_6ThreadEj: function(e) {
-        const t = new NativeFunction(e, "pointer", [ "pointer", "pointer", "uint" ], ve);
-        this["art::mirror::Object::Clone"] = function(e, n) {
-          return t(e, n, 0);
-        };
-      },
-      _ZN3art3Dbg14SetJdwpAllowedEb: [ "art::Dbg::SetJdwpAllowed", "void", [ "bool" ] ],
-      _ZN3art3Dbg13ConfigureJdwpERKNS_4JDWP11JdwpOptionsE: [ "art::Dbg::ConfigureJdwp", "void", [ "pointer" ] ],
-      _ZN3art31InternalDebuggerControlCallback13StartDebuggerEv: [ "art::InternalDebuggerControlCallback::StartDebugger", "void", [ "pointer" ] ],
-      _ZN3art3Dbg9StartJdwpEv: [ "art::Dbg::StartJdwp", "void", [] ],
-      _ZN3art3Dbg8GoActiveEv: [ "art::Dbg::GoActive", "void", [] ],
-      _ZN3art3Dbg21RequestDeoptimizationERKNS_21DeoptimizationRequestE: [ "art::Dbg::RequestDeoptimization", "void", [ "pointer" ] ],
-      _ZN3art3Dbg20ManageDeoptimizationEv: [ "art::Dbg::ManageDeoptimization", "void", [] ],
-      _ZN3art15instrumentation15Instrumentation20EnableDeoptimizationEv: [ "art::Instrumentation::EnableDeoptimization", "void", [ "pointer" ] ],
-      _ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEPKc: [ "art::Instrumentation::DeoptimizeEverything", "void", [ "pointer", "pointer" ] ],
-      _ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEv: function(e) {
-        const t = new NativeFunction(e, "void", [ "pointer" ], ve);
-        this["art::Instrumentation::DeoptimizeEverything"] = function(e, n) {
-          t(e);
-        };
-      },
-      _ZN3art7Runtime19DeoptimizeBootImageEv: [ "art::Runtime::DeoptimizeBootImage", "void", [ "pointer" ] ],
-      _ZN3art15instrumentation15Instrumentation10DeoptimizeEPNS_9ArtMethodE: [ "art::Instrumentation::Deoptimize", "void", [ "pointer", "pointer" ] ],
-      _ZN3art3jni12JniIdManager14DecodeMethodIdEP10_jmethodID: [ "art::jni::JniIdManager::DecodeMethodId", "pointer", [ "pointer", "pointer" ] ],
-      _ZN3art11interpreter18GetNterpEntryPointEv: [ "art::interpreter::GetNterpEntryPoint", "pointer", [] ],
-      _ZN3art7Monitor17TranslateLocationEPNS_9ArtMethodEjPPKcPi: [ "art::Monitor::TranslateLocation", "void", [ "pointer", "uint32", "pointer", "pointer" ] ]
-    },
-    variables: {
-      _ZN3art3Dbg9gRegistryE: function(e) {
-        this.isJdwpStarted = () => !e.readPointer().isNull();
-      },
-      _ZN3art3Dbg15gDebuggerActiveE: function(e) {
-        this.isDebuggerActive = () => !!e.readU8();
-      }
-    },
-    optionals: [ "artInterpreterToCompiledCodeBridge", "_ZN3art9JavaVMExt12AddGlobalRefEPNS_6ThreadENS_6ObjPtrINS_6mirror6ObjectEEE", "_ZN3art9JavaVMExt12AddGlobalRefEPNS_6ThreadEPNS_6mirror6ObjectE", "_ZN3art9JavaVMExt12DecodeGlobalEPv", "_ZN3art9JavaVMExt12DecodeGlobalEPNS_6ThreadEPv", "_ZN3art10ThreadList10SuspendAllEPKcb", "_ZN3art10ThreadList10SuspendAllEv", "_ZN3art11ClassLinker12VisitClassesEPNS_12ClassVisitorE", "_ZN3art11ClassLinker12VisitClassesEPFbPNS_6mirror5ClassEPvES4_", "_ZNK3art11ClassLinker17VisitClassLoadersEPNS_18ClassLoaderVisitorE", "_ZN3art6mirror6Object5CloneEPNS_6ThreadE", "_ZN3art6mirror6Object5CloneEPNS_6ThreadEm", "_ZN3art6mirror6Object5CloneEPNS_6ThreadEj", "_ZN3art22IndirectReferenceTable3AddEjPNS_6mirror6ObjectE", "_ZN3art22IndirectReferenceTable3AddENS_15IRTSegmentStateENS_6ObjPtrINS_6mirror6ObjectEEE", "_ZN3art2gc4Heap12VisitObjectsEPFvPNS_6mirror6ObjectEPvES5_", "_ZN3art2gc4Heap12GetInstancesERNS_24VariableSizedHandleScopeENS_6HandleINS_6mirror5ClassEEEiRNSt3__16vectorINS4_INS5_6ObjectEEENS8_9allocatorISB_EEEE", "_ZN3art2gc4Heap12GetInstancesERNS_24VariableSizedHandleScopeENS_6HandleINS_6mirror5ClassEEEbiRNSt3__16vectorINS4_INS5_6ObjectEEENS8_9allocatorISB_EEEE", "_ZN3art12StackVisitorC2EPNS_6ThreadEPNS_7ContextENS0_13StackWalkKindEjb", "_ZN3art12StackVisitorC2EPNS_6ThreadEPNS_7ContextENS0_13StackWalkKindEmb", "_ZN3art12StackVisitor9WalkStackILNS0_16CountTransitionsE0EEEvb", "_ZNK3art12StackVisitor9GetMethodEv", "_ZNK3art12StackVisitor16DescribeLocationEv", "_ZNK3art12StackVisitor24GetCurrentQuickFrameInfoEv", "_ZN3art6Thread18GetLongJumpContextEv", "_ZN3art6mirror5Class13GetDescriptorEPNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE", "_ZN3art6mirror5Class11GetLocationEv", "_ZN3art9ArtMethod12PrettyMethodEb", "_ZN3art12PrettyMethodEPNS_9ArtMethodEb", "_ZN3art3Dbg13ConfigureJdwpERKNS_4JDWP11JdwpOptionsE", "_ZN3art31InternalDebuggerControlCallback13StartDebuggerEv", "_ZN3art3Dbg15gDebuggerActiveE", "_ZN3art15instrumentation15Instrumentation20EnableDeoptimizationEv", "_ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEPKc", "_ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEv", "_ZN3art7Runtime19DeoptimizeBootImageEv", "_ZN3art15instrumentation15Instrumentation10DeoptimizeEPNS_9ArtMethodE", "_ZN3art3Dbg9StartJdwpEv", "_ZN3art3Dbg8GoActiveEv", "_ZN3art3Dbg21RequestDeoptimizationERKNS_21DeoptimizationRequestE", "_ZN3art3Dbg20ManageDeoptimizationEv", "_ZN3art3Dbg9gRegistryE", "_ZN3art3jni12JniIdManager14DecodeMethodIdEP10_jmethodID", "_ZN3art11interpreter18GetNterpEntryPointEv", "_ZN3art7Monitor17TranslateLocationEPNS_9ArtMethodEjPPKcPi" ]
-  } ] : [ {
-    module: t.path,
-    functions: {
-      _Z20dvmDecodeIndirectRefP6ThreadP8_jobject: [ "dvmDecodeIndirectRef", "pointer", [ "pointer", "pointer" ] ],
-      _Z15dvmUseJNIBridgeP6MethodPv: [ "dvmUseJNIBridge", "void", [ "pointer", "pointer" ] ],
-      _Z20dvmHeapSourceGetBasev: [ "dvmHeapSourceGetBase", "pointer", [] ],
-      _Z21dvmHeapSourceGetLimitv: [ "dvmHeapSourceGetLimit", "pointer", [] ],
-      _Z16dvmIsValidObjectPK6Object: [ "dvmIsValidObject", "uint8", [ "pointer" ] ],
-      JNI_GetCreatedJavaVMs: [ "JNI_GetCreatedJavaVMs", "int", [ "pointer", "int", "pointer" ] ]
-    },
-    variables: {
-      gDvmJni: function(e) {
-        this.gDvmJni = e;
-      },
-      gDvm: function(e) {
-        this.gDvm = e;
-      }
+  };
+
+  const pending = isArt
+    ? [{
+        module: vmModule.path,
+        functions: {
+          JNI_GetCreatedJavaVMs: ['JNI_GetCreatedJavaVMs', 'int', ['pointer', 'int', 'pointer']],
+
+          // Android < 7
+          artInterpreterToCompiledCodeBridge: function (address) {
+            this.artInterpreterToCompiledCodeBridge = address;
+          },
+
+          // Android >= 8
+          _ZN3art9JavaVMExt12AddGlobalRefEPNS_6ThreadENS_6ObjPtrINS_6mirror6ObjectEEE: ['art::JavaVMExt::AddGlobalRef', 'pointer', ['pointer', 'pointer', 'pointer']],
+          // Android >= 6
+          _ZN3art9JavaVMExt12AddGlobalRefEPNS_6ThreadEPNS_6mirror6ObjectE: ['art::JavaVMExt::AddGlobalRef', 'pointer', ['pointer', 'pointer', 'pointer']],
+          // Android < 6: makeAddGlobalRefFallbackForAndroid5() needs these:
+          _ZN3art17ReaderWriterMutex13ExclusiveLockEPNS_6ThreadE: ['art::ReaderWriterMutex::ExclusiveLock', 'void', ['pointer', 'pointer']],
+          _ZN3art17ReaderWriterMutex15ExclusiveUnlockEPNS_6ThreadE: ['art::ReaderWriterMutex::ExclusiveUnlock', 'void', ['pointer', 'pointer']],
+
+          // Android <= 7
+          _ZN3art22IndirectReferenceTable3AddEjPNS_6mirror6ObjectE: function (address) {
+            this['art::IndirectReferenceTable::Add'] = new NativeFunction(address, 'pointer', ['pointer', 'uint', 'pointer'], nativeFunctionOptions);
+          },
+          // Android > 7
+          _ZN3art22IndirectReferenceTable3AddENS_15IRTSegmentStateENS_6ObjPtrINS_6mirror6ObjectEEE: function (address) {
+            this['art::IndirectReferenceTable::Add'] = new NativeFunction(address, 'pointer', ['pointer', 'uint', 'pointer'], nativeFunctionOptions);
+          },
+
+          // Android >= 7
+          _ZN3art9JavaVMExt12DecodeGlobalEPv: function (address) {
+            let decodeGlobal;
+            if (getAndroidApiLevel() >= 26) {
+              // Returns ObjPtr<mirror::Object>
+              decodeGlobal = makeCxxMethodWrapperReturningPointerByValue(address, ['pointer', 'pointer']);
+            } else {
+              // Returns mirror::Object *
+              decodeGlobal = new NativeFunction(address, 'pointer', ['pointer', 'pointer'], nativeFunctionOptions);
+            }
+            this['art::JavaVMExt::DecodeGlobal'] = function (vm, thread, ref) {
+              return decodeGlobal(vm, ref);
+            };
+          },
+          // Android >= 6
+          _ZN3art9JavaVMExt12DecodeGlobalEPNS_6ThreadEPv: ['art::JavaVMExt::DecodeGlobal', 'pointer', ['pointer', 'pointer', 'pointer']],
+          // Android < 6: makeDecodeGlobalFallbackForAndroid5() fallback uses:
+          _ZNK3art6Thread13DecodeJObjectEP8_jobject: ['art::Thread::DecodeJObject', 'pointer', ['pointer', 'pointer']],
+
+          // Android >= 6
+          _ZN3art10ThreadList10SuspendAllEPKcb: ['art::ThreadList::SuspendAll', 'void', ['pointer', 'pointer', 'bool']],
+          // or fallback:
+          _ZN3art10ThreadList10SuspendAllEv: function (address) {
+            const suspendAll = new NativeFunction(address, 'void', ['pointer'], nativeFunctionOptions);
+            this['art::ThreadList::SuspendAll'] = function (threadList, cause, longSuspend) {
+              return suspendAll(threadList);
+            };
+          },
+
+          _ZN3art10ThreadList9ResumeAllEv: ['art::ThreadList::ResumeAll', 'void', ['pointer']],
+
+          // Android >= 7
+          _ZN3art11ClassLinker12VisitClassesEPNS_12ClassVisitorE: ['art::ClassLinker::VisitClasses', 'void', ['pointer', 'pointer']],
+          // Android < 7
+          _ZN3art11ClassLinker12VisitClassesEPFbPNS_6mirror5ClassEPvES4_: function (address) {
+            const visitClasses = new NativeFunction(address, 'void', ['pointer', 'pointer', 'pointer'], nativeFunctionOptions);
+            this['art::ClassLinker::VisitClasses'] = function (classLinker, visitor) {
+              visitClasses(classLinker, visitor, NULL);
+            };
+          },
+
+          _ZNK3art11ClassLinker17VisitClassLoadersEPNS_18ClassLoaderVisitorE: ['art::ClassLinker::VisitClassLoaders', 'void', ['pointer', 'pointer']],
+
+          _ZN3art2gc4Heap12VisitObjectsEPFvPNS_6mirror6ObjectEPvES5_: ['art::gc::Heap::VisitObjects', 'void', ['pointer', 'pointer', 'pointer']],
+          _ZN3art2gc4Heap12GetInstancesERNS_24VariableSizedHandleScopeENS_6HandleINS_6mirror5ClassEEEiRNSt3__16vectorINS4_INS5_6ObjectEEENS8_9allocatorISB_EEEE: ['art::gc::Heap::GetInstances', 'void', ['pointer', 'pointer', 'pointer', 'int', 'pointer']],
+
+          // Android >= 9
+          _ZN3art2gc4Heap12GetInstancesERNS_24VariableSizedHandleScopeENS_6HandleINS_6mirror5ClassEEEbiRNSt3__16vectorINS4_INS5_6ObjectEEENS8_9allocatorISB_EEEE: function (address) {
+            const getInstances = new NativeFunction(address, 'void', ['pointer', 'pointer', 'pointer', 'bool', 'int', 'pointer'], nativeFunctionOptions);
+            this['art::gc::Heap::GetInstances'] = function (instance, scope, hClass, maxCount, instances) {
+              const useIsAssignableFrom = 0;
+              getInstances(instance, scope, hClass, useIsAssignableFrom, maxCount, instances);
+            };
+          },
+
+          _ZN3art12StackVisitorC2EPNS_6ThreadEPNS_7ContextENS0_13StackWalkKindEjb: ['art::StackVisitor::StackVisitor', 'void', ['pointer', 'pointer', 'pointer', 'uint', 'uint', 'bool']],
+          _ZN3art12StackVisitorC2EPNS_6ThreadEPNS_7ContextENS0_13StackWalkKindEmb: ['art::StackVisitor::StackVisitor', 'void', ['pointer', 'pointer', 'pointer', 'uint', 'size_t', 'bool']],
+          _ZN3art12StackVisitor9WalkStackILNS0_16CountTransitionsE0EEEvb: ['art::StackVisitor::WalkStack', 'void', ['pointer', 'bool']],
+          _ZNK3art12StackVisitor9GetMethodEv: ['art::StackVisitor::GetMethod', 'pointer', ['pointer']],
+          _ZNK3art12StackVisitor16DescribeLocationEv: function (address) {
+            this['art::StackVisitor::DescribeLocation'] = makeCxxMethodWrapperReturningStdStringByValue(address, ['pointer']);
+          },
+          _ZNK3art12StackVisitor24GetCurrentQuickFrameInfoEv: function (address) {
+            this['art::StackVisitor::GetCurrentQuickFrameInfo'] = makeArtQuickFrameInfoGetter(address);
+          },
+
+          _ZN3art6Thread18GetLongJumpContextEv: ['art::Thread::GetLongJumpContext', 'pointer', ['pointer']],
+
+          _ZN3art6mirror5Class13GetDescriptorEPNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE: function (address) {
+            this['art::mirror::Class::GetDescriptor'] = address;
+          },
+          _ZN3art6mirror5Class11GetLocationEv: function (address) {
+            this['art::mirror::Class::GetLocation'] = makeCxxMethodWrapperReturningStdStringByValue(address, ['pointer']);
+          },
+
+          _ZN3art9ArtMethod12PrettyMethodEb: function (address) {
+            this['art::ArtMethod::PrettyMethod'] = makeCxxMethodWrapperReturningStdStringByValue(address, ['pointer', 'bool']);
+          },
+          _ZN3art12PrettyMethodEPNS_9ArtMethodEb: function (address) {
+            this['art::ArtMethod::PrettyMethodNullSafe'] = makeCxxMethodWrapperReturningStdStringByValue(address, ['pointer', 'bool']);
+          },
+
+          // Android < 6 for cloneArtMethod()
+          _ZN3art6Thread14CurrentFromGdbEv: ['art::Thread::CurrentFromGdb', 'pointer', []],
+          _ZN3art6mirror6Object5CloneEPNS_6ThreadE: function (address) {
+            this['art::mirror::Object::Clone'] = new NativeFunction(address, 'pointer', ['pointer', 'pointer'], nativeFunctionOptions);
+          },
+          _ZN3art6mirror6Object5CloneEPNS_6ThreadEm: function (address) {
+            const clone = new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'pointer'], nativeFunctionOptions);
+            this['art::mirror::Object::Clone'] = function (thisPtr, threadPtr) {
+              const numTargetBytes = NULL;
+              return clone(thisPtr, threadPtr, numTargetBytes);
+            };
+          },
+          _ZN3art6mirror6Object5CloneEPNS_6ThreadEj: function (address) {
+            const clone = new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'uint'], nativeFunctionOptions);
+            this['art::mirror::Object::Clone'] = function (thisPtr, threadPtr) {
+              const numTargetBytes = 0;
+              return clone(thisPtr, threadPtr, numTargetBytes);
+            };
+          },
+
+          _ZN3art3Dbg14SetJdwpAllowedEb: ['art::Dbg::SetJdwpAllowed', 'void', ['bool']],
+          _ZN3art3Dbg13ConfigureJdwpERKNS_4JDWP11JdwpOptionsE: ['art::Dbg::ConfigureJdwp', 'void', ['pointer']],
+          _ZN3art31InternalDebuggerControlCallback13StartDebuggerEv: ['art::InternalDebuggerControlCallback::StartDebugger', 'void', ['pointer']],
+          _ZN3art3Dbg9StartJdwpEv: ['art::Dbg::StartJdwp', 'void', []],
+          _ZN3art3Dbg8GoActiveEv: ['art::Dbg::GoActive', 'void', []],
+          _ZN3art3Dbg21RequestDeoptimizationERKNS_21DeoptimizationRequestE: ['art::Dbg::RequestDeoptimization', 'void', ['pointer']],
+          _ZN3art3Dbg20ManageDeoptimizationEv: ['art::Dbg::ManageDeoptimization', 'void', []],
+
+          _ZN3art15instrumentation15Instrumentation20EnableDeoptimizationEv: ['art::Instrumentation::EnableDeoptimization', 'void', ['pointer']],
+          // Android >= 6
+          _ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEPKc: ['art::Instrumentation::DeoptimizeEverything', 'void', ['pointer', 'pointer']],
+          // Android < 6
+          _ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEv: function (address) {
+            const deoptimize = new NativeFunction(address, 'void', ['pointer'], nativeFunctionOptions);
+            this['art::Instrumentation::DeoptimizeEverything'] = function (instrumentation, key) {
+              deoptimize(instrumentation);
+            };
+          },
+          _ZN3art7Runtime19DeoptimizeBootImageEv: ['art::Runtime::DeoptimizeBootImage', 'void', ['pointer']],
+          _ZN3art15instrumentation15Instrumentation10DeoptimizeEPNS_9ArtMethodE: ['art::Instrumentation::Deoptimize', 'void', ['pointer', 'pointer']],
+
+          // Android >= 11
+          _ZN3art3jni12JniIdManager14DecodeMethodIdEP10_jmethodID: ['art::jni::JniIdManager::DecodeMethodId', 'pointer', ['pointer', 'pointer']],
+          _ZN3art11interpreter18GetNterpEntryPointEv: ['art::interpreter::GetNterpEntryPoint', 'pointer', []],
+
+          _ZN3art7Monitor17TranslateLocationEPNS_9ArtMethodEjPPKcPi: ['art::Monitor::TranslateLocation', 'void', ['pointer', 'uint32', 'pointer', 'pointer']]
+        },
+        variables: {
+          _ZN3art3Dbg9gRegistryE: function (address) {
+            this.isJdwpStarted = () => !address.readPointer().isNull();
+          },
+          _ZN3art3Dbg15gDebuggerActiveE: function (address) {
+            this.isDebuggerActive = () => !!address.readU8();
+          }
+        },
+        optionals: [
+          'artInterpreterToCompiledCodeBridge',
+          '_ZN3art9JavaVMExt12AddGlobalRefEPNS_6ThreadENS_6ObjPtrINS_6mirror6ObjectEEE',
+          '_ZN3art9JavaVMExt12AddGlobalRefEPNS_6ThreadEPNS_6mirror6ObjectE',
+          '_ZN3art9JavaVMExt12DecodeGlobalEPv',
+          '_ZN3art9JavaVMExt12DecodeGlobalEPNS_6ThreadEPv',
+          '_ZN3art10ThreadList10SuspendAllEPKcb',
+          '_ZN3art10ThreadList10SuspendAllEv',
+          '_ZN3art11ClassLinker12VisitClassesEPNS_12ClassVisitorE',
+          '_ZN3art11ClassLinker12VisitClassesEPFbPNS_6mirror5ClassEPvES4_',
+          '_ZNK3art11ClassLinker17VisitClassLoadersEPNS_18ClassLoaderVisitorE',
+          '_ZN3art6mirror6Object5CloneEPNS_6ThreadE',
+          '_ZN3art6mirror6Object5CloneEPNS_6ThreadEm',
+          '_ZN3art6mirror6Object5CloneEPNS_6ThreadEj',
+          '_ZN3art22IndirectReferenceTable3AddEjPNS_6mirror6ObjectE',
+          '_ZN3art22IndirectReferenceTable3AddENS_15IRTSegmentStateENS_6ObjPtrINS_6mirror6ObjectEEE',
+          '_ZN3art2gc4Heap12VisitObjectsEPFvPNS_6mirror6ObjectEPvES5_',
+          '_ZN3art2gc4Heap12GetInstancesERNS_24VariableSizedHandleScopeENS_6HandleINS_6mirror5ClassEEEiRNSt3__16vectorINS4_INS5_6ObjectEEENS8_9allocatorISB_EEEE',
+          '_ZN3art2gc4Heap12GetInstancesERNS_24VariableSizedHandleScopeENS_6HandleINS_6mirror5ClassEEEbiRNSt3__16vectorINS4_INS5_6ObjectEEENS8_9allocatorISB_EEEE',
+          '_ZN3art12StackVisitorC2EPNS_6ThreadEPNS_7ContextENS0_13StackWalkKindEjb',
+          '_ZN3art12StackVisitorC2EPNS_6ThreadEPNS_7ContextENS0_13StackWalkKindEmb',
+          '_ZN3art12StackVisitor9WalkStackILNS0_16CountTransitionsE0EEEvb',
+          '_ZNK3art12StackVisitor9GetMethodEv',
+          '_ZNK3art12StackVisitor16DescribeLocationEv',
+          '_ZNK3art12StackVisitor24GetCurrentQuickFrameInfoEv',
+          '_ZN3art6Thread18GetLongJumpContextEv',
+          '_ZN3art6mirror5Class13GetDescriptorEPNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE',
+          '_ZN3art6mirror5Class11GetLocationEv',
+          '_ZN3art9ArtMethod12PrettyMethodEb',
+          '_ZN3art12PrettyMethodEPNS_9ArtMethodEb',
+          '_ZN3art3Dbg13ConfigureJdwpERKNS_4JDWP11JdwpOptionsE',
+          '_ZN3art31InternalDebuggerControlCallback13StartDebuggerEv',
+          '_ZN3art3Dbg15gDebuggerActiveE',
+          '_ZN3art15instrumentation15Instrumentation20EnableDeoptimizationEv',
+          '_ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEPKc',
+          '_ZN3art15instrumentation15Instrumentation20DeoptimizeEverythingEv',
+          '_ZN3art7Runtime19DeoptimizeBootImageEv',
+          '_ZN3art15instrumentation15Instrumentation10DeoptimizeEPNS_9ArtMethodE',
+          '_ZN3art3Dbg9StartJdwpEv',
+          '_ZN3art3Dbg8GoActiveEv',
+          '_ZN3art3Dbg21RequestDeoptimizationERKNS_21DeoptimizationRequestE',
+          '_ZN3art3Dbg20ManageDeoptimizationEv',
+          '_ZN3art3Dbg9gRegistryE',
+          '_ZN3art3jni12JniIdManager14DecodeMethodIdEP10_jmethodID',
+          '_ZN3art11interpreter18GetNterpEntryPointEv',
+          '_ZN3art7Monitor17TranslateLocationEPNS_9ArtMethodEjPPKcPi'
+        ]
+      }]
+    : [{
+        module: vmModule.path,
+        functions: {
+          _Z20dvmDecodeIndirectRefP6ThreadP8_jobject: ['dvmDecodeIndirectRef', 'pointer', ['pointer', 'pointer']],
+          _Z15dvmUseJNIBridgeP6MethodPv: ['dvmUseJNIBridge', 'void', ['pointer', 'pointer']],
+          _Z20dvmHeapSourceGetBasev: ['dvmHeapSourceGetBase', 'pointer', []],
+          _Z21dvmHeapSourceGetLimitv: ['dvmHeapSourceGetLimit', 'pointer', []],
+          _Z16dvmIsValidObjectPK6Object: ['dvmIsValidObject', 'uint8', ['pointer']],
+          JNI_GetCreatedJavaVMs: ['JNI_GetCreatedJavaVMs', 'int', ['pointer', 'int', 'pointer']]
+        },
+        variables: {
+          gDvmJni: function (address) {
+            this.gDvmJni = address;
+          },
+          gDvm: function (address) {
+            this.gDvm = address;
+          }
+        }
+      }];
+
+  const missing = [];
+
+  pending.forEach(function (api) {
+    const functions = api.functions || {};
+    const variables = api.variables || {};
+    const optionals = new Set(api.optionals || []);
+
+    const exportByName = Module
+      .enumerateExports(api.module)
+      .reduce(function (result, exp) {
+        result[exp.name] = exp;
+        return result;
+      }, {});
+
+    Object.keys(functions)
+      .forEach(function (name) {
+        const exp = exportByName[name];
+        if (exp !== undefined && exp.type === 'function') {
+          const signature = functions[name];
+          if (typeof signature === 'function') {
+            signature.call(temporaryApi, exp.address);
+          } else {
+            temporaryApi[signature[0]] = new NativeFunction(exp.address, signature[1], signature[2], nativeFunctionOptions);
+          }
+        } else {
+          if (!optionals.has(name)) {
+            missing.push(name);
+          }
+        }
+      });
+
+    Object.keys(variables)
+      .forEach(function (name) {
+        const exp = exportByName[name];
+        if (exp !== undefined && exp.type === 'variable') {
+          const handler = variables[name];
+          handler.call(temporaryApi, exp.address);
+        } else {
+          if (!optionals.has(name)) {
+            missing.push(name);
+          }
+        }
+      });
+  });
+
+  if (missing.length > 0) {
+    throw new Error('Java API only partially available; please file a bug. Missing: ' + missing.join(', '));
+  }
+
+  const vms = Memory.alloc(pointerSize);
+  const vmCount = Memory.alloc(jsizeSize);
+  checkJniResult('JNI_GetCreatedJavaVMs', temporaryApi.JNI_GetCreatedJavaVMs(vms, 1, vmCount));
+  if (vmCount.readInt() === 0) {
+    return null;
+  }
+  temporaryApi.vm = vms.readPointer();
+
+  if (isArt) {
+    const apiLevel = getAndroidApiLevel();
+
+    let kAccCompileDontBother;
+    if (apiLevel >= 27) {
+      kAccCompileDontBother = 0x02000000;
+    } else if (apiLevel >= 24) {
+      kAccCompileDontBother = 0x01000000;
+    } else {
+      kAccCompileDontBother = 0;
     }
-  } ], s = [];
-  if (a.forEach((function(e) {
-    const t = e.functions || {}, n = e.variables || {}, r = new Set(e.optionals || []), a = Module.enumerateExports(e.module).reduce((function(e, t) {
-      return e[t.name] = t, e;
-    }), {});
-    Object.keys(t).forEach((function(e) {
-      const n = a[e];
-      if (void 0 !== n && "function" === n.type) {
-        const r = t[e];
-        "function" == typeof r ? r.call(o, n.address) : o[r[0]] = new NativeFunction(n.address, r[1], r[2], ve);
-      } else r.has(e) || s.push(e);
-    })), Object.keys(n).forEach((function(e) {
-      const t = a[e];
-      if (void 0 !== t && "variable" === t.type) {
-        n[e].call(o, t.address);
-      } else r.has(e) || s.push(e);
-    }));
-  })), s.length > 0) throw new Error("Java API only partially available; please file a bug. Missing: " + s.join(", "));
-  const u = Memory.alloc(l), p = Memory.alloc(d);
-  if (i("JNI_GetCreatedJavaVMs", o.JNI_GetCreatedJavaVMs(u, 1, p)), 0 === p.readInt()) return null;
-  if (o.vm = u.readPointer(), r) {
-    const e = ge();
-    let t;
-    t = e >= 27 ? 33554432 : e >= 24 ? 16777216 : 0, o.kAccCompileDontBother = t;
-    const n = o.vm.add(l).readPointer();
-    o.artRuntime = n;
-    const r = ce(o), a = r.offset, i = a.instrumentation;
-    o.artInstrumentation = null !== i ? n.add(i) : null, o.artHeap = n.add(a.heap).readPointer(), 
-    o.artThreadList = n.add(a.threadList).readPointer();
-    const s = n.add(a.classLinker).readPointer(), d = Ye(n, r).offset, u = s.add(d.quickResolutionTrampoline).readPointer(), p = s.add(d.quickImtConflictTrampoline).readPointer(), _ = s.add(d.quickGenericJniTrampoline).readPointer(), m = s.add(d.quickToInterpreterBridgeTrampoline).readPointer();
-    o.artClassLinker = {
-      address: s,
-      quickResolutionTrampoline: u,
-      quickImtConflictTrampoline: p,
-      quickGenericJniTrampoline: _,
-      quickToInterpreterBridgeTrampoline: m
+    temporaryApi.kAccCompileDontBother = kAccCompileDontBother;
+
+    const artRuntime = temporaryApi.vm.add(pointerSize).readPointer();
+    temporaryApi.artRuntime = artRuntime;
+    const runtimeSpec = getArtRuntimeSpec(temporaryApi);
+    const runtimeOffset = runtimeSpec.offset;
+    const instrumentationOffset = runtimeOffset.instrumentation;
+    temporaryApi.artInstrumentation = (instrumentationOffset !== null) ? artRuntime.add(instrumentationOffset) : null;
+
+    temporaryApi.artHeap = artRuntime.add(runtimeOffset.heap).readPointer();
+    temporaryApi.artThreadList = artRuntime.add(runtimeOffset.threadList).readPointer();
+
+    /*
+     * We must use the *correct* copy (or address) of art_quick_generic_jni_trampoline
+     * in order for the stack trace to recognize the JNI stub quick frame.
+     *
+     * For ARTs for Android 6.x we can just use the JNI trampoline built into ART.
+     */
+    const classLinker = artRuntime.add(runtimeOffset.classLinker).readPointer();
+
+    const classLinkerOffsets = getArtClassLinkerSpec(artRuntime, runtimeSpec).offset;
+    const quickResolutionTrampoline = classLinker.add(classLinkerOffsets.quickResolutionTrampoline).readPointer();
+    const quickImtConflictTrampoline = classLinker.add(classLinkerOffsets.quickImtConflictTrampoline).readPointer();
+    const quickGenericJniTrampoline = classLinker.add(classLinkerOffsets.quickGenericJniTrampoline).readPointer();
+    const quickToInterpreterBridgeTrampoline = classLinker.add(classLinkerOffsets.quickToInterpreterBridgeTrampoline).readPointer();
+
+    temporaryApi.artClassLinker = {
+      address: classLinker,
+      quickResolutionTrampoline,
+      quickImtConflictTrampoline,
+      quickGenericJniTrampoline,
+      quickToInterpreterBridgeTrampoline
     };
-    const h = new c(o);
-    o.artQuickGenericJniTrampoline = st(_, h), o.artQuickToInterpreterBridge = st(m, h), 
-    void 0 === o["art::JavaVMExt::AddGlobalRef"] && (o["art::JavaVMExt::AddGlobalRef"] = Cn(o)), 
-    void 0 === o["art::JavaVMExt::DecodeGlobal"] && (o["art::JavaVMExt::DecodeGlobal"] = An(o)), 
-    void 0 === o["art::ArtMethod::PrettyMethod"] && (o["art::ArtMethod::PrettyMethod"] = o["art::ArtMethod::PrettyMethodNullSafe"]), 
-    void 0 !== o["art::interpreter::GetNterpEntryPoint"] && (o.artNterpEntryPoint = o["art::interpreter::GetNterpEntryPoint"]()), 
-    Re = jt(h), zn(o);
-    let g = null;
-    Object.defineProperty(o, "jvmti", {
-      get() {
-        return null === g && (g = [ De(h, this.artRuntime) ]), g[0];
+
+    const vm = new VM(temporaryApi);
+
+    temporaryApi.artQuickGenericJniTrampoline = getArtQuickEntrypointFromTrampoline(quickGenericJniTrampoline, vm);
+    temporaryApi.artQuickToInterpreterBridge = getArtQuickEntrypointFromTrampoline(quickToInterpreterBridgeTrampoline, vm);
+
+    if (temporaryApi['art::JavaVMExt::AddGlobalRef'] === undefined) {
+      temporaryApi['art::JavaVMExt::AddGlobalRef'] = makeAddGlobalRefFallbackForAndroid5(temporaryApi);
+    }
+    if (temporaryApi['art::JavaVMExt::DecodeGlobal'] === undefined) {
+      temporaryApi['art::JavaVMExt::DecodeGlobal'] = makeDecodeGlobalFallbackForAndroid5(temporaryApi);
+    }
+    if (temporaryApi['art::ArtMethod::PrettyMethod'] === undefined) {
+      temporaryApi['art::ArtMethod::PrettyMethod'] = temporaryApi['art::ArtMethod::PrettyMethodNullSafe'];
+    }
+    if (temporaryApi['art::interpreter::GetNterpEntryPoint'] !== undefined) {
+      temporaryApi.artNterpEntryPoint = temporaryApi['art::interpreter::GetNterpEntryPoint']();
+    }
+
+    artController = makeArtController(vm);
+
+    fixupArtQuickDeliverExceptionBug(temporaryApi);
+
+    let cachedJvmti = null;
+    Object.defineProperty(temporaryApi, 'jvmti', {
+      get () {
+        if (cachedJvmti === null) {
+          cachedJvmti = [tryGetEnvJvmti(vm, this.artRuntime)];
+        }
+        return cachedJvmti[0];
       }
     });
   }
-  const _ = Module.enumerateImports(t.path).filter((e => 0 === e.name.indexOf("_Z"))).reduce(((e, t) => (e[t.name] = t.address, 
-  e)), {});
-  return o.$new = new NativeFunction(_._Znwm || _._Znwj, "pointer", [ "ulong" ], ve), 
-  o.$delete = new NativeFunction(_._ZdlPv, "void", [ "pointer" ], ve), Ne = r ? mn : bn, 
-  o;
+
+  const cxxImports = Module.enumerateImports(vmModule.path)
+    .filter(imp => imp.name.indexOf('_Z') === 0)
+    .reduce((result, imp) => {
+      result[imp.name] = imp.address;
+      return result;
+    }, {});
+  temporaryApi.$new = new NativeFunction(cxxImports._Znwm || cxxImports._Znwj, 'pointer', ['ulong'], nativeFunctionOptions);
+  temporaryApi.$delete = new NativeFunction(cxxImports._ZdlPv, 'void', ['pointer'], nativeFunctionOptions);
+
+  MethodMangler = isArt ? ArtMethodMangler : DalvikMethodMangler;
+
+  return temporaryApi;
 }
 
-function De(e, o) {
-  let a = null;
-  return e.perform((() => {
-    const i = new NativeFunction(Module.getExportByName("libart.so", "_ZN3art7Runtime18EnsurePluginLoadedEPKcPNSt3__112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEE"), "bool", [ "pointer", "pointer", "pointer" ]), c = Memory.alloc(l);
-    if (!i(o, Memory.allocUtf8String("libopenjdkjvmti.so"), c)) return;
-    const d = 1073741824 | t.v1_2, u = e.tryGetEnvHandle(d);
-    if (null === u) return;
-    a = new r(u, e);
-    const p = Memory.alloc(8);
-    p.writeU64(n.canTagObjects);
-    a.addCapabilities(p) !== s && (a = null);
-  })), a;
-}
+function tryGetEnvJvmti (vm, runtime) {
+  let env = null;
 
-function Fe(e, t) {
-  "art" === Oe().flavor && (e.getFieldId(t, "x", "Z"), e.exceptionClear());
-}
-
-function Ve(e) {
-  return {
-    offset: 4 === l ? {
-      globalsLock: 32,
-      globals: 72
-    } : {
-      globalsLock: 64,
-      globals: 112
+  vm.perform(() => {
+    const ensurePluginLoaded = new NativeFunction(
+      Module.getExportByName('libart.so', '_ZN3art7Runtime18EnsurePluginLoadedEPKcPNSt3__112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEE'),
+      'bool',
+      ['pointer', 'pointer', 'pointer']);
+    const errorPtr = Memory.alloc(pointerSize);
+    const success = ensurePluginLoaded(runtime, Memory.allocUtf8String('libopenjdkjvmti.so'), errorPtr);
+    if (!success) {
+      // FIXME: Avoid leaking error
+      return;
     }
+
+    const kArtTiVersion = jvmtiVersion.v1_2 | 0x40000000;
+    const handle = vm.tryGetEnvHandle(kArtTiVersion);
+    if (handle === null) {
+      return;
+    }
+    env = new EnvJvmti(handle, vm);
+
+    const capaBuf = Memory.alloc(8);
+    capaBuf.writeU64(jvmtiCapabilities.canTagObjects);
+    const result = env.addCapabilities(capaBuf);
+    if (result !== JNI_OK) {
+      env = null;
+    }
+  });
+
+  return env;
+}
+
+function ensureClassInitialized (env, classRef) {
+  const api = getApi();
+  if (api.flavor !== 'art') {
+    return;
+  }
+
+  env.getFieldId(classRef, 'x', 'Z');
+  env.exceptionClear();
+}
+
+function getArtVMSpec (api) {
+  return {
+    offset: (pointerSize === 4)
+      ? {
+          globalsLock: 32,
+          globals: 72
+        }
+      : {
+          globalsLock: 64,
+          globals: 112
+        }
   };
 }
 
-function Ze(e) {
-  const t = e.vm, n = e.artRuntime, r = 4 === l ? 200 : 384, o = r + 100 * l, a = ge(), i = he();
-  let s = null;
-  for (let e = r; e !== o; e += l) {
-    if (n.add(e).readPointer().equals(t)) {
-      let t, r = null;
-      a >= 33 || "Tiramisu" === i ? (t = [ e - 4 * l ], r = e - l) : a >= 30 || "R" === i ? (t = [ e - 3 * l, e - 4 * l ], 
-      r = e - l) : t = a >= 29 ? [ e - 2 * l ] : a >= 27 ? [ e - oe - 3 * l ] : [ e - oe - 2 * l ];
-      for (const e of t) {
-        const t = e - l, o = t - l;
-        let i;
-        i = a >= 24 ? o - 8 * l : a >= 23 ? o - 7 * l : o - 4 * l;
-        const c = {
+function _getArtRuntimeSpec (api) {
+  /*
+   * class Runtime {
+   * ...
+   * gc::Heap* heap_;                <-- we need to find this
+   * std::unique_ptr<ArenaPool> jit_arena_pool_;     <----- API level >= 24
+   * std::unique_ptr<ArenaPool> arena_pool_;             __
+   * std::unique_ptr<ArenaPool> low_4gb_arena_pool_; <--|__ API level >= 23
+   * std::unique_ptr<LinearAlloc> linear_alloc_;         \_
+   * size_t max_spins_before_thin_lock_inflation_;
+   * MonitorList* monitor_list_;
+   * MonitorPool* monitor_pool_;
+   * ThreadList* thread_list_;        <--- and these
+   * InternTable* intern_table_;      <--/
+   * ClassLinker* class_linker_;      <-/
+   * SignalCatcher* signal_catcher_;
+   * SmallIrtAllocator* small_irt_allocator_; <------------ API level >= 33 or Android Tiramisu Developer Preview
+   * std::unique_ptr<jni::JniIdManager> jni_id_manager_; <- API level >= 30 or Android R Developer Preview
+   * bool use_tombstoned_traces_;     <-------------------- API level 27/28
+   * std::string stack_trace_file_;   <-------------------- API level <= 28
+   * JavaVMExt* java_vm_;             <-- so we find this then calculate our way backwards
+   * ...
+   * }
+   */
+
+  const vm = api.vm;
+  const runtime = api.artRuntime;
+
+  const startOffset = (pointerSize === 4) ? 200 : 384;
+  const endOffset = startOffset + (100 * pointerSize);
+
+  const apiLevel = getAndroidApiLevel();
+  const codename = getAndroidCodename();
+
+  let spec = null;
+
+  for (let offset = startOffset; offset !== endOffset; offset += pointerSize) {
+    const value = runtime.add(offset).readPointer();
+    if (value.equals(vm)) {
+      let classLinkerOffsets;
+      let jniIdManagerOffset = null;
+      if (apiLevel >= 33 || codename === 'Tiramisu') {
+        classLinkerOffsets = [offset - (4 * pointerSize)];
+        jniIdManagerOffset = offset - pointerSize;
+      } else if (apiLevel >= 30 || codename === 'R') {
+        classLinkerOffsets = [offset - (3 * pointerSize), offset - (4 * pointerSize)];
+        jniIdManagerOffset = offset - pointerSize;
+      } else if (apiLevel >= 29) {
+        classLinkerOffsets = [offset - (2 * pointerSize)];
+      } else if (apiLevel >= 27) {
+        classLinkerOffsets = [offset - STD_STRING_SIZE - (3 * pointerSize)];
+      } else {
+        classLinkerOffsets = [offset - STD_STRING_SIZE - (2 * pointerSize)];
+      }
+
+      for (const classLinkerOffset of classLinkerOffsets) {
+        const internTableOffset = classLinkerOffset - pointerSize;
+        const threadListOffset = internTableOffset - pointerSize;
+
+        let heapOffset;
+        if (apiLevel >= 24) {
+          heapOffset = threadListOffset - (8 * pointerSize);
+        } else if (apiLevel >= 23) {
+          heapOffset = threadListOffset - (7 * pointerSize);
+        } else {
+          heapOffset = threadListOffset - (4 * pointerSize);
+        }
+
+        const candidate = {
           offset: {
-            heap: i,
-            threadList: o,
-            internTable: t,
-            classLinker: e,
-            jniIdManager: r
+            heap: heapOffset,
+            threadList: threadListOffset,
+            internTable: internTableOffset,
+            classLinker: classLinkerOffset,
+            jniIdManager: jniIdManagerOffset
           }
         };
-        if (null !== et(n, c)) {
-          s = c;
+        if (tryGetArtClassLinkerSpec(runtime, candidate) !== null) {
+          spec = candidate;
           break;
         }
       }
+
       break;
     }
   }
-  if (null === s) throw new Error("Unable to determine Runtime field offsets");
-  return s.offset.instrumentation = Ue(e), s.offset.jniIdsIndirection = He(), s;
+
+  if (spec === null) {
+    throw new Error('Unable to determine Runtime field offsets');
+  }
+
+  spec.offset.instrumentation = tryDetectInstrumentationOffset(api);
+  spec.offset.jniIdsIndirection = tryDetectJniIdsIndirectionOffset();
+
+  return spec;
 }
 
-const Je = {
-  ia32: Ge,
-  x64: Ge,
-  arm: Be,
-  arm64: qe
+const instrumentationOffsetParsers = {
+  ia32: parsex86InstrumentationOffset,
+  x64: parsex86InstrumentationOffset,
+  arm: parseArmInstrumentationOffset,
+  arm64: parseArm64InstrumentationOffset
 };
 
-function Ue(e) {
-  const t = e["art::Runtime::DeoptimizeBootImage"];
-  return void 0 === t ? null : o(t, Je[Process.arch], {
-    limit: 30
-  });
+function tryDetectInstrumentationOffset (api) {
+  const impl = api['art::Runtime::DeoptimizeBootImage'];
+  if (impl === undefined) {
+    return null;
+  }
+
+  return parseInstructionsAt(impl, instrumentationOffsetParsers[Process.arch], { limit: 30 });
 }
 
-function Ge(e) {
-  if ("lea" !== e.mnemonic) return null;
-  const t = e.operands[1].value.disp;
-  return t < 256 || t > 1024 ? null : t;
+function parsex86InstrumentationOffset (insn) {
+  if (insn.mnemonic !== 'lea') {
+    return null;
+  }
+
+  const offset = insn.operands[1].value.disp;
+  if (offset < 0x100 || offset > 0x400) {
+    return null;
+  }
+
+  return offset;
 }
 
-function Be(e) {
-  if ("add.w" !== e.mnemonic) return null;
-  const t = e.operands;
-  if (3 !== t.length) return null;
-  const n = t[2];
-  return "imm" !== n.type ? null : n.value;
+function parseArmInstrumentationOffset (insn) {
+  if (insn.mnemonic !== 'add.w') {
+    return null;
+  }
+
+  const ops = insn.operands;
+  if (ops.length !== 3) {
+    return null;
+  }
+
+  const op2 = ops[2];
+  if (op2.type !== 'imm') {
+    return null;
+  }
+
+  return op2.value;
 }
 
-function qe(e) {
-  if ("add" !== e.mnemonic) return null;
-  const t = e.operands;
-  if (3 !== t.length) return null;
-  if ("sp" === t[0].value || "sp" === t[1].value) return null;
-  const n = t[2];
-  if ("imm" !== n.type) return null;
-  const r = n.value.valueOf();
-  return r < 256 || r > 1024 ? null : r;
+function parseArm64InstrumentationOffset (insn) {
+  if (insn.mnemonic !== 'add') {
+    return null;
+  }
+
+  const ops = insn.operands;
+  if (ops.length !== 3) {
+    return null;
+  }
+
+  if (ops[0].value === 'sp' || ops[1].value === 'sp') {
+    return null;
+  }
+
+  const op2 = ops[2];
+  if (op2.type !== 'imm') {
+    return null;
+  }
+
+  const offset = op2.value.valueOf();
+  if (offset < 0x100 || offset > 0x400) {
+    return null;
+  }
+
+  return offset;
 }
 
-const We = {
-  ia32: Ke,
-  x64: Ke,
-  arm: Qe,
-  arm64: $e
+const jniIdsIndirectionOffsetParsers = {
+  ia32: parsex86JniIdsIndirectionOffset,
+  x64: parsex86JniIdsIndirectionOffset,
+  arm: parseArmJniIdsIndirectionOffset,
+  arm64: parseArm64JniIdsIndirectionOffset
 };
 
-function He() {
-  const e = Module.findExportByName("libart.so", "_ZN3art7Runtime12SetJniIdTypeENS_9JniIdTypeE");
-  if (null === e) return null;
-  const t = o(e, We[Process.arch], {
-    limit: 20
-  });
-  if (null === t) throw new Error("Unable to determine Runtime.jni_ids_indirection_ offset");
-  return t;
+function tryDetectJniIdsIndirectionOffset () {
+  const impl = Module.findExportByName('libart.so', '_ZN3art7Runtime12SetJniIdTypeENS_9JniIdTypeE');
+  if (impl === null) {
+    return null;
+  }
+
+  const offset = parseInstructionsAt(impl, jniIdsIndirectionOffsetParsers[Process.arch], { limit: 20 });
+  if (offset === null) {
+    throw new Error('Unable to determine Runtime.jni_ids_indirection_ offset');
+  }
+
+  return offset;
 }
 
-function Ke(e) {
-  return "cmp" === e.mnemonic ? e.operands[0].value.disp : null;
+function parsex86JniIdsIndirectionOffset (insn) {
+  if (insn.mnemonic === 'cmp') {
+    return insn.operands[0].value.disp;
+  }
+
+  return null;
 }
 
-function Qe(e) {
-  return "ldr.w" === e.mnemonic ? e.operands[1].value.disp : null;
+function parseArmJniIdsIndirectionOffset (insn) {
+  if (insn.mnemonic === 'ldr.w') {
+    return insn.operands[1].value.disp;
+  }
+
+  return null;
 }
 
-function $e(e, t) {
-  if (null === t) return null;
-  const {mnemonic: n} = e, {mnemonic: r} = t;
-  return "cmp" === n && "ldr" === r || "bl" === n && "str" === r ? t.operands[1].value.disp : null;
+function parseArm64JniIdsIndirectionOffset (insn, prevInsn) {
+  if (prevInsn === null) {
+    return null;
+  }
+
+  const { mnemonic } = insn;
+  const { mnemonic: prevMnemonic } = prevInsn;
+
+  if ((mnemonic === 'cmp' && prevMnemonic === 'ldr') || (mnemonic === 'bl' && prevMnemonic === 'str')) {
+    return prevInsn.operands[1].value.disp;
+  }
+
+  return null;
 }
 
-function Xe() {
-  const e = {
-    "4-21": 136,
-    "4-22": 136,
-    "4-23": 172,
-    "4-24": 196,
-    "4-25": 196,
-    "4-26": 196,
-    "4-27": 196,
-    "4-28": 212,
-    "4-29": 172,
-    "4-30": 180,
-    "8-21": 224,
-    "8-22": 224,
-    "8-23": 296,
-    "8-24": 344,
-    "8-25": 344,
-    "8-26": 352,
-    "8-27": 352,
-    "8-28": 392,
-    "8-29": 328,
-    "8-30": 336
-  }[`${l}-${ge()}`];
-  if (void 0 === e) throw new Error("Unable to determine Instrumentation field offsets");
+function _getArtInstrumentationSpec () {
+  const deoptimizationEnabledOffsets = {
+    '4-21': 136,
+    '4-22': 136,
+    '4-23': 172,
+    '4-24': 196,
+    '4-25': 196,
+    '4-26': 196,
+    '4-27': 196,
+    '4-28': 212,
+    '4-29': 172,
+    '4-30': 180,
+    '8-21': 224,
+    '8-22': 224,
+    '8-23': 296,
+    '8-24': 344,
+    '8-25': 344,
+    '8-26': 352,
+    '8-27': 352,
+    '8-28': 392,
+    '8-29': 328,
+    '8-30': 336
+  };
+
+  const deoptEnabledOffset = deoptimizationEnabledOffsets[`${pointerSize}-${getAndroidApiLevel()}`];
+  if (deoptEnabledOffset === undefined) {
+    throw new Error('Unable to determine Instrumentation field offsets');
+  }
+
   return {
     offset: {
       forcedInterpretOnly: 4,
-      deoptimizationEnabled: e
+      deoptimizationEnabled: deoptEnabledOffset
     }
   };
 }
 
-function Ye(e, t) {
-  const n = et(e, t);
-  if (null === n) throw new Error("Unable to determine ClassLinker field offsets");
-  return n;
+function getArtClassLinkerSpec (runtime, runtimeSpec) {
+  const spec = tryGetArtClassLinkerSpec(runtime, runtimeSpec);
+  if (spec === null) {
+    throw new Error('Unable to determine ClassLinker field offsets');
+  }
+  return spec;
 }
 
-function et(e, t) {
-  if (null !== Ee) return Ee;
-  const {classLinker: n, internTable: r} = t.offset, o = e.add(n).readPointer(), a = e.add(r).readPointer(), i = 4 === l ? 100 : 200, s = i + 100 * l, c = ge();
-  let d = null;
-  for (let e = i; e !== s; e += l) {
-    if (o.add(e).readPointer().equals(a)) {
-      let t;
-      t = c >= 30 || "R" === he() ? 6 : c >= 29 ? 4 : c >= 23 ? 3 : 5;
-      const n = e + t * l;
-      let r;
-      r = c >= 23 ? n - 2 * l : n - 3 * l, d = {
+function tryGetArtClassLinkerSpec (runtime, runtimeSpec) {
+  if (cachedArtClassLinkerSpec !== null) {
+    return cachedArtClassLinkerSpec;
+  }
+
+  /*
+   * On Android 5.x:
+   *
+   * class ClassLinker {
+   * ...
+   * InternTable* intern_table_;                          <-- We find this then calculate our way forwards
+   * const void* portable_resolution_trampoline_;
+   * const void* quick_resolution_trampoline_;
+   * const void* portable_imt_conflict_trampoline_;
+   * const void* quick_imt_conflict_trampoline_;
+   * const void* quick_generic_jni_trampoline_;           <-- ...to this
+   * const void* quick_to_interpreter_bridge_trampoline_;
+   * ...
+   * }
+   *
+   * On Android 6.x and above:
+   *
+   * class ClassLinker {
+   * ...
+   * InternTable* intern_table_;                          <-- We find this then calculate our way forwards
+   * const void* quick_resolution_trampoline_;
+   * const void* quick_imt_conflict_trampoline_;
+   * const void* quick_generic_jni_trampoline_;           <-- ...to this
+   * const void* quick_to_interpreter_bridge_trampoline_;
+   * ...
+   * }
+   */
+
+  const { classLinker: classLinkerOffset, internTable: internTableOffset } = runtimeSpec.offset;
+  const classLinker = runtime.add(classLinkerOffset).readPointer();
+  const internTable = runtime.add(internTableOffset).readPointer();
+
+  const startOffset = (pointerSize === 4) ? 100 : 200;
+  const endOffset = startOffset + (100 * pointerSize);
+
+  const apiLevel = getAndroidApiLevel();
+
+  let spec = null;
+
+  for (let offset = startOffset; offset !== endOffset; offset += pointerSize) {
+    const value = classLinker.add(offset).readPointer();
+    if (value.equals(internTable)) {
+      let delta;
+      if (apiLevel >= 30 || getAndroidCodename() === 'R') {
+        delta = 6;
+      } else if (apiLevel >= 29) {
+        delta = 4;
+      } else if (apiLevel >= 23) {
+        delta = 3;
+      } else {
+        delta = 5;
+      }
+
+      const quickGenericJniTrampolineOffset = offset + (delta * pointerSize);
+
+      let quickResolutionTrampolineOffset;
+      if (apiLevel >= 23) {
+        quickResolutionTrampolineOffset = quickGenericJniTrampolineOffset - (2 * pointerSize);
+      } else {
+        quickResolutionTrampolineOffset = quickGenericJniTrampolineOffset - (3 * pointerSize);
+      }
+
+      spec = {
         offset: {
-          quickResolutionTrampoline: r,
-          quickImtConflictTrampoline: n - l,
-          quickGenericJniTrampoline: n,
-          quickToInterpreterBridgeTrampoline: n + l
+          quickResolutionTrampoline: quickResolutionTrampolineOffset,
+          quickImtConflictTrampoline: quickGenericJniTrampolineOffset - pointerSize,
+          quickGenericJniTrampoline: quickGenericJniTrampolineOffset,
+          quickToInterpreterBridgeTrampoline: quickGenericJniTrampolineOffset + pointerSize
         }
       };
+
       break;
     }
   }
-  return null !== d && (Ee = d), d;
+
+  if (spec !== null) {
+    cachedArtClassLinkerSpec = spec;
+  }
+
+  return spec;
 }
 
-function tt(e) {
-  let t, n, r;
+function getArtClassSpec (vm) {
+  let apiLevel;
   try {
-    t = ge();
+    apiLevel = getAndroidApiLevel();
   } catch (e) {
     return null;
   }
-  return t < 24 ? null : (t >= 26 ? (n = 40, r = 116) : (n = 56, r = 124), {
-    offset: {
-      ifields: n,
-      methods: n + 8,
-      sfields: n + 16,
-      copiedMethodsOffset: r
-    }
-  });
-}
 
-function nt(e) {
-  const t = Oe();
-  let n;
-  return e.perform((e => {
-    const r = e.findClass("android/os/Process"), o = en(e.getStaticMethodId(r, "getElapsedCpuTime", "()J"));
-    e.deleteLocalRef(r);
-    const a = Process.getModuleByName("libandroid_runtime.so"), i = a.base, s = i.add(a.size), c = ge(), d = c <= 21 ? 8 : l;
-    let u = null, p = null, _ = 2;
-    for (let e = 0; 64 !== e && 0 !== _; e += 4) {
-      const t = o.add(e);
-      if (null === u) {
-        const n = t.readPointer();
-        n.compare(i) >= 0 && n.compare(s) < 0 && (u = e, _--);
-      }
-      if (null === p) {
-        281 == (2950692863 & t.readU32()) && (p = e, _--);
-      }
-    }
-    if (0 !== _) throw new Error("Unable to determine ArtMethod field offsets");
-    const m = u + d;
-    n = {
-      size: c <= 21 ? m + 32 : m + l,
-      offset: {
-        jniCode: u,
-        quickCode: m,
-        accessFlags: p
-      }
-    }, "artInterpreterToCompiledCodeBridge" in t && (n.offset.interpreterCode = u - d);
-  })), n;
-}
+  if (apiLevel < 24) {
+    return null;
+  }
 
-function rt(e) {
-  const t = ge();
-  return t >= 23 ? {
-    size: 16,
-    offset: {
-      accessFlags: 4
-    }
-  } : t >= 21 ? {
-    size: 24,
-    offset: {
-      accessFlags: 12
-    }
-  } : null;
-}
+  let base, cmo;
+  if (apiLevel >= 26) {
+    base = 40;
+    cmo = 116;
+  } else {
+    base = 56;
+    cmo = 124;
+  }
 
-function ot(e) {
-  const t = ge();
-  let n;
-  return e.perform((e => {
-    const r = ut(e), o = e.handle;
-    let a = null, i = null, s = null, c = null, d = null, u = null;
-    for (let e = 144; 256 !== e; e += l) {
-      if (r.add(e).readPointer().equals(o)) {
-        i = e - 6 * l, d = e - 4 * l, u = e + 2 * l, t <= 22 && (i -= l, a = i - l - 72 - 12, 
-        s = e + 6 * l, d -= l, u -= l), c = e + 9 * l, t <= 22 && (c += 2 * l + 4, 8 === l && (c += 4)), 
-        t >= 23 && (c += l);
-        break;
-      }
-    }
-    if (null === c) throw new Error("Unable to determine ArtThread field offsets");
-    n = {
-      offset: {
-        isExceptionReportedToInstrumentation: a,
-        exception: i,
-        throwLocation: s,
-        topHandleScope: c,
-        managedStack: d,
-        self: u
-      }
-    };
-  })), n;
-}
-
-function at() {
-  return ge() >= 23 ? {
+  return {
     offset: {
-      topQuickFrame: 0,
-      link: l
-    }
-  } : {
-    offset: {
-      topQuickFrame: 2 * l,
-      link: 0
+      ifields: base,
+      methods: base + 8,
+      sfields: base + 16,
+      copiedMethodsOffset: cmo
     }
   };
 }
 
-const it = {
-  ia32: ct,
-  x64: ct,
-  arm: dt,
-  arm64: lt
+function _getArtMethodSpec (vm) {
+  const api = getApi();
+  let spec;
+
+  vm.perform(env => {
+    const process = env.findClass('android/os/Process');
+    const getElapsedCpuTime = unwrapMethodId(env.getStaticMethodId(process, 'getElapsedCpuTime', '()J'));
+    env.deleteLocalRef(process);
+
+    const runtimeModule = Process.getModuleByName('libandroid_runtime.so');
+    const runtimeStart = runtimeModule.base;
+    const runtimeEnd = runtimeStart.add(runtimeModule.size);
+
+    const apiLevel = getAndroidApiLevel();
+
+    const entrypointFieldSize = (apiLevel <= 21) ? 8 : pointerSize;
+
+    const expectedAccessFlags = kAccPublic | kAccStatic | kAccFinal | kAccNative;
+    const relevantAccessFlagsMask = ~(kAccFastInterpreterToInterpreterInvoke | kAccPublicApi | kAccNterpInvokeFastPathFlag) >>> 0;
+
+    let jniCodeOffset = null;
+    let accessFlagsOffset = null;
+    let remaining = 2;
+    for (let offset = 0; offset !== 64 && remaining !== 0; offset += 4) {
+      const field = getElapsedCpuTime.add(offset);
+
+      if (jniCodeOffset === null) {
+        const address = field.readPointer();
+        if (address.compare(runtimeStart) >= 0 && address.compare(runtimeEnd) < 0) {
+          jniCodeOffset = offset;
+          remaining--;
+        }
+      }
+
+      if (accessFlagsOffset === null) {
+        const flags = field.readU32();
+        if ((flags & relevantAccessFlagsMask) === expectedAccessFlags) {
+          accessFlagsOffset = offset;
+          remaining--;
+        }
+      }
+    }
+
+    if (remaining !== 0) {
+      throw new Error('Unable to determine ArtMethod field offsets');
+    }
+
+    const quickCodeOffset = jniCodeOffset + entrypointFieldSize;
+
+    const size = (apiLevel <= 21) ? (quickCodeOffset + 32) : (quickCodeOffset + pointerSize);
+
+    spec = {
+      size,
+      offset: {
+        jniCode: jniCodeOffset,
+        quickCode: quickCodeOffset,
+        accessFlags: accessFlagsOffset
+      }
+    };
+
+    if ('artInterpreterToCompiledCodeBridge' in api) {
+      spec.offset.interpreterCode = jniCodeOffset - entrypointFieldSize;
+    }
+  });
+
+  return spec;
+}
+
+function getArtFieldSpec (vm) {
+  const apiLevel = getAndroidApiLevel();
+
+  if (apiLevel >= 23) {
+    return {
+      size: 16,
+      offset: {
+        accessFlags: 4
+      }
+    };
+  }
+
+  if (apiLevel >= 21) {
+    return {
+      size: 24,
+      offset: {
+        accessFlags: 12
+      }
+    };
+  }
+
+  return null;
+}
+
+function _getArtThreadSpec (vm) {
+  /*
+   * bool32_t is_exception_reported_to_instrumentation_; <-- We need this on API level <= 22
+   * ...
+   * mirror::Throwable* exception;                       <-- ...and this on all versions
+   * uint8_t* stack_end;
+   * ManagedStack managed_stack;
+   * uintptr_t* suspend_trigger;
+   * JNIEnvExt* jni_env;                                 <-- We find this then calculate our way backwards/forwards
+   * JNIEnvExt* tmp_jni_env;                             <-- API level >= 23
+   * Thread* self;
+   * mirror::Object* opeer;
+   * jobject jpeer;
+   * uint8_t* stack_begin;
+   * size_t stack_size;
+   * ThrowLocation throw_location;                       <-- ...and this on API level <= 22
+   * union DepsOrStackTraceSample {
+   *   DepsOrStackTraceSample() {
+   *     verifier_deps = nullptr;
+   *     stack_trace_sample = nullptr;
+   *   }
+   *   std::vector<ArtMethod*>* stack_trace_sample;
+   *   verifier::VerifierDeps* verifier_deps;
+   * } deps_or_stack_trace_sample;
+   * Thread* wait_next;
+   * mirror::Object* monitor_enter_object;
+   * BaseHandleScope* top_handle_scope;                  <-- ...and to this on all versions
+   */
+
+  const apiLevel = getAndroidApiLevel();
+
+  let spec;
+
+  vm.perform(env => {
+    const threadHandle = getArtThreadFromEnv(env);
+    const envHandle = env.handle;
+
+    let isExceptionReportedOffset = null;
+    let exceptionOffset = null;
+    let throwLocationOffset = null;
+    let topHandleScopeOffset = null;
+    let managedStackOffset = null;
+    let selfOffset = null;
+
+    for (let offset = 144; offset !== 256; offset += pointerSize) {
+      const field = threadHandle.add(offset);
+
+      const value = field.readPointer();
+      if (value.equals(envHandle)) {
+        exceptionOffset = offset - (6 * pointerSize);
+        managedStackOffset = offset - (4 * pointerSize);
+        selfOffset = offset + (2 * pointerSize);
+        if (apiLevel <= 22) {
+          exceptionOffset -= pointerSize;
+
+          isExceptionReportedOffset = exceptionOffset - pointerSize - (9 * 8) - (3 * 4);
+
+          throwLocationOffset = offset + (6 * pointerSize);
+
+          managedStackOffset -= pointerSize;
+
+          selfOffset -= pointerSize;
+        }
+
+        topHandleScopeOffset = offset + (9 * pointerSize);
+        if (apiLevel <= 22) {
+          topHandleScopeOffset += (2 * pointerSize) + 4;
+          if (pointerSize === 8) {
+            topHandleScopeOffset += 4;
+          }
+        }
+        if (apiLevel >= 23) {
+          topHandleScopeOffset += pointerSize;
+        }
+
+        break;
+      }
+    }
+
+    if (topHandleScopeOffset === null) {
+      throw new Error('Unable to determine ArtThread field offsets');
+    }
+
+    spec = {
+      offset: {
+        isExceptionReportedToInstrumentation: isExceptionReportedOffset,
+        exception: exceptionOffset,
+        throwLocation: throwLocationOffset,
+        topHandleScope: topHandleScopeOffset,
+        managedStack: managedStackOffset,
+        self: selfOffset
+      }
+    };
+  });
+
+  return spec;
+}
+
+function _getArtManagedStackSpec () {
+  const apiLevel = getAndroidApiLevel();
+
+  if (apiLevel >= 23) {
+    return {
+      offset: {
+        topQuickFrame: 0,
+        link: pointerSize
+      }
+    };
+  } else {
+    return {
+      offset: {
+        topQuickFrame: 2 * pointerSize,
+        link: 0
+      }
+    };
+  }
+}
+
+const artQuickTrampolineParsers = {
+  ia32: parseArtQuickTrampolineX86,
+  x64: parseArtQuickTrampolineX86,
+  arm: parseArtQuickTrampolineArm,
+  arm64: parseArtQuickTrampolineArm64
 };
 
-function st(e, t) {
-  let n;
-  return t.perform((t => {
-    const r = ut(t), o = (0, it[Process.arch])(Instruction.parse(e));
-    n = null !== o ? r.add(o).readPointer() : e;
-  })), n;
+function getArtQuickEntrypointFromTrampoline (trampoline, vm) {
+  let address;
+
+  vm.perform(env => {
+    const thread = getArtThreadFromEnv(env);
+
+    const tryParse = artQuickTrampolineParsers[Process.arch];
+
+    const insn = Instruction.parse(trampoline);
+
+    const offset = tryParse(insn);
+    if (offset !== null) {
+      address = thread.add(offset).readPointer();
+    } else {
+      address = trampoline;
+    }
+  });
+
+  return address;
 }
 
-function ct(e) {
-  return "jmp" === e.mnemonic ? e.operands[0].value.disp : null;
+function parseArtQuickTrampolineX86 (insn) {
+  if (insn.mnemonic === 'jmp') {
+    return insn.operands[0].value.disp;
+  }
+
+  return null;
 }
 
-function dt(e) {
-  return "ldr.w" === e.mnemonic ? e.operands[1].value.disp : null;
+function parseArtQuickTrampolineArm (insn) {
+  if (insn.mnemonic === 'ldr.w') {
+    return insn.operands[1].value.disp;
+  }
+
+  return null;
 }
 
-function lt(e) {
-  return "ldr" === e.mnemonic ? e.operands[1].value.disp : null;
+function parseArtQuickTrampolineArm64 (insn) {
+  if (insn.mnemonic === 'ldr') {
+    return insn.operands[1].value.disp;
+  }
+
+  return null;
 }
 
-function ut(e) {
-  return e.handle.add(l).readPointer();
+function getArtThreadFromEnv (env) {
+  return env.handle.add(pointerSize).readPointer();
 }
 
-function pt() {
-  return ft("ro.build.version.release");
+function _getAndroidVersion () {
+  return getAndroidSystemProperty('ro.build.version.release');
 }
 
-function _t() {
-  return ft("ro.build.version.codename");
+function _getAndroidCodename () {
+  return getAndroidSystemProperty('ro.build.version.codename');
 }
 
-function mt() {
-  return parseInt(ft("ro.build.version.sdk"), 10);
+function _getAndroidApiLevel () {
+  return parseInt(getAndroidSystemProperty('ro.build.version.sdk'), 10);
 }
 
-let ht = null;
+let systemPropertyGet = null;
+const PROP_VALUE_MAX = 92;
 
-const gt = 92;
-
-function ft(e) {
-  null === ht && (ht = new NativeFunction(Module.getExportByName("libc.so", "__system_property_get"), "int", [ "pointer", "pointer" ], ve));
-  const t = Memory.alloc(gt);
-  return ht(Memory.allocUtf8String(e), t), t.readUtf8String();
+function getAndroidSystemProperty (name) {
+  if (systemPropertyGet === null) {
+    systemPropertyGet = new NativeFunction(Module.getExportByName('libc.so', '__system_property_get'), 'int', ['pointer', 'pointer'], nativeFunctionOptions);
+  }
+  const buf = Memory.alloc(PROP_VALUE_MAX);
+  systemPropertyGet(Memory.allocUtf8String(name), buf);
+  return buf.readUtf8String();
 }
 
-function bt(e, t, n) {
-  const r = _e(e, t), o = ut(t).toString();
-  if (ke[o] = n, r(t.handle), void 0 !== ke[o]) throw delete ke[o], new Error("Unable to perform state transition; please file a bug");
+function withRunnableArtThread (vm, env, fn) {
+  const perform = getArtThreadStateTransitionImpl(vm, env);
+
+  const id = getArtThreadFromEnv(env).toString();
+  artThreadStateTransitions[id] = fn;
+
+  perform(env.handle);
+
+  if (artThreadStateTransitions[id] !== undefined) {
+    delete artThreadStateTransitions[id];
+    throw new Error('Unable to perform state transition; please file a bug');
+  }
 }
 
-function vt(e, t) {
-  return In(e, t, new NativeCallback(kt, "void", [ "pointer" ]));
+function _getArtThreadStateTransitionImpl (vm, env) {
+  const callback = new NativeCallback(onThreadStateTransitionComplete, 'void', ['pointer']);
+  return makeArtThreadStateTransitionImpl(vm, env, callback);
 }
 
-function kt(e) {
-  const t = e.toString(), n = ke[t];
-  delete ke[t], n(e);
+function onThreadStateTransitionComplete (thread) {
+  const id = thread.toString();
+
+  const fn = artThreadStateTransitions[id];
+  delete artThreadStateTransitions[id];
+  fn(thread);
 }
 
-function St(e) {
-  const t = Oe(), n = t.artThreadList;
-  t["art::ThreadList::SuspendAll"](n, Memory.allocUtf8String("frida"), 0);
+function withAllArtThreadsSuspended (fn) {
+  const api = getApi();
+
+  const threadList = api.artThreadList;
+  const longSuspend = false;
+  api['art::ThreadList::SuspendAll'](threadList, Memory.allocUtf8String('frida'), longSuspend ? 1 : 0);
   try {
-    e();
+    fn();
   } finally {
-    t["art::ThreadList::ResumeAll"](n);
+    api['art::ThreadList::ResumeAll'](threadList);
   }
 }
 
-class Et {
-  constructor(e) {
-    const t = Memory.alloc(4 * l), n = t.add(l);
-    t.writePointer(n);
-    const r = new NativeCallback(((t, n) => !0 === e(n) ? 1 : 0), "bool", [ "pointer", "pointer" ]);
-    n.add(2 * l).writePointer(r), this.handle = t, this._onVisit = r;
+class ArtClassVisitor {
+  constructor (visit) {
+    const visitor = Memory.alloc(4 * pointerSize);
+
+    const vtable = visitor.add(pointerSize);
+    visitor.writePointer(vtable);
+
+    const onVisit = new NativeCallback((self, klass) => {
+      return visit(klass) === true ? 1 : 0;
+    }, 'bool', ['pointer', 'pointer']);
+    vtable.add(2 * pointerSize).writePointer(onVisit);
+
+    this.handle = visitor;
+    this._onVisit = onVisit;
   }
 }
 
-function Nt(e) {
-  return Oe()["art::ClassLinker::VisitClasses"] instanceof NativeFunction ? new Et(e) : new NativeCallback((t => !0 === e(t) ? 1 : 0), "bool", [ "pointer", "pointer" ]);
+function makeArtClassVisitor (visit) {
+  const api = getApi();
+
+  if (api['art::ClassLinker::VisitClasses'] instanceof NativeFunction) {
+    return new ArtClassVisitor(visit);
+  }
+
+  return new NativeCallback(klass => {
+    return visit(klass) === true ? 1 : 0;
+  }, 'bool', ['pointer', 'pointer']);
 }
 
-class Rt {
-  constructor(e) {
-    const t = Memory.alloc(4 * l), n = t.add(l);
-    t.writePointer(n);
-    const r = new NativeCallback(((t, n) => {
-      e(n);
-    }), "void", [ "pointer", "pointer" ]);
-    n.add(2 * l).writePointer(r), this.handle = t, this._onVisit = r;
+class ArtClassLoaderVisitor {
+  constructor (visit) {
+    const visitor = Memory.alloc(4 * pointerSize);
+
+    const vtable = visitor.add(pointerSize);
+    visitor.writePointer(vtable);
+
+    const onVisit = new NativeCallback((self, klass) => {
+      visit(klass);
+    }, 'void', ['pointer', 'pointer']);
+    vtable.add(2 * pointerSize).writePointer(onVisit);
+
+    this.handle = visitor;
+    this._onVisit = onVisit;
   }
 }
 
-function wt(e) {
-  return new Rt(e);
+function makeArtClassLoaderVisitor (visit) {
+  return new ArtClassLoaderVisitor(visit);
 }
 
-const Pt = {
-  "include-inlined-frames": 0,
-  "skip-inlined-frames": 1
+const WalkKind = {
+  'include-inlined-frames': 0,
+  'skip-inlined-frames': 1
 };
 
-class xt {
-  constructor(e, t, n, r = 0, o = !0) {
-    const a = Oe(), i = 3 * l, s = Memory.alloc(512 + i);
-    a["art::StackVisitor::StackVisitor"](s, e, t, Pt[n], r, o ? 1 : 0);
-    const c = s.add(512);
-    s.writePointer(c);
-    const d = new NativeCallback(this._visitFrame.bind(this), "bool", [ "pointer" ]);
-    c.add(2 * l).writePointer(d), this.handle = s, this._onVisitFrame = d;
-    const u = s.add(4 === l ? 12 : 24);
-    this._curShadowFrame = u, this._curQuickFrame = u.add(l), this._curQuickFramePc = u.add(2 * l), 
-    this._curOatQuickMethodHeader = u.add(3 * l), this._getMethodImpl = a["art::StackVisitor::GetMethod"], 
-    this._descLocImpl = a["art::StackVisitor::DescribeLocation"], this._getCQFIImpl = a["art::StackVisitor::GetCurrentQuickFrameInfo"];
+class ArtStackVisitor {
+  constructor (thread, context, walkKind, numFrames = 0, checkSuspended = true) {
+    const api = getApi();
+
+    const baseSize = 512; /* Up to 488 bytes on 64-bit Android Q. */
+    const vtableSize = 3 * pointerSize;
+
+    const visitor = Memory.alloc(baseSize + vtableSize);
+
+    api['art::StackVisitor::StackVisitor'](visitor, thread, context, WalkKind[walkKind], numFrames,
+      checkSuspended ? 1 : 0);
+
+    const vtable = visitor.add(baseSize);
+    visitor.writePointer(vtable);
+
+    const onVisitFrame = new NativeCallback(this._visitFrame.bind(this), 'bool', ['pointer']);
+    vtable.add(2 * pointerSize).writePointer(onVisitFrame);
+
+    this.handle = visitor;
+    this._onVisitFrame = onVisitFrame;
+
+    const curShadowFrame = visitor.add((pointerSize === 4) ? 12 : 24);
+    this._curShadowFrame = curShadowFrame;
+    this._curQuickFrame = curShadowFrame.add(pointerSize);
+    this._curQuickFramePc = curShadowFrame.add(2 * pointerSize);
+    this._curOatQuickMethodHeader = curShadowFrame.add(3 * pointerSize);
+
+    this._getMethodImpl = api['art::StackVisitor::GetMethod'];
+    this._descLocImpl = api['art::StackVisitor::DescribeLocation'];
+    this._getCQFIImpl = api['art::StackVisitor::GetCurrentQuickFrameInfo'];
   }
-  walkStack(e = !1) {
-    Oe()["art::StackVisitor::WalkStack"](this.handle, e ? 1 : 0);
+
+  walkStack (includeTransitions = false) {
+    getApi()['art::StackVisitor::WalkStack'](this.handle, includeTransitions ? 1 : 0);
   }
-  _visitFrame() {
+
+  _visitFrame () {
     return this.visitFrame() ? 1 : 0;
   }
-  visitFrame() {
-    throw new Error("Subclass must implement visitFrame");
+
+  visitFrame () {
+    throw new Error('Subclass must implement visitFrame');
   }
-  getMethod() {
-    const e = this._getMethodImpl(this.handle);
-    return e.isNull() ? null : new Mt(e);
+
+  getMethod () {
+    const methodHandle = this._getMethodImpl(this.handle);
+    if (methodHandle.isNull()) {
+      return null;
+    }
+    return new ArtMethod(methodHandle);
   }
-  getCurrentQuickFramePc() {
+
+  getCurrentQuickFramePc () {
     return this._curQuickFramePc.readPointer();
   }
-  getCurrentQuickFrame() {
+
+  getCurrentQuickFrame () {
     return this._curQuickFrame.readPointer();
   }
-  getCurrentShadowFrame() {
+
+  getCurrentShadowFrame () {
     return this._curShadowFrame.readPointer();
   }
-  describeLocation() {
-    const e = new Jn;
-    return this._descLocImpl(e, this.handle), e.disposeToString();
+
+  describeLocation () {
+    const result = new StdString();
+    this._descLocImpl(result, this.handle);
+    return result.disposeToString();
   }
-  getCurrentOatQuickMethodHeader() {
+
+  getCurrentOatQuickMethodHeader () {
     return this._curOatQuickMethodHeader.readPointer();
   }
-  getCurrentQuickFrameInfo() {
+
+  getCurrentQuickFrameInfo () {
     return this._getCQFIImpl(this.handle);
   }
 }
 
-class Mt {
-  constructor(e) {
-    this.handle = e;
+class ArtMethod {
+  constructor (handle) {
+    this.handle = handle;
   }
-  prettyMethod(e = !0) {
-    const t = new Jn;
-    return Oe()["art::ArtMethod::PrettyMethod"](t, this.handle, e ? 1 : 0), t.disposeToString();
+
+  prettyMethod (withSignature = true) {
+    const result = new StdString();
+    getApi()['art::ArtMethod::PrettyMethod'](result, this.handle, withSignature ? 1 : 0);
+    return result.disposeToString();
   }
-  toString() {
+
+  toString () {
     return `ArtMethod(handle=${this.handle})`;
   }
 }
 
-function Ct(e) {
-  return function(t) {
-    const n = Memory.alloc(12);
-    return fe(e)(n, t), {
-      frameSizeInBytes: n.readU32(),
-      coreSpillMask: n.add(4).readU32(),
-      fpSpillMask: n.add(8).readU32()
+function makeArtQuickFrameInfoGetter (impl) {
+  return function (self) {
+    const result = Memory.alloc(12);
+
+    getArtQuickFrameInfoGetterThunk(impl)(result, self);
+
+    return {
+      frameSizeInBytes: result.readU32(),
+      coreSpillMask: result.add(4).readU32(),
+      fpSpillMask: result.add(8).readU32()
     };
   };
 }
 
-function At(e) {
-  let t = NULL;
+function _getArtQuickFrameInfoGetterThunk (impl) {
+  let thunk = NULL;
   switch (Process.arch) {
-   case "ia32":
-    t = Lt(32, (t => {
-      t.putMovRegRegOffsetPtr("ecx", "esp", 4), t.putMovRegRegOffsetPtr("edx", "esp", 8), 
-      t.putCallAddressWithArguments(e, [ "ecx", "edx" ]), t.putMovRegReg("esp", "ebp"), 
-      t.putPopReg("ebp"), t.putRet();
-    }));
-    break;
+    case 'ia32':
+      thunk = makeThunk(32, writer => {
+        writer.putMovRegRegOffsetPtr('ecx', 'esp', 4); // result
+        writer.putMovRegRegOffsetPtr('edx', 'esp', 8); // self
+        writer.putCallAddressWithArguments(impl, ['ecx', 'edx']);
 
-   case "x64":
-    t = Lt(32, (t => {
-      t.putPushReg("rdi"), t.putCallAddressWithArguments(e, [ "rsi" ]), t.putPopReg("rdi"), 
-      t.putMovRegPtrReg("rdi", "rax"), t.putMovRegOffsetPtrReg("rdi", 8, "edx"), t.putRet();
-    }));
-    break;
+        // Restore callee's stack frame
+        writer.putMovRegReg('esp', 'ebp');
+        writer.putPopReg('ebp');
 
-   case "arm":
-    t = Lt(16, (t => {
-      t.putCallAddressWithArguments(e, [ "r0", "r1" ]), t.putPopRegs([ "r0", "lr" ]), 
-      t.putMovRegReg("pc", "lr");
-    }));
-    break;
+        writer.putRet();
+      });
+      break;
+    case 'x64':
+      thunk = makeThunk(32, writer => {
+        writer.putPushReg('rdi'); // preserve result buffer pointer
+        writer.putCallAddressWithArguments(impl, ['rsi']); // self
+        writer.putPopReg('rdi');
 
-   case "arm64":
-    t = Lt(64, (t => {
-      t.putPushRegReg("x0", "lr"), t.putCallAddressWithArguments(e, [ "x1" ]), t.putPopRegReg("x2", "lr"), 
-      t.putStrRegRegOffset("x0", "x2", 0), t.putStrRegRegOffset("w1", "x2", 8), t.putRet();
-    }));
+        // Struct is stored by value in the rax and edx registers
+        // Write struct to result buffer
+        writer.putMovRegPtrReg('rdi', 'rax');
+        writer.putMovRegOffsetPtrReg('rdi', 8, 'edx');
+
+        writer.putRet();
+      });
+      break;
+    case 'arm':
+      thunk = makeThunk(16, writer => {
+        // By calling convention, we pass a pointer for the result struct
+        writer.putCallAddressWithArguments(impl, ['r0', 'r1']);
+        writer.putPopRegs(['r0', 'lr']);
+        writer.putMovRegReg('pc', 'lr');
+      });
+      break;
+    case 'arm64':
+      thunk = makeThunk(64, writer => {
+        writer.putPushRegReg('x0', 'lr');
+        writer.putCallAddressWithArguments(impl, ['x1']);
+        writer.putPopRegReg('x2', 'lr');
+        writer.putStrRegRegOffset('x0', 'x2', 0);
+        writer.putStrRegRegOffset('w1', 'x2', 8);
+        writer.putRet();
+      });
+      break;
   }
-  return new NativeFunction(t, "void", [ "pointer", "pointer" ], ve);
+  return new NativeFunction(thunk, 'void', ['pointer', 'pointer'], nativeFunctionOptions);
 }
 
-const yt = {
+const thunkRelocators = {
   ia32: global.X86Relocator,
   x64: global.X86Relocator,
   arm: global.ThumbRelocator,
   arm64: global.Arm64Relocator
-}, It = {
+};
+
+const thunkWriters = {
   ia32: global.X86Writer,
   x64: global.X86Writer,
   arm: global.ThumbWriter,
   arm64: global.Arm64Writer
 };
 
-function Lt(e, t) {
-  null === Me && (Me = Memory.alloc(Process.pageSize));
-  const n = Me.add(Ce), r = Process.arch, o = It[r];
-  return Memory.patchCode(n, e, (r => {
-    const a = new o(r, {
-      pc: n
-    });
-    if (t(a), a.flush(), a.offset > e) throw new Error(`Wrote ${a.offset}, exceeding maximum of ${e}`);
-  })), Ce += e, "arm" === r ? n.or(1) : n;
+function makeThunk (size, write) {
+  if (thunkPage === null) {
+    thunkPage = Memory.alloc(Process.pageSize);
+  }
+
+  const thunk = thunkPage.add(thunkOffset);
+
+  const arch = Process.arch;
+
+  const Writer = thunkWriters[arch];
+  Memory.patchCode(thunk, size, code => {
+    const writer = new Writer(code, { pc: thunk });
+    write(writer);
+    writer.flush();
+    if (writer.offset > size) {
+      throw new Error(`Wrote ${writer.offset}, exceeding maximum of ${size}`);
+    }
+  });
+
+  thunkOffset += size;
+
+  return (arch === 'arm') ? thunk.or(1) : thunk;
 }
 
-function Tt(e, t) {
-  Ot(t), Ft(t);
+function notifyArtMethodHooked (method, vm) {
+  ensureArtKnowsHowToHandleMethodInstrumentation(vm);
+  ensureArtKnowsHowToHandleReplacementMethods(vm);
 }
 
-function jt(e) {
-  const t = ue(e).offset, n = pe().offset, r = `\n#include <gum/guminterceptor.h>\n\nextern GMutex lock;\nextern GHashTable * methods;\nextern GHashTable * replacements;\nextern gpointer last_seen_art_method;\n\nextern gpointer get_oat_quick_method_header_impl (gpointer method, gpointer pc);\n\nvoid\ninit (void)\n{\n  g_mutex_init (&lock);\n  methods = g_hash_table_new_full (NULL, NULL, NULL, NULL);\n  replacements = g_hash_table_new_full (NULL, NULL, NULL, NULL);\n}\n\nvoid\nfinalize (void)\n{\n  g_hash_table_unref (replacements);\n  g_hash_table_unref (methods);\n  g_mutex_clear (&lock);\n}\n\ngboolean\nis_replacement_method (gpointer method)\n{\n  gboolean is_replacement;\n\n  g_mutex_lock (&lock);\n\n  is_replacement = g_hash_table_contains (replacements, method);\n\n  g_mutex_unlock (&lock);\n\n  return is_replacement;\n}\n\ngpointer\nget_replacement_method (gpointer original_method)\n{\n  gpointer replacement_method;\n\n  g_mutex_lock (&lock);\n\n  replacement_method = g_hash_table_lookup (methods, original_method);\n\n  g_mutex_unlock (&lock);\n\n  return replacement_method;\n}\n\nvoid\nset_replacement_method (gpointer original_method,\n                        gpointer replacement_method)\n{\n  g_mutex_lock (&lock);\n\n  g_hash_table_insert (methods, original_method, replacement_method);\n  g_hash_table_insert (replacements, replacement_method, original_method);\n\n  g_mutex_unlock (&lock);\n}\n\nvoid\ndelete_replacement_method (gpointer original_method)\n{\n  gpointer replacement_method;\n\n  g_mutex_lock (&lock);\n\n  replacement_method = g_hash_table_lookup (methods, original_method);\n  if (replacement_method != NULL)\n  {\n    g_hash_table_remove (methods, original_method);\n    g_hash_table_remove (replacements, replacement_method);\n  }\n\n  g_mutex_unlock (&lock);\n}\n\ngpointer\ntranslate_method (gpointer method)\n{\n  gpointer translated_method;\n\n  g_mutex_lock (&lock);\n\n  translated_method = g_hash_table_lookup (replacements, method);\n\n  g_mutex_unlock (&lock);\n\n  return (translated_method != NULL) ? translated_method : method;\n}\n\ngpointer\nfind_replacement_method_from_quick_code (gpointer method,\n                                         gpointer thread)\n{\n  gpointer replacement_method;\n  gpointer managed_stack;\n  gpointer top_quick_frame;\n  gpointer link_managed_stack;\n  gpointer * link_top_quick_frame;\n\n  replacement_method = get_replacement_method (method);\n  if (replacement_method == NULL)\n    return NULL;\n\n  /*\n   * Stack check.\n   *\n   * Return NULL to indicate that the original method should be invoked, otherwise\n   * return a pointer to the replacement ArtMethod.\n   *\n   * If the caller is our own JNI replacement stub, then a stack transition must\n   * have been pushed onto the current thread's linked list.\n   *\n   * Therefore, we invoke the original method if the following conditions are met:\n   *   1- The current managed stack is empty.\n   *   2- The ArtMethod * inside the linked managed stack's top quick frame is the\n   *      same as our replacement.\n   */\n  managed_stack = thread + ${t.managedStack};\n  top_quick_frame = *((gpointer *) (managed_stack + ${n.topQuickFrame}));\n  if (top_quick_frame != NULL)\n    return replacement_method;\n\n  link_managed_stack = *((gpointer *) (managed_stack + ${n.link}));\n  if (link_managed_stack == NULL)\n    return replacement_method;\n\n  link_top_quick_frame = GSIZE_TO_POINTER (*((gsize *) (link_managed_stack + ${n.topQuickFrame})) & ~((gsize) 1));\n  if (link_top_quick_frame == NULL || *link_top_quick_frame != replacement_method)\n    return replacement_method;\n\n  return NULL;\n}\n\nvoid\non_interpreter_do_call (GumInvocationContext * ic)\n{\n  gpointer method, replacement_method;\n\n  method = gum_invocation_context_get_nth_argument (ic, 0);\n\n  replacement_method = get_replacement_method (method);\n  if (replacement_method != NULL)\n    gum_invocation_context_replace_nth_argument (ic, 0, replacement_method);\n}\n\ngpointer\non_art_method_get_oat_quick_method_header (gpointer method,\n                                           gpointer pc)\n{\n  if (is_replacement_method (method))\n    return NULL;\n\n  return get_oat_quick_method_header_impl (method, pc);\n}\n\nvoid\non_art_method_pretty_method (GumInvocationContext * ic)\n{\n  const guint this_arg_index = ${"arm64" === Process.arch ? 0 : 1};\n  gpointer method;\n\n  method = gum_invocation_context_get_nth_argument (ic, this_arg_index);\n  if (method == NULL)\n    gum_invocation_context_replace_nth_argument (ic, this_arg_index, last_seen_art_method);\n  else\n    last_seen_art_method = method;\n}\n\nvoid\non_leave_gc_concurrent_copying_copying_phase (GumInvocationContext * ic)\n{\n  GHashTableIter iter;\n  gpointer hooked_method, replacement_method;\n\n  g_mutex_lock (&lock);\n\n  g_hash_table_iter_init (&iter, methods);\n  while (g_hash_table_iter_next (&iter, &hooked_method, &replacement_method))\n    *((uint32_t *) replacement_method) = *((uint32_t *) hooked_method);\n\n  g_mutex_unlock (&lock);\n}\n`, o = l, a = l, i = l, s = Memory.alloc(8 + o + a + i), c = s.add(8), d = c.add(o), u = d.add(a), p = Module.findExportByName("libart.so", 4 === l ? "_ZN3art9ArtMethod23GetOatQuickMethodHeaderEj" : "_ZN3art9ArtMethod23GetOatQuickMethodHeaderEm"), _ = new CModule(r, {
-    lock: s,
-    methods: c,
-    replacements: d,
-    last_seen_art_method: u,
-    get_oat_quick_method_header_impl: p ?? ptr("0xdeadbeef")
-  }), m = {
-    exceptions: "propagate",
-    scheduling: "exclusive"
-  };
+function makeArtController (vm) {
+  const threadOffsets = getArtThreadSpec(vm).offset;
+  const managedStackOffsets = getArtManagedStackSpec().offset;
+
+  const code = `
+#include <gum/guminterceptor.h>
+
+extern GMutex lock;
+extern GHashTable * methods;
+extern GHashTable * replacements;
+extern gpointer last_seen_art_method;
+
+extern gpointer get_oat_quick_method_header_impl (gpointer method, gpointer pc);
+
+void
+init (void)
+{
+  g_mutex_init (&lock);
+  methods = g_hash_table_new_full (NULL, NULL, NULL, NULL);
+  replacements = g_hash_table_new_full (NULL, NULL, NULL, NULL);
+}
+
+void
+finalize (void)
+{
+  g_hash_table_unref (replacements);
+  g_hash_table_unref (methods);
+  g_mutex_clear (&lock);
+}
+
+gboolean
+is_replacement_method (gpointer method)
+{
+  gboolean is_replacement;
+
+  g_mutex_lock (&lock);
+
+  is_replacement = g_hash_table_contains (replacements, method);
+
+  g_mutex_unlock (&lock);
+
+  return is_replacement;
+}
+
+gpointer
+get_replacement_method (gpointer original_method)
+{
+  gpointer replacement_method;
+
+  g_mutex_lock (&lock);
+
+  replacement_method = g_hash_table_lookup (methods, original_method);
+
+  g_mutex_unlock (&lock);
+
+  return replacement_method;
+}
+
+void
+set_replacement_method (gpointer original_method,
+                        gpointer replacement_method)
+{
+  g_mutex_lock (&lock);
+
+  g_hash_table_insert (methods, original_method, replacement_method);
+  g_hash_table_insert (replacements, replacement_method, original_method);
+
+  g_mutex_unlock (&lock);
+}
+
+void
+delete_replacement_method (gpointer original_method)
+{
+  gpointer replacement_method;
+
+  g_mutex_lock (&lock);
+
+  replacement_method = g_hash_table_lookup (methods, original_method);
+  if (replacement_method != NULL)
+  {
+    g_hash_table_remove (methods, original_method);
+    g_hash_table_remove (replacements, replacement_method);
+  }
+
+  g_mutex_unlock (&lock);
+}
+
+gpointer
+translate_method (gpointer method)
+{
+  gpointer translated_method;
+
+  g_mutex_lock (&lock);
+
+  translated_method = g_hash_table_lookup (replacements, method);
+
+  g_mutex_unlock (&lock);
+
+  return (translated_method != NULL) ? translated_method : method;
+}
+
+gpointer
+find_replacement_method_from_quick_code (gpointer method,
+                                         gpointer thread)
+{
+  gpointer replacement_method;
+  gpointer managed_stack;
+  gpointer top_quick_frame;
+  gpointer link_managed_stack;
+  gpointer * link_top_quick_frame;
+
+  replacement_method = get_replacement_method (method);
+  if (replacement_method == NULL)
+    return NULL;
+
+  /*
+   * Stack check.
+   *
+   * Return NULL to indicate that the original method should be invoked, otherwise
+   * return a pointer to the replacement ArtMethod.
+   *
+   * If the caller is our own JNI replacement stub, then a stack transition must
+   * have been pushed onto the current thread's linked list.
+   *
+   * Therefore, we invoke the original method if the following conditions are met:
+   *   1- The current managed stack is empty.
+   *   2- The ArtMethod * inside the linked managed stack's top quick frame is the
+   *      same as our replacement.
+   */
+  managed_stack = thread + ${threadOffsets.managedStack};
+  top_quick_frame = *((gpointer *) (managed_stack + ${managedStackOffsets.topQuickFrame}));
+  if (top_quick_frame != NULL)
+    return replacement_method;
+
+  link_managed_stack = *((gpointer *) (managed_stack + ${managedStackOffsets.link}));
+  if (link_managed_stack == NULL)
+    return replacement_method;
+
+  link_top_quick_frame = GSIZE_TO_POINTER (*((gsize *) (link_managed_stack + ${managedStackOffsets.topQuickFrame})) & ~((gsize) 1));
+  if (link_top_quick_frame == NULL || *link_top_quick_frame != replacement_method)
+    return replacement_method;
+
+  return NULL;
+}
+
+void
+on_interpreter_do_call (GumInvocationContext * ic)
+{
+  gpointer method, replacement_method;
+
+  method = gum_invocation_context_get_nth_argument (ic, 0);
+
+  replacement_method = get_replacement_method (method);
+  if (replacement_method != NULL)
+    gum_invocation_context_replace_nth_argument (ic, 0, replacement_method);
+}
+
+gpointer
+on_art_method_get_oat_quick_method_header (gpointer method,
+                                           gpointer pc)
+{
+  if (is_replacement_method (method))
+    return NULL;
+
+  return get_oat_quick_method_header_impl (method, pc);
+}
+
+void
+on_art_method_pretty_method (GumInvocationContext * ic)
+{
+  const guint this_arg_index = ${(Process.arch === 'arm64') ? 0 : 1};
+  gpointer method;
+
+  method = gum_invocation_context_get_nth_argument (ic, this_arg_index);
+  if (method == NULL)
+    gum_invocation_context_replace_nth_argument (ic, this_arg_index, last_seen_art_method);
+  else
+    last_seen_art_method = method;
+}
+
+void
+on_leave_gc_concurrent_copying_copying_phase (GumInvocationContext * ic)
+{
+  GHashTableIter iter;
+  gpointer hooked_method, replacement_method;
+
+  g_mutex_lock (&lock);
+
+  g_hash_table_iter_init (&iter, methods);
+  while (g_hash_table_iter_next (&iter, &hooked_method, &replacement_method))
+    *((uint32_t *) replacement_method) = *((uint32_t *) hooked_method);
+
+  g_mutex_unlock (&lock);
+}
+`;
+
+  const lockSize = 8;
+  const methodsSize = pointerSize;
+  const replacementsSize = pointerSize;
+  const lastSeenArtMethodSize = pointerSize;
+
+  const data = Memory.alloc(lockSize + methodsSize + replacementsSize + lastSeenArtMethodSize);
+
+  const lock = data;
+  const methods = lock.add(lockSize);
+  const replacements = methods.add(methodsSize);
+  const lastSeenArtMethod = replacements.add(replacementsSize);
+
+  const getOatQuickMethodHeaderImpl = Module.findExportByName('libart.so',
+    (pointerSize === 4)
+      ? '_ZN3art9ArtMethod23GetOatQuickMethodHeaderEj'
+      : '_ZN3art9ArtMethod23GetOatQuickMethodHeaderEm');
+
+  const cm = new CModule(code, {
+    lock,
+    methods,
+    replacements,
+    last_seen_art_method: lastSeenArtMethod,
+    get_oat_quick_method_header_impl: getOatQuickMethodHeaderImpl ?? ptr('0xdeadbeef')
+  });
+
+  const fastOptions = { exceptions: 'propagate', scheduling: 'exclusive' };
+
   return {
-    handle: _,
+    handle: cm,
     replacedMethods: {
-      isReplacement: new NativeFunction(_.is_replacement_method, "bool", [ "pointer" ], m),
-      get: new NativeFunction(_.get_replacement_method, "pointer", [ "pointer" ], m),
-      set: new NativeFunction(_.set_replacement_method, "void", [ "pointer", "pointer" ], m),
-      delete: new NativeFunction(_.delete_replacement_method, "void", [ "pointer" ], m),
-      translate: new NativeFunction(_.translate_method, "pointer", [ "pointer" ], m),
-      findReplacementFromQuickCode: _.find_replacement_method_from_quick_code
+      isReplacement: new NativeFunction(cm.is_replacement_method, 'bool', ['pointer'], fastOptions),
+      get: new NativeFunction(cm.get_replacement_method, 'pointer', ['pointer'], fastOptions),
+      set: new NativeFunction(cm.set_replacement_method, 'void', ['pointer', 'pointer'], fastOptions),
+      delete: new NativeFunction(cm.delete_replacement_method, 'void', ['pointer'], fastOptions),
+      translate: new NativeFunction(cm.translate_method, 'pointer', ['pointer'], fastOptions),
+      findReplacementFromQuickCode: cm.find_replacement_method_from_quick_code
     },
-    getOatQuickMethodHeaderImpl: p,
+    getOatQuickMethodHeaderImpl,
     hooks: {
       Interpreter: {
-        doCall: _.on_interpreter_do_call
+        doCall: cm.on_interpreter_do_call
       },
       ArtMethod: {
-        getOatQuickMethodHeader: _.on_art_method_get_oat_quick_method_header,
-        prettyMethod: _.on_art_method_pretty_method
+        getOatQuickMethodHeader: cm.on_art_method_get_oat_quick_method_header,
+        prettyMethod: cm.on_art_method_pretty_method
       },
       Gc: {
         copyingPhase: {
-          onLeave: _.on_leave_gc_concurrent_copying_copying_phase
+          onLeave: cm.on_leave_gc_concurrent_copying_copying_phase
         }
       }
     }
   };
 }
 
-function Ot(e) {
-  ye || (ye = !0, zt(e), Dt());
-}
-
-function zt(e) {
-  const t = Oe();
-  [ t.artQuickGenericJniTrampoline, t.artQuickToInterpreterBridge ].forEach((t => {
-    Memory.protect(t, 32, "rwx");
-    const n = new pn(t);
-    n.activate(e), xe.push(n);
-  }));
-}
-
-function Dt() {
-  const e = ge();
-  let t;
-  t = e <= 22 ? /^_ZN3art11interpreter6DoCallILb[0-1]ELb[0-1]EEEbPNS_6mirror9ArtMethodEPNS_6ThreadERNS_11ShadowFrameEPKNS_11InstructionEtPNS_6JValueE$/ : /^_ZN3art11interpreter6DoCallILb[0-1]ELb[0-1]EEEbPNS_9ArtMethodEPNS_6ThreadERNS_11ShadowFrameEPKNS_11InstructionEtPNS_6JValueE$/;
-  for (const e of Module.enumerateExports("libart.so").filter((e => t.test(e.name)))) Interceptor.attach(e.address, Re.hooks.Interpreter.doCall);
-}
-
-function Ft(e) {
-  if (Ae) return;
-  if (Ae = !0, !Ut()) {
-    const {getOatQuickMethodHeaderImpl: e} = Re;
-    if (null === e) return;
-    try {
-      Interceptor.replace(e, Re.hooks.ArtMethod.getOatQuickMethodHeader);
-    } catch (e) {}
+function ensureArtKnowsHowToHandleMethodInstrumentation (vm) {
+  if (taughtArtAboutMethodInstrumentation) {
+    return;
   }
-  const t = ge();
-  let n = null;
-  t > 28 ? n = "_ZN3art2gc9collector17ConcurrentCopying12CopyingPhaseEv" : t > 22 && (n = "_ZN3art2gc9collector17ConcurrentCopying12MarkingPhaseEv"), 
-  null !== n && Interceptor.attach(Module.getExportByName("libart.so", n), Re.hooks.Gc.copyingPhase);
+  taughtArtAboutMethodInstrumentation = true;
+
+  instrumentArtQuickEntrypoints(vm);
+  instrumentArtMethodInvocationFromInterpreter();
 }
 
-const Vt = {
+function instrumentArtQuickEntrypoints (vm) {
+  const api = getApi();
+
+  // Entrypoints that dispatch method invocation from the quick ABI.
+  const quickEntrypoints = [
+    api.artQuickGenericJniTrampoline,
+    api.artQuickToInterpreterBridge
+  ];
+
+  quickEntrypoints.forEach(entrypoint => {
+    Memory.protect(entrypoint, 32, 'rwx');
+
+    const interceptor = new ArtQuickCodeInterceptor(entrypoint);
+    interceptor.activate(vm);
+
+    artQuickInterceptors.push(interceptor);
+  });
+}
+
+function instrumentArtMethodInvocationFromInterpreter () {
+  const apiLevel = getAndroidApiLevel();
+
+  let artInterpreterDoCallExportRegex;
+  if (apiLevel <= 22) {
+    artInterpreterDoCallExportRegex = /^_ZN3art11interpreter6DoCallILb[0-1]ELb[0-1]EEEbPNS_6mirror9ArtMethodEPNS_6ThreadERNS_11ShadowFrameEPKNS_11InstructionEtPNS_6JValueE$/;
+  } else {
+    artInterpreterDoCallExportRegex = /^_ZN3art11interpreter6DoCallILb[0-1]ELb[0-1]EEEbPNS_9ArtMethodEPNS_6ThreadERNS_11ShadowFrameEPKNS_11InstructionEtPNS_6JValueE$/;
+  }
+
+  for (const exp of Module.enumerateExports('libart.so').filter(exp => artInterpreterDoCallExportRegex.test(exp.name))) {
+    Interceptor.attach(exp.address, artController.hooks.Interpreter.doCall);
+  }
+}
+
+function ensureArtKnowsHowToHandleReplacementMethods (vm) {
+  if (taughtArtAboutReplacementMethods) {
+    return;
+  }
+  taughtArtAboutReplacementMethods = true;
+
+  if (!maybeInstrumentGetOatQuickMethodHeaderInlineCopies()) {
+    const { getOatQuickMethodHeaderImpl } = artController;
+    if (getOatQuickMethodHeaderImpl === null) {
+      return;
+    }
+
+    try {
+      Interceptor.replace(getOatQuickMethodHeaderImpl, artController.hooks.ArtMethod.getOatQuickMethodHeader);
+    } catch (e) {
+      /*
+       * Already replaced by another script. For now we don't support replacing methods from multiple scripts,
+       * but we'll allow users to try it if they're feeling adventurous.
+       */
+    }
+  }
+
+  const apiLevel = getAndroidApiLevel();
+
+  let exportName = null;
+  if (apiLevel > 28) {
+    exportName = '_ZN3art2gc9collector17ConcurrentCopying12CopyingPhaseEv';
+  } else if (apiLevel > 22) {
+    exportName = '_ZN3art2gc9collector17ConcurrentCopying12MarkingPhaseEv';
+  }
+
+  if (exportName !== null) {
+    Interceptor.attach(Module.getExportByName('libart.so', exportName), artController.hooks.Gc.copyingPhase);
+  }
+}
+
+const artGetOatQuickMethodHeaderInlinedCopyHandler = {
   arm: {
-    signatures: [ {
-      pattern: [ "b0 68", "01 30", "0c d0", "1b 98", ":", "c0 ff", "c0 ff", "00 ff", "00 2f" ],
-      validateMatch: Zt
-    }, {
-      pattern: [ "d8 f8 08 00", "01 30", "0c d0", "1b 98", ":", "f0 ff ff 0f", "ff ff", "00 ff", "00 2f" ],
-      validateMatch: Zt
-    }, {
-      pattern: [ "b0 68", "01 30", "40 f0 c3 80", "00 25", ":", "c0 ff", "c0 ff", "c0 fb 00 d0", "ff f8" ],
-      validateMatch: Zt
-    } ],
-    instrument: qt
+    signatures: [
+      {
+        pattern: [
+          'b0 68', // ldr r0, [r6, #8]
+          '01 30', // adds r0, #1
+          '0c d0', // beq #0x16fcd4
+          '1b 98', // ldr r0, [sp, #0x6c]
+          ':',
+          'c0 ff',
+          'c0 ff',
+          '00 ff',
+          '00 2f'
+        ],
+        validateMatch: validateGetOatQuickMethodHeaderInlinedMatchArm
+      },
+      {
+        pattern: [
+          'd8 f8 08 00', // ldr r0, [r8, #8]
+          '01 30', // adds r0, #1
+          '0c d0', // beq #0x16fcd4
+          '1b 98', // ldr r0, [sp, #0x6c]
+          ':',
+          'f0 ff ff 0f',
+          'ff ff',
+          '00 ff',
+          '00 2f'
+        ],
+        validateMatch: validateGetOatQuickMethodHeaderInlinedMatchArm
+      },
+      {
+        pattern: [
+          'b0 68', // ldr r0, [r6, #8]
+          '01 30', // adds r0, #1
+          '40 f0 c3 80', // bne #0x203bf0
+          '00 25', // movs r5, #0
+          ':',
+          'c0 ff',
+          'c0 ff',
+          'c0 fb 00 d0',
+          'ff f8'
+        ],
+        validateMatch: validateGetOatQuickMethodHeaderInlinedMatchArm
+      }
+    ],
+    instrument: instrumentGetOatQuickMethodHeaderInlinedCopyArm
   },
   arm64: {
-    signatures: [ {
-      pattern: [ "0a 40 b9", "1f 05 00 31", "40 01 00 54", "88 39 00 f0", ":", "fc ff ff", "1f fc ff ff", "1f 00 00 ff", "00 00 00 9f" ],
-      offset: 1,
-      validateMatch: Jt
-    }, {
-      pattern: [ "0a 40 b9", "1f 05 00 31", "01 34 00 54", "e0 03 1f aa", ":", "fc ff ff", "1f fc ff ff", "1f 00 00 ff", "e0 ff ff ff" ],
-      offset: 1,
-      validateMatch: Jt
-    } ],
-    instrument: Wt
+    signatures: [
+      {
+        pattern: [
+          /* e8 */ '0a 40 b9', // ldr w8, [x23, #0x8]
+          '1f 05 00 31', // cmn w8, #0x1
+          '40 01 00 54', // b.eq 0x2e4204
+          '88 39 00 f0', // adrp x8, 0xa17000
+          ':',
+          /* 00 */ 'fc ff ff',
+          '1f fc ff ff',
+          '1f 00 00 ff',
+          '00 00 00 9f'
+        ],
+        offset: 1,
+        validateMatch: validateGetOatQuickMethodHeaderInlinedMatchArm64
+      },
+      {
+        pattern: [
+          /* e8 */ '0a 40 b9', // ldr w8, [x23, #0x8]
+          '1f 05 00 31', // cmn w8, #0x1
+          '01 34 00 54', // b.ne 0x3d8e50
+          'e0 03 1f aa', // mov x0, xzr
+          ':',
+          /* 00 */ 'fc ff ff',
+          '1f fc ff ff',
+          '1f 00 00 ff',
+          'e0 ff ff ff'
+        ],
+        offset: 1,
+        validateMatch: validateGetOatQuickMethodHeaderInlinedMatchArm64
+      }
+    ],
+    instrument: instrumentGetOatQuickMethodHeaderInlinedCopyArm64
   }
 };
 
-function Zt({address: e, size: t}) {
-  const n = Instruction.parse(e.or(1)), [r, a] = n.operands, i = a.value.base, s = r.value, c = Instruction.parse(n.next.add(2)), d = ptr(c.operands[0].value), l = c.address.add(c.size);
-  let u, p;
-  return "beq" === c.mnemonic ? (u = l, p = d) : (u = d, p = l), o(u.or(1), (function(e) {
-    const {mnemonic: t} = e;
-    if ("ldr" !== t && "ldr.w" !== t) return null;
-    const {base: n, disp: r} = e.operands[1].value;
-    if (n !== i || 20 !== r) return null;
-    return {
-      methodReg: i,
-      scratchReg: s,
-      target: {
-        whenTrue: d,
-        whenRegularMethod: u,
-        whenRuntimeMethod: p
-      }
-    };
-  }), {
-    limit: 3
-  });
-}
+function validateGetOatQuickMethodHeaderInlinedMatchArm ({ address, size }) {
+  const ldr = Instruction.parse(address.or(1));
+  const [ldrDst, ldrSrc] = ldr.operands;
+  const methodReg = ldrSrc.value.base;
+  const scratchReg = ldrDst.value;
 
-function Jt({address: e, size: t}) {
-  const [n, r] = Instruction.parse(e).operands, a = r.value.base, i = "x" + n.value.substring(1), s = Instruction.parse(e.add(8)), c = ptr(s.operands[0].value), d = e.add(12);
-  let l, u;
-  return "b.eq" === s.mnemonic ? (l = d, u = c) : (l = c, u = d), o(l, (function(e) {
-    if ("ldr" !== e.mnemonic) return null;
-    const {base: t, disp: n} = e.operands[1].value;
-    if (t !== a || 24 !== n) return null;
-    return {
-      methodReg: a,
-      scratchReg: i,
-      target: {
-        whenTrue: c,
-        whenRegularMethod: l,
-        whenRuntimeMethod: u
-      }
-    };
-  }), {
-    limit: 3
-  });
-}
+  const branch = Instruction.parse(ldr.next.add(2));
+  const targetWhenTrue = ptr(branch.operands[0].value);
+  const targetWhenFalse = branch.address.add(branch.size);
 
-function Ut() {
-  if (ge() < 31) return !1;
-  const e = Vt[Process.arch];
-  if (void 0 === e) return !1;
-  const t = e.signatures.map((({pattern: e, offset: t = 0, validateMatch: n = Gt}) => ({
-    pattern: new MatchPattern(e.join("")),
-    offset: t,
-    validateMatch: n
-  }))), n = [];
-  for (const {base: e, size: r} of Oe().module.enumerateRanges("--x")) for (const {pattern: o, offset: a, validateMatch: i} of t) {
-    const t = Memory.scanSync(e, r, o).map((({address: e, size: t}) => ({
-      address: e.sub(a),
-      size: t + a
-    }))).filter((e => {
-      const t = i(e);
-      return null !== t && (e.validationResult = t, !0);
-    }));
-    n.push(...t);
+  let targetWhenRegularMethod, targetWhenRuntimeMethod;
+  if (branch.mnemonic === 'beq') {
+    targetWhenRegularMethod = targetWhenFalse;
+    targetWhenRuntimeMethod = targetWhenTrue;
+  } else {
+    targetWhenRegularMethod = targetWhenTrue;
+    targetWhenRuntimeMethod = targetWhenFalse;
   }
-  return 0 !== n.length && (n.forEach(e.instrument), !0);
+
+  return parseInstructionsAt(targetWhenRegularMethod.or(1), tryParse, { limit: 3 });
+
+  function tryParse (insn) {
+    const { mnemonic } = insn;
+    if (!(mnemonic === 'ldr' || mnemonic === 'ldr.w')) {
+      return null;
+    }
+
+    const { base, disp } = insn.operands[1].value;
+    if (!(base === methodReg && disp === 0x14)) {
+      return null;
+    }
+
+    return {
+      methodReg,
+      scratchReg,
+      target: {
+        whenTrue: targetWhenTrue,
+        whenRegularMethod: targetWhenRegularMethod,
+        whenRuntimeMethod: targetWhenRuntimeMethod
+      }
+    };
+  }
 }
 
-function Gt() {
+function validateGetOatQuickMethodHeaderInlinedMatchArm64 ({ address, size }) {
+  const [ldrDst, ldrSrc] = Instruction.parse(address).operands;
+  const methodReg = ldrSrc.value.base;
+  const scratchReg = 'x' + ldrDst.value.substring(1);
+
+  const branch = Instruction.parse(address.add(8));
+  const targetWhenTrue = ptr(branch.operands[0].value);
+  const targetWhenFalse = address.add(12);
+
+  let targetWhenRegularMethod, targetWhenRuntimeMethod;
+  if (branch.mnemonic === 'b.eq') {
+    targetWhenRegularMethod = targetWhenFalse;
+    targetWhenRuntimeMethod = targetWhenTrue;
+  } else {
+    targetWhenRegularMethod = targetWhenTrue;
+    targetWhenRuntimeMethod = targetWhenFalse;
+  }
+
+  return parseInstructionsAt(targetWhenRegularMethod, tryParse, { limit: 3 });
+
+  function tryParse (insn) {
+    if (insn.mnemonic !== 'ldr') {
+      return null;
+    }
+
+    const { base, disp } = insn.operands[1].value;
+    if (!(base === methodReg && disp === 0x18)) {
+      return null;
+    }
+
+    return {
+      methodReg,
+      scratchReg,
+      target: {
+        whenTrue: targetWhenTrue,
+        whenRegularMethod: targetWhenRegularMethod,
+        whenRuntimeMethod: targetWhenRuntimeMethod
+      }
+    };
+  }
+}
+
+function maybeInstrumentGetOatQuickMethodHeaderInlineCopies () {
+  if (getAndroidApiLevel() < 31) {
+    return false;
+  }
+
+  const handler = artGetOatQuickMethodHeaderInlinedCopyHandler[Process.arch];
+  if (handler === undefined) {
+    // Not needed on x86 and x64, at least not for now...
+    return false;
+  }
+
+  const signatures = handler.signatures.map(({ pattern, offset = 0, validateMatch = returnEmptyObject }) => {
+    return {
+      pattern: new MatchPattern(pattern.join('')),
+      offset,
+      validateMatch
+    };
+  });
+
+  const impls = [];
+  for (const { base, size } of getApi().module.enumerateRanges('--x')) {
+    for (const { pattern, offset, validateMatch } of signatures) {
+      const matches = Memory.scanSync(base, size, pattern)
+        .map(({ address, size }) => {
+          return { address: address.sub(offset), size: size + offset };
+        })
+        .filter(match => {
+          const validationResult = validateMatch(match);
+          if (validationResult === null) {
+            return false;
+          }
+          match.validationResult = validationResult;
+          return true;
+        });
+      impls.push(...matches);
+    }
+  }
+
+  if (impls.length === 0) {
+    return false;
+  }
+
+  impls.forEach(handler.instrument);
+
+  return true;
+}
+
+function returnEmptyObject () {
   return {};
 }
 
-class Bt {
-  constructor(e, t, n) {
-    this.address = e, this.size = t, this.originalCode = e.readByteArray(t), this.trampoline = n;
+class InlineHook {
+  constructor (address, size, trampoline) {
+    this.address = address;
+    this.size = size;
+    this.originalCode = address.readByteArray(size);
+    this.trampoline = trampoline;
   }
-  revert() {
-    Memory.patchCode(this.address, this.size, (e => {
-      e.writeByteArray(this.originalCode);
-    }));
+
+  revert () {
+    Memory.patchCode(this.address, this.size, code => {
+      code.writeByteArray(this.originalCode);
+    });
   }
 }
 
-function qt({address: e, size: t, validationResult: n}) {
-  const {methodReg: r, target: o} = n, a = Memory.alloc(Process.pageSize);
-  let i = t;
-  Memory.patchCode(a, 256, (t => {
-    const n = new ThumbWriter(t, {
-      pc: a
-    }), s = new ThumbRelocator(e, n);
-    for (let e = 0; 2 !== e; e++) s.readOne();
-    s.writeAll(), s.readOne(), s.skipOne(), n.putBCondLabel("eq", "runtime_or_replacement_method");
-    n.putBytes([ 45, 237, 16, 10 ]);
-    const c = [ "r0", "r1", "r2", "r3" ];
-    n.putPushRegs(c), n.putCallAddressWithArguments(Re.replacedMethods.isReplacement, [ r ]), 
-    n.putCmpRegImm("r0", 0), n.putPopRegs(c);
-    n.putBytes([ 189, 236, 16, 10 ]), n.putBCondLabel("ne", "runtime_or_replacement_method"), 
-    n.putBLabel("regular_method"), s.readOne();
-    const d = s.input.address.equals(o.whenRegularMethod);
-    for (n.putLabel(d ? "regular_method" : "runtime_or_replacement_method"), s.writeOne(); i < 10; ) {
-      const e = s.readOne();
-      if (0 === e) {
-        i = 10;
+function instrumentGetOatQuickMethodHeaderInlinedCopyArm ({ address, size, validationResult }) {
+  const { methodReg, target } = validationResult;
+
+  const trampoline = Memory.alloc(Process.pageSize);
+  let redirectCapacity = size;
+
+  Memory.patchCode(trampoline, 256, code => {
+    const writer = new ThumbWriter(code, { pc: trampoline });
+
+    const relocator = new ThumbRelocator(address, writer);
+    for (let i = 0; i !== 2; i++) {
+      relocator.readOne();
+    }
+    relocator.writeAll();
+
+    relocator.readOne();
+    relocator.skipOne();
+    writer.putBCondLabel('eq', 'runtime_or_replacement_method');
+
+    const vpushFpRegs = [0x2d, 0xed, 0x10, 0x0a]; /* vpush {s0-s15} */
+    writer.putBytes(vpushFpRegs);
+
+    const savedRegs = ['r0', 'r1', 'r2', 'r3'];
+    writer.putPushRegs(savedRegs);
+
+    writer.putCallAddressWithArguments(artController.replacedMethods.isReplacement, [methodReg]);
+    writer.putCmpRegImm('r0', 0);
+
+    writer.putPopRegs(savedRegs);
+
+    const vpopFpRegs = [0xbd, 0xec, 0x10, 0x0a]; /* vpop {s0-s15} */
+    writer.putBytes(vpopFpRegs);
+
+    writer.putBCondLabel('ne', 'runtime_or_replacement_method');
+    writer.putBLabel('regular_method');
+
+    relocator.readOne();
+
+    const tailIsRegular = relocator.input.address.equals(target.whenRegularMethod);
+
+    writer.putLabel(tailIsRegular ? 'regular_method' : 'runtime_or_replacement_method');
+    relocator.writeOne();
+    while (redirectCapacity < 10) {
+      const offset = relocator.readOne();
+      if (offset === 0) {
+        redirectCapacity = 10;
         break;
       }
-      i = e;
+      redirectCapacity = offset;
     }
-    s.writeAll(), n.putBranchAddress(e.add(i + 1)), n.putLabel(d ? "runtime_or_replacement_method" : "regular_method"), 
-    n.putBranchAddress(o.whenTrue), n.flush();
-  })), we.push(new Bt(e, i, a)), Memory.patchCode(e, i, (t => {
-    const n = new ThumbWriter(t, {
-      pc: e
-    });
-    n.putLdrRegAddress("pc", a.or(1)), n.flush();
-  }));
+    relocator.writeAll();
+    writer.putBranchAddress(address.add(redirectCapacity + 1));
+
+    writer.putLabel(tailIsRegular ? 'runtime_or_replacement_method' : 'regular_method');
+    writer.putBranchAddress(target.whenTrue);
+
+    writer.flush();
+  });
+
+  inlineHooks.push(new InlineHook(address, redirectCapacity, trampoline));
+
+  Memory.patchCode(address, redirectCapacity, code => {
+    const writer = new ThumbWriter(code, { pc: address });
+    writer.putLdrRegAddress('pc', trampoline.or(1));
+    writer.flush();
+  });
 }
 
-function Wt({address: e, size: t, validationResult: n}) {
-  const {methodReg: r, scratchReg: o, target: a} = n, i = Memory.alloc(Process.pageSize);
-  Memory.patchCode(i, 256, (t => {
-    const n = new Arm64Writer(t, {
-      pc: i
-    }), o = new Arm64Relocator(e, n);
-    for (let e = 0; 2 !== e; e++) o.readOne();
-    o.writeAll(), o.readOne(), o.skipOne(), n.putBCondLabel("eq", "runtime_or_replacement_method");
-    const s = [ "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17" ], c = s.length;
-    for (let e = 0; e !== c; e += 2) n.putPushRegReg(s[e], s[e + 1]);
-    n.putCallAddressWithArguments(Re.replacedMethods.isReplacement, [ r ]), n.putCmpRegReg("x0", "xzr");
-    for (let e = c - 2; e >= 0; e -= 2) n.putPopRegReg(s[e], s[e + 1]);
-    n.putBCondLabel("ne", "runtime_or_replacement_method"), n.putBLabel("regular_method"), 
-    o.readOne();
-    const d = o.input, l = d.address.equals(a.whenRegularMethod);
-    n.putLabel(l ? "regular_method" : "runtime_or_replacement_method"), o.writeOne(), 
-    n.putBranchAddress(d.next), n.putLabel(l ? "runtime_or_replacement_method" : "regular_method"), 
-    n.putBranchAddress(a.whenTrue), n.flush();
-  })), we.push(new Bt(e, t, i)), Memory.patchCode(e, t, (t => {
-    const n = new Arm64Writer(t, {
-      pc: e
-    });
-    n.putLdrRegAddress(o, i), n.putBrReg(o), n.flush();
-  }));
+function instrumentGetOatQuickMethodHeaderInlinedCopyArm64 ({ address, size, validationResult }) {
+  const { methodReg, scratchReg, target } = validationResult;
+
+  const trampoline = Memory.alloc(Process.pageSize);
+
+  Memory.patchCode(trampoline, 256, code => {
+    const writer = new Arm64Writer(code, { pc: trampoline });
+
+    const relocator = new Arm64Relocator(address, writer);
+    for (let i = 0; i !== 2; i++) {
+      relocator.readOne();
+    }
+    relocator.writeAll();
+
+    relocator.readOne();
+    relocator.skipOne();
+    writer.putBCondLabel('eq', 'runtime_or_replacement_method');
+
+    const savedRegs = [
+      'd0', 'd1',
+      'd2', 'd3',
+      'd4', 'd5',
+      'd6', 'd7',
+      'x0', 'x1',
+      'x2', 'x3',
+      'x4', 'x5',
+      'x6', 'x7',
+      'x8', 'x9',
+      'x10', 'x11',
+      'x12', 'x13',
+      'x14', 'x15',
+      'x16', 'x17'
+    ];
+    const numSavedRegs = savedRegs.length;
+
+    for (let i = 0; i !== numSavedRegs; i += 2) {
+      writer.putPushRegReg(savedRegs[i], savedRegs[i + 1]);
+    }
+
+    writer.putCallAddressWithArguments(artController.replacedMethods.isReplacement, [methodReg]);
+    writer.putCmpRegReg('x0', 'xzr');
+
+    for (let i = numSavedRegs - 2; i >= 0; i -= 2) {
+      writer.putPopRegReg(savedRegs[i], savedRegs[i + 1]);
+    }
+
+    writer.putBCondLabel('ne', 'runtime_or_replacement_method');
+    writer.putBLabel('regular_method');
+
+    relocator.readOne();
+    const tailInstruction = relocator.input;
+
+    const tailIsRegular = tailInstruction.address.equals(target.whenRegularMethod);
+
+    writer.putLabel(tailIsRegular ? 'regular_method' : 'runtime_or_replacement_method');
+    relocator.writeOne();
+    writer.putBranchAddress(tailInstruction.next);
+
+    writer.putLabel(tailIsRegular ? 'runtime_or_replacement_method' : 'regular_method');
+    writer.putBranchAddress(target.whenTrue);
+
+    writer.flush();
+  });
+
+  inlineHooks.push(new InlineHook(address, size, trampoline));
+
+  Memory.patchCode(address, size, code => {
+    const writer = new Arm64Writer(code, { pc: address });
+    writer.putLdrRegAddress(scratchReg, trampoline);
+    writer.putBrReg(scratchReg);
+    writer.flush();
+  });
 }
 
-function Ht(e) {
-  return new Ne(e);
+function makeMethodMangler (methodId) {
+  return new MethodMangler(methodId);
 }
 
-function Kt(e) {
-  return Re.replacedMethods.translate(e);
+function translateMethod (methodId) {
+  return artController.replacedMethods.translate(methodId);
 }
 
-function Qt(e, t = {}) {
-  const {limit: n = 16} = t, r = e.getEnv();
-  return null === Ie && (Ie = $t(e, r)), Ie.backtrace(r, n);
+function backtrace (vm, options = {}) {
+  const { limit = 16 } = options;
+
+  const env = vm.getEnv();
+
+  if (backtraceModule === null) {
+    backtraceModule = makeBacktraceModule(vm, env);
+  }
+
+  return backtraceModule.backtrace(env, limit);
 }
 
-function $t(e, t) {
-  const n = Oe(), r = Memory.alloc(Process.pointerSize), o = new CModule("\n#include <glib.h>\n#include <stdbool.h>\n#include <string.h>\n#include <gum/gumtls.h>\n#include <json-glib/json-glib.h>\n\ntypedef struct _ArtBacktrace ArtBacktrace;\ntypedef struct _ArtStackFrame ArtStackFrame;\n\ntypedef struct _ArtStackVisitor ArtStackVisitor;\ntypedef struct _ArtStackVisitorVTable ArtStackVisitorVTable;\n\ntypedef struct _ArtClass ArtClass;\ntypedef struct _ArtMethod ArtMethod;\ntypedef struct _ArtThread ArtThread;\ntypedef struct _ArtContext ArtContext;\n\ntypedef struct _JNIEnv JNIEnv;\n\ntypedef struct _StdString StdString;\ntypedef struct _StdTinyString StdTinyString;\ntypedef struct _StdLargeString StdLargeString;\n\ntypedef enum {\n  STACK_WALK_INCLUDE_INLINED_FRAMES,\n  STACK_WALK_SKIP_INLINED_FRAMES,\n} StackWalkKind;\n\nstruct _StdTinyString\n{\n  guint8 unused;\n  gchar data[(3 * sizeof (gpointer)) - 1];\n};\n\nstruct _StdLargeString\n{\n  gsize capacity;\n  gsize size;\n  gchar * data;\n};\n\nstruct _StdString\n{\n  union\n  {\n    guint8 flags;\n    StdTinyString tiny;\n    StdLargeString large;\n  };\n};\n\nstruct _ArtBacktrace\n{\n  GChecksum * id;\n  GArray * frames;\n  gchar * frames_json;\n};\n\nstruct _ArtStackFrame\n{\n  ArtMethod * method;\n  gsize dexpc;\n  StdString description;\n};\n\nstruct _ArtStackVisitorVTable\n{\n  void (* unused1) (void);\n  void (* unused2) (void);\n  bool (* visit) (ArtStackVisitor * visitor);\n};\n\nstruct _ArtStackVisitor\n{\n  ArtStackVisitorVTable * vtable;\n\n  guint8 padding[512];\n\n  ArtStackVisitorVTable vtable_storage;\n\n  ArtBacktrace * backtrace;\n};\n\nstruct _ArtMethod\n{\n  guint32 declaring_class;\n  guint32 access_flags;\n};\n\nextern GumTlsKey current_backtrace;\n\nextern void (* perform_art_thread_state_transition) (JNIEnv * env);\n\nextern ArtContext * art_thread_get_long_jump_context (ArtThread * thread);\n\nextern void art_stack_visitor_init (ArtStackVisitor * visitor, ArtThread * thread, void * context, StackWalkKind walk_kind,\n    size_t num_frames, bool check_suspended);\nextern void art_stack_visitor_walk_stack (ArtStackVisitor * visitor, bool include_transitions);\nextern ArtMethod * art_stack_visitor_get_method (ArtStackVisitor * visitor);\nextern void art_stack_visitor_describe_location (StdString * description, ArtStackVisitor * visitor);\nextern ArtMethod * translate_method (ArtMethod * method);\nextern void translate_location (ArtMethod * method, guint32 pc, const gchar ** source_file, gint32 * line_number);\nextern void get_class_location (StdString * result, ArtClass * klass);\nextern void cxx_delete (void * mem);\nextern unsigned long strtoul (const char * str, char ** endptr, int base);\n\nstatic bool visit_frame (ArtStackVisitor * visitor);\nstatic void art_stack_frame_destroy (ArtStackFrame * frame);\n\nstatic void append_jni_type_name (GString * s, const gchar * name, gsize length);\n\nstatic void std_string_destroy (StdString * str);\nstatic gchar * std_string_get_data (StdString * str);\n\nvoid\ninit (void)\n{\n  current_backtrace = gum_tls_key_new ();\n}\n\nvoid\nfinalize (void)\n{\n  gum_tls_key_free (current_backtrace);\n}\n\nArtBacktrace *\n_create (JNIEnv * env,\n         guint limit)\n{\n  ArtBacktrace * bt;\n\n  bt = g_new (ArtBacktrace, 1);\n  bt->id = g_checksum_new (G_CHECKSUM_SHA1);\n  bt->frames = (limit != 0)\n      ? g_array_sized_new (FALSE, FALSE, sizeof (ArtStackFrame), limit)\n      : g_array_new (FALSE, FALSE, sizeof (ArtStackFrame));\n  g_array_set_clear_func (bt->frames, (GDestroyNotify) art_stack_frame_destroy);\n  bt->frames_json = NULL;\n\n  gum_tls_key_set_value (current_backtrace, bt);\n\n  perform_art_thread_state_transition (env);\n\n  gum_tls_key_set_value (current_backtrace, NULL);\n\n  return bt;\n}\n\nvoid\n_on_thread_state_transition_complete (ArtThread * thread)\n{\n  ArtContext * context;\n  ArtStackVisitor visitor = {\n    .vtable_storage = {\n      .visit = visit_frame,\n    },\n  };\n\n  context = art_thread_get_long_jump_context (thread);\n\n  art_stack_visitor_init (&visitor, thread, context, STACK_WALK_SKIP_INLINED_FRAMES, 0, true);\n  visitor.vtable = &visitor.vtable_storage;\n  visitor.backtrace = gum_tls_key_get_value (current_backtrace);\n\n  art_stack_visitor_walk_stack (&visitor, false);\n\n  cxx_delete (context);\n}\n\nstatic bool\nvisit_frame (ArtStackVisitor * visitor)\n{\n  ArtBacktrace * bt = visitor->backtrace;\n  ArtStackFrame frame;\n  const gchar * description, * dexpc_part;\n\n  frame.method = art_stack_visitor_get_method (visitor);\n\n  art_stack_visitor_describe_location (&frame.description, visitor);\n\n  description = std_string_get_data (&frame.description);\n  if (strstr (description, \" '<\") != NULL)\n    goto skip;\n\n  dexpc_part = strstr (description, \" at dex PC 0x\");\n  if (dexpc_part == NULL)\n    goto skip;\n  frame.dexpc = strtoul (dexpc_part + 13, NULL, 16);\n\n  g_array_append_val (bt->frames, frame);\n\n  g_checksum_update (bt->id, (guchar *) &frame.method, sizeof (frame.method));\n  g_checksum_update (bt->id, (guchar *) &frame.dexpc, sizeof (frame.dexpc));\n\n  return true;\n\nskip:\n  std_string_destroy (&frame.description);\n  return true;\n}\n\nstatic void\nart_stack_frame_destroy (ArtStackFrame * frame)\n{\n  std_string_destroy (&frame->description);\n}\n\nvoid\n_destroy (ArtBacktrace * backtrace)\n{\n  g_free (backtrace->frames_json);\n  g_array_free (backtrace->frames, TRUE);\n  g_checksum_free (backtrace->id);\n  g_free (backtrace);\n}\n\nconst gchar *\n_get_id (ArtBacktrace * backtrace)\n{\n  return g_checksum_get_string (backtrace->id);\n}\n\nconst gchar *\n_get_frames (ArtBacktrace * backtrace)\n{\n  GArray * frames = backtrace->frames;\n  JsonBuilder * b;\n  guint i;\n  JsonNode * root;\n\n  if (backtrace->frames_json != NULL)\n    return backtrace->frames_json;\n\n  b = json_builder_new_immutable ();\n\n  json_builder_begin_array (b);\n\n  for (i = 0; i != frames->len; i++)\n  {\n    ArtStackFrame * frame = &g_array_index (frames, ArtStackFrame, i);\n    gchar * description, * ret_type, * paren_open, * paren_close, * arg_types, * token, * method_name, * class_name;\n    GString * signature;\n    gchar * cursor;\n    ArtMethod * translated_method;\n    StdString location;\n    gsize dexpc;\n    const gchar * source_file;\n    gint32 line_number;\n\n    description = std_string_get_data (&frame->description);\n\n    ret_type = strchr (description, '\\'') + 1;\n\n    paren_open = strchr (ret_type, '(');\n    paren_close = strchr (paren_open, ')');\n    *paren_open = '\\0';\n    *paren_close = '\\0';\n\n    arg_types = paren_open + 1;\n\n    token = strrchr (ret_type, '.');\n    *token = '\\0';\n\n    method_name = token + 1;\n\n    token = strrchr (ret_type, ' ');\n    *token = '\\0';\n\n    class_name = token + 1;\n\n    signature = g_string_sized_new (128);\n\n    append_jni_type_name (signature, class_name, method_name - class_name - 1);\n    g_string_append_c (signature, ',');\n    g_string_append (signature, method_name);\n    g_string_append (signature, \",(\");\n\n    if (arg_types != paren_close)\n    {\n      for (cursor = arg_types; cursor != NULL;)\n      {\n        gsize length;\n        gchar * next;\n\n        token = strstr (cursor, \", \");\n        if (token != NULL)\n        {\n          length = token - cursor;\n          next = token + 2;\n        }\n        else\n        {\n          length = paren_close - cursor;\n          next = NULL;\n        }\n\n        append_jni_type_name (signature, cursor, length);\n\n        cursor = next;\n      }\n    }\n\n    g_string_append_c (signature, ')');\n\n    append_jni_type_name (signature, ret_type, class_name - ret_type - 1);\n\n    translated_method = translate_method (frame->method);\n    dexpc = (translated_method == frame->method) ? frame->dexpc : 0;\n\n    get_class_location (&location, GSIZE_TO_POINTER (translated_method->declaring_class));\n\n    translate_location (translated_method, dexpc, &source_file, &line_number);\n\n    json_builder_begin_object (b);\n\n    json_builder_set_member_name (b, \"signature\");\n    json_builder_add_string_value (b, signature->str);\n\n    json_builder_set_member_name (b, \"origin\");\n    json_builder_add_string_value (b, std_string_get_data (&location));\n\n    json_builder_set_member_name (b, \"className\");\n    json_builder_add_string_value (b, class_name);\n\n    json_builder_set_member_name (b, \"methodName\");\n    json_builder_add_string_value (b, method_name);\n\n    json_builder_set_member_name (b, \"methodFlags\");\n    json_builder_add_int_value (b, translated_method->access_flags);\n\n    json_builder_set_member_name (b, \"fileName\");\n    json_builder_add_string_value (b, source_file);\n\n    json_builder_set_member_name (b, \"lineNumber\");\n    json_builder_add_int_value (b, line_number);\n\n    json_builder_end_object (b);\n\n    std_string_destroy (&location);\n    g_string_free (signature, TRUE);\n  }\n\n  json_builder_end_array (b);\n\n  root = json_builder_get_root (b);\n  backtrace->frames_json = json_to_string (root, FALSE);\n  json_node_unref (root);\n\n  return backtrace->frames_json;\n}\n\nstatic void\nappend_jni_type_name (GString * s,\n                      const gchar * name,\n                      gsize length)\n{\n  gchar shorty = '\\0';\n  gsize i;\n\n  switch (name[0])\n  {\n    case 'b':\n      if (strncmp (name, \"boolean\", length) == 0)\n        shorty = 'Z';\n      else if (strncmp (name, \"byte\", length) == 0)\n        shorty = 'B';\n      break;\n    case 'c':\n      if (strncmp (name, \"char\", length) == 0)\n        shorty = 'C';\n      break;\n    case 'd':\n      if (strncmp (name, \"double\", length) == 0)\n        shorty = 'D';\n      break;\n    case 'f':\n      if (strncmp (name, \"float\", length) == 0)\n        shorty = 'F';\n      break;\n    case 'i':\n      if (strncmp (name, \"int\", length) == 0)\n        shorty = 'I';\n      break;\n    case 'l':\n      if (strncmp (name, \"long\", length) == 0)\n        shorty = 'J';\n      break;\n    case 's':\n      if (strncmp (name, \"short\", length) == 0)\n        shorty = 'S';\n      break;\n    case 'v':\n      if (strncmp (name, \"void\", length) == 0)\n        shorty = 'V';\n      break;\n  }\n\n  if (shorty != '\\0')\n  {\n    g_string_append_c (s, shorty);\n\n    return;\n  }\n\n  if (length > 2 && name[length - 2] == '[' && name[length - 1] == ']')\n  {\n    g_string_append_c (s, '[');\n    append_jni_type_name (s, name, length - 2);\n\n    return;\n  }\n\n  g_string_append_c (s, 'L');\n\n  for (i = 0; i != length; i++)\n  {\n    gchar ch = name[i];\n    if (ch != '.')\n      g_string_append_c (s, ch);\n    else\n      g_string_append_c (s, '/');\n  }\n\n  g_string_append_c (s, ';');\n}\n\nstatic void\nstd_string_destroy (StdString * str)\n{\n  bool is_large = (str->flags & 1) != 0;\n  if (is_large)\n    cxx_delete (str->large.data);\n}\n\nstatic gchar *\nstd_string_get_data (StdString * str)\n{\n  bool is_large = (str->flags & 1) != 0;\n  return is_large ? str->large.data : str->tiny.data;\n}\n", {
+function makeBacktraceModule (vm, env) {
+  const api = getApi();
+
+  const performImpl = Memory.alloc(Process.pointerSize);
+
+  const cm = new CModule(`
+#include <glib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <gum/gumtls.h>
+#include <json-glib/json-glib.h>
+
+typedef struct _ArtBacktrace ArtBacktrace;
+typedef struct _ArtStackFrame ArtStackFrame;
+
+typedef struct _ArtStackVisitor ArtStackVisitor;
+typedef struct _ArtStackVisitorVTable ArtStackVisitorVTable;
+
+typedef struct _ArtClass ArtClass;
+typedef struct _ArtMethod ArtMethod;
+typedef struct _ArtThread ArtThread;
+typedef struct _ArtContext ArtContext;
+
+typedef struct _JNIEnv JNIEnv;
+
+typedef struct _StdString StdString;
+typedef struct _StdTinyString StdTinyString;
+typedef struct _StdLargeString StdLargeString;
+
+typedef enum {
+  STACK_WALK_INCLUDE_INLINED_FRAMES,
+  STACK_WALK_SKIP_INLINED_FRAMES,
+} StackWalkKind;
+
+struct _StdTinyString
+{
+  guint8 unused;
+  gchar data[(3 * sizeof (gpointer)) - 1];
+};
+
+struct _StdLargeString
+{
+  gsize capacity;
+  gsize size;
+  gchar * data;
+};
+
+struct _StdString
+{
+  union
+  {
+    guint8 flags;
+    StdTinyString tiny;
+    StdLargeString large;
+  };
+};
+
+struct _ArtBacktrace
+{
+  GChecksum * id;
+  GArray * frames;
+  gchar * frames_json;
+};
+
+struct _ArtStackFrame
+{
+  ArtMethod * method;
+  gsize dexpc;
+  StdString description;
+};
+
+struct _ArtStackVisitorVTable
+{
+  void (* unused1) (void);
+  void (* unused2) (void);
+  bool (* visit) (ArtStackVisitor * visitor);
+};
+
+struct _ArtStackVisitor
+{
+  ArtStackVisitorVTable * vtable;
+
+  guint8 padding[512];
+
+  ArtStackVisitorVTable vtable_storage;
+
+  ArtBacktrace * backtrace;
+};
+
+struct _ArtMethod
+{
+  guint32 declaring_class;
+  guint32 access_flags;
+};
+
+extern GumTlsKey current_backtrace;
+
+extern void (* perform_art_thread_state_transition) (JNIEnv * env);
+
+extern ArtContext * art_thread_get_long_jump_context (ArtThread * thread);
+
+extern void art_stack_visitor_init (ArtStackVisitor * visitor, ArtThread * thread, void * context, StackWalkKind walk_kind,
+    size_t num_frames, bool check_suspended);
+extern void art_stack_visitor_walk_stack (ArtStackVisitor * visitor, bool include_transitions);
+extern ArtMethod * art_stack_visitor_get_method (ArtStackVisitor * visitor);
+extern void art_stack_visitor_describe_location (StdString * description, ArtStackVisitor * visitor);
+extern ArtMethod * translate_method (ArtMethod * method);
+extern void translate_location (ArtMethod * method, guint32 pc, const gchar ** source_file, gint32 * line_number);
+extern void get_class_location (StdString * result, ArtClass * klass);
+extern void cxx_delete (void * mem);
+extern unsigned long strtoul (const char * str, char ** endptr, int base);
+
+static bool visit_frame (ArtStackVisitor * visitor);
+static void art_stack_frame_destroy (ArtStackFrame * frame);
+
+static void append_jni_type_name (GString * s, const gchar * name, gsize length);
+
+static void std_string_destroy (StdString * str);
+static gchar * std_string_get_data (StdString * str);
+
+void
+init (void)
+{
+  current_backtrace = gum_tls_key_new ();
+}
+
+void
+finalize (void)
+{
+  gum_tls_key_free (current_backtrace);
+}
+
+ArtBacktrace *
+_create (JNIEnv * env,
+         guint limit)
+{
+  ArtBacktrace * bt;
+
+  bt = g_new (ArtBacktrace, 1);
+  bt->id = g_checksum_new (G_CHECKSUM_SHA1);
+  bt->frames = (limit != 0)
+      ? g_array_sized_new (FALSE, FALSE, sizeof (ArtStackFrame), limit)
+      : g_array_new (FALSE, FALSE, sizeof (ArtStackFrame));
+  g_array_set_clear_func (bt->frames, (GDestroyNotify) art_stack_frame_destroy);
+  bt->frames_json = NULL;
+
+  gum_tls_key_set_value (current_backtrace, bt);
+
+  perform_art_thread_state_transition (env);
+
+  gum_tls_key_set_value (current_backtrace, NULL);
+
+  return bt;
+}
+
+void
+_on_thread_state_transition_complete (ArtThread * thread)
+{
+  ArtContext * context;
+  ArtStackVisitor visitor = {
+    .vtable_storage = {
+      .visit = visit_frame,
+    },
+  };
+
+  context = art_thread_get_long_jump_context (thread);
+
+  art_stack_visitor_init (&visitor, thread, context, STACK_WALK_SKIP_INLINED_FRAMES, 0, true);
+  visitor.vtable = &visitor.vtable_storage;
+  visitor.backtrace = gum_tls_key_get_value (current_backtrace);
+
+  art_stack_visitor_walk_stack (&visitor, false);
+
+  cxx_delete (context);
+}
+
+static bool
+visit_frame (ArtStackVisitor * visitor)
+{
+  ArtBacktrace * bt = visitor->backtrace;
+  ArtStackFrame frame;
+  const gchar * description, * dexpc_part;
+
+  frame.method = art_stack_visitor_get_method (visitor);
+
+  art_stack_visitor_describe_location (&frame.description, visitor);
+
+  description = std_string_get_data (&frame.description);
+  if (strstr (description, " '<") != NULL)
+    goto skip;
+
+  dexpc_part = strstr (description, " at dex PC 0x");
+  if (dexpc_part == NULL)
+    goto skip;
+  frame.dexpc = strtoul (dexpc_part + 13, NULL, 16);
+
+  g_array_append_val (bt->frames, frame);
+
+  g_checksum_update (bt->id, (guchar *) &frame.method, sizeof (frame.method));
+  g_checksum_update (bt->id, (guchar *) &frame.dexpc, sizeof (frame.dexpc));
+
+  return true;
+
+skip:
+  std_string_destroy (&frame.description);
+  return true;
+}
+
+static void
+art_stack_frame_destroy (ArtStackFrame * frame)
+{
+  std_string_destroy (&frame->description);
+}
+
+void
+_destroy (ArtBacktrace * backtrace)
+{
+  g_free (backtrace->frames_json);
+  g_array_free (backtrace->frames, TRUE);
+  g_checksum_free (backtrace->id);
+  g_free (backtrace);
+}
+
+const gchar *
+_get_id (ArtBacktrace * backtrace)
+{
+  return g_checksum_get_string (backtrace->id);
+}
+
+const gchar *
+_get_frames (ArtBacktrace * backtrace)
+{
+  GArray * frames = backtrace->frames;
+  JsonBuilder * b;
+  guint i;
+  JsonNode * root;
+
+  if (backtrace->frames_json != NULL)
+    return backtrace->frames_json;
+
+  b = json_builder_new_immutable ();
+
+  json_builder_begin_array (b);
+
+  for (i = 0; i != frames->len; i++)
+  {
+    ArtStackFrame * frame = &g_array_index (frames, ArtStackFrame, i);
+    gchar * description, * ret_type, * paren_open, * paren_close, * arg_types, * token, * method_name, * class_name;
+    GString * signature;
+    gchar * cursor;
+    ArtMethod * translated_method;
+    StdString location;
+    gsize dexpc;
+    const gchar * source_file;
+    gint32 line_number;
+
+    description = std_string_get_data (&frame->description);
+
+    ret_type = strchr (description, '\\'') + 1;
+
+    paren_open = strchr (ret_type, '(');
+    paren_close = strchr (paren_open, ')');
+    *paren_open = '\\0';
+    *paren_close = '\\0';
+
+    arg_types = paren_open + 1;
+
+    token = strrchr (ret_type, '.');
+    *token = '\\0';
+
+    method_name = token + 1;
+
+    token = strrchr (ret_type, ' ');
+    *token = '\\0';
+
+    class_name = token + 1;
+
+    signature = g_string_sized_new (128);
+
+    append_jni_type_name (signature, class_name, method_name - class_name - 1);
+    g_string_append_c (signature, ',');
+    g_string_append (signature, method_name);
+    g_string_append (signature, ",(");
+
+    if (arg_types != paren_close)
+    {
+      for (cursor = arg_types; cursor != NULL;)
+      {
+        gsize length;
+        gchar * next;
+
+        token = strstr (cursor, ", ");
+        if (token != NULL)
+        {
+          length = token - cursor;
+          next = token + 2;
+        }
+        else
+        {
+          length = paren_close - cursor;
+          next = NULL;
+        }
+
+        append_jni_type_name (signature, cursor, length);
+
+        cursor = next;
+      }
+    }
+
+    g_string_append_c (signature, ')');
+
+    append_jni_type_name (signature, ret_type, class_name - ret_type - 1);
+
+    translated_method = translate_method (frame->method);
+    dexpc = (translated_method == frame->method) ? frame->dexpc : 0;
+
+    get_class_location (&location, GSIZE_TO_POINTER (translated_method->declaring_class));
+
+    translate_location (translated_method, dexpc, &source_file, &line_number);
+
+    json_builder_begin_object (b);
+
+    json_builder_set_member_name (b, "signature");
+    json_builder_add_string_value (b, signature->str);
+
+    json_builder_set_member_name (b, "origin");
+    json_builder_add_string_value (b, std_string_get_data (&location));
+
+    json_builder_set_member_name (b, "className");
+    json_builder_add_string_value (b, class_name);
+
+    json_builder_set_member_name (b, "methodName");
+    json_builder_add_string_value (b, method_name);
+
+    json_builder_set_member_name (b, "methodFlags");
+    json_builder_add_int_value (b, translated_method->access_flags);
+
+    json_builder_set_member_name (b, "fileName");
+    json_builder_add_string_value (b, source_file);
+
+    json_builder_set_member_name (b, "lineNumber");
+    json_builder_add_int_value (b, line_number);
+
+    json_builder_end_object (b);
+
+    std_string_destroy (&location);
+    g_string_free (signature, TRUE);
+  }
+
+  json_builder_end_array (b);
+
+  root = json_builder_get_root (b);
+  backtrace->frames_json = json_to_string (root, FALSE);
+  json_node_unref (root);
+
+  return backtrace->frames_json;
+}
+
+static void
+append_jni_type_name (GString * s,
+                      const gchar * name,
+                      gsize length)
+{
+  gchar shorty = '\\0';
+  gsize i;
+
+  switch (name[0])
+  {
+    case 'b':
+      if (strncmp (name, "boolean", length) == 0)
+        shorty = 'Z';
+      else if (strncmp (name, "byte", length) == 0)
+        shorty = 'B';
+      break;
+    case 'c':
+      if (strncmp (name, "char", length) == 0)
+        shorty = 'C';
+      break;
+    case 'd':
+      if (strncmp (name, "double", length) == 0)
+        shorty = 'D';
+      break;
+    case 'f':
+      if (strncmp (name, "float", length) == 0)
+        shorty = 'F';
+      break;
+    case 'i':
+      if (strncmp (name, "int", length) == 0)
+        shorty = 'I';
+      break;
+    case 'l':
+      if (strncmp (name, "long", length) == 0)
+        shorty = 'J';
+      break;
+    case 's':
+      if (strncmp (name, "short", length) == 0)
+        shorty = 'S';
+      break;
+    case 'v':
+      if (strncmp (name, "void", length) == 0)
+        shorty = 'V';
+      break;
+  }
+
+  if (shorty != '\\0')
+  {
+    g_string_append_c (s, shorty);
+
+    return;
+  }
+
+  if (length > 2 && name[length - 2] == '[' && name[length - 1] == ']')
+  {
+    g_string_append_c (s, '[');
+    append_jni_type_name (s, name, length - 2);
+
+    return;
+  }
+
+  g_string_append_c (s, 'L');
+
+  for (i = 0; i != length; i++)
+  {
+    gchar ch = name[i];
+    if (ch != '.')
+      g_string_append_c (s, ch);
+    else
+      g_string_append_c (s, '/');
+  }
+
+  g_string_append_c (s, ';');
+}
+
+static void
+std_string_destroy (StdString * str)
+{
+  bool is_large = (str->flags & 1) != 0;
+  if (is_large)
+    cxx_delete (str->large.data);
+}
+
+static gchar *
+std_string_get_data (StdString * str)
+{
+  bool is_large = (str->flags & 1) != 0;
+  return is_large ? str->large.data : str->tiny.data;
+}
+`, {
     current_backtrace: Memory.alloc(Process.pointerSize),
-    perform_art_thread_state_transition: r,
-    art_thread_get_long_jump_context: n["art::Thread::GetLongJumpContext"],
-    art_stack_visitor_init: n["art::StackVisitor::StackVisitor"],
-    art_stack_visitor_walk_stack: n["art::StackVisitor::WalkStack"],
-    art_stack_visitor_get_method: n["art::StackVisitor::GetMethod"],
-    art_stack_visitor_describe_location: n["art::StackVisitor::DescribeLocation"],
-    translate_method: Re.replacedMethods.translate,
-    translate_location: n["art::Monitor::TranslateLocation"],
-    get_class_location: n["art::mirror::Class::GetLocation"],
-    cxx_delete: n.$delete,
-    strtoul: Module.getExportByName("libc.so", "strtoul")
-  }), a = new NativeFunction(o._create, "pointer", [ "pointer", "uint" ], ve), i = new NativeFunction(o._destroy, "void", [ "pointer" ], ve), s = {
-    exceptions: "propagate",
-    scheduling: "exclusive"
-  }, c = new NativeFunction(o._get_id, "pointer", [ "pointer" ], s), d = new NativeFunction(o._get_frames, "pointer", [ "pointer" ], s), l = In(e, t, o._on_thread_state_transition_complete);
-  function u(e) {
-    i(e);
+    perform_art_thread_state_transition: performImpl,
+    art_thread_get_long_jump_context: api['art::Thread::GetLongJumpContext'],
+    art_stack_visitor_init: api['art::StackVisitor::StackVisitor'],
+    art_stack_visitor_walk_stack: api['art::StackVisitor::WalkStack'],
+    art_stack_visitor_get_method: api['art::StackVisitor::GetMethod'],
+    art_stack_visitor_describe_location: api['art::StackVisitor::DescribeLocation'],
+    translate_method: artController.replacedMethods.translate,
+    translate_location: api['art::Monitor::TranslateLocation'],
+    get_class_location: api['art::mirror::Class::GetLocation'],
+    cxx_delete: api.$delete,
+    strtoul: Module.getExportByName('libc.so', 'strtoul')
+  });
+
+  const _create = new NativeFunction(cm._create, 'pointer', ['pointer', 'uint'], nativeFunctionOptions);
+  const _destroy = new NativeFunction(cm._destroy, 'void', ['pointer'], nativeFunctionOptions);
+
+  const fastOptions = { exceptions: 'propagate', scheduling: 'exclusive' };
+  const _getId = new NativeFunction(cm._get_id, 'pointer', ['pointer'], fastOptions);
+  const _getFrames = new NativeFunction(cm._get_frames, 'pointer', ['pointer'], fastOptions);
+
+  const performThreadStateTransition = makeArtThreadStateTransitionImpl(vm, env, cm._on_thread_state_transition_complete);
+  cm._performData = performThreadStateTransition;
+  performImpl.writePointer(performThreadStateTransition);
+
+  cm.backtrace = (env, limit) => {
+    const handle = _create(env, limit);
+    const bt = new Backtrace(handle);
+    Script.bindWeak(bt, destroy.bind(null, handle));
+    return bt;
+  };
+
+  function destroy (handle) {
+    _destroy(handle);
   }
-  return o._performData = l, r.writePointer(l), o.backtrace = (e, t) => {
-    const n = a(e, t), r = new Xt(n);
-    return Script.bindWeak(r, u.bind(null, n)), r;
-  }, o.getId = e => c(e).readUtf8String(), o.getFrames = e => JSON.parse(d(e).readUtf8String()), 
-  o;
+
+  cm.getId = handle => {
+    return _getId(handle).readUtf8String();
+  };
+
+  cm.getFrames = handle => {
+    return JSON.parse(_getFrames(handle).readUtf8String());
+  };
+
+  return cm;
 }
 
-class Xt {
-  constructor(e) {
-    this.handle = e;
+class Backtrace {
+  constructor (handle) {
+    this.handle = handle;
   }
-  get id() {
-    return Ie.getId(this.handle);
+
+  get id () {
+    return backtraceModule.getId(this.handle);
   }
-  get frames() {
-    return Ie.getFrames(this.handle);
+
+  get frames () {
+    return backtraceModule.getFrames(this.handle);
   }
 }
 
-function Yt() {
-  Pe.forEach((e => {
-    e.vtablePtr.writePointer(e.vtable), e.vtableCountPtr.writeS32(e.vtableCount);
-  })), Pe.clear();
-  for (const e of xe.splice(0)) e.deactivate();
-  for (const e of we.splice(0)) e.revert();
+function revertGlobalPatches () {
+  patchedClasses.forEach(entry => {
+    entry.vtablePtr.writePointer(entry.vtable);
+    entry.vtableCountPtr.writeS32(entry.vtableCount);
+  });
+  patchedClasses.clear();
+
+  for (const interceptor of artQuickInterceptors.splice(0)) {
+    interceptor.deactivate();
+  }
+
+  for (const hook of inlineHooks.splice(0)) {
+    hook.revert();
+  }
 }
 
-function en(e) {
-  const t = Oe(), n = ce(t).offset, r = n.jniIdManager, o = n.jniIdsIndirection;
-  if (null !== r && null !== o) {
-    const n = t.artRuntime;
-    if (n.add(o).readInt() !== M) {
-      const o = n.add(r).readPointer();
-      return t["art::jni::JniIdManager::DecodeMethodId"](o, e);
+function unwrapMethodId (methodId) {
+  const api = getApi();
+
+  const runtimeOffset = getArtRuntimeSpec(api).offset;
+  const jniIdManagerOffset = runtimeOffset.jniIdManager;
+  const jniIdsIndirectionOffset = runtimeOffset.jniIdsIndirection;
+
+  if (jniIdManagerOffset !== null && jniIdsIndirectionOffset !== null) {
+    const runtime = api.artRuntime;
+
+    const jniIdsIndirection = runtime.add(jniIdsIndirectionOffset).readInt();
+
+    if (jniIdsIndirection !== kPointer) {
+      const jniIdManager = runtime.add(jniIdManagerOffset).readPointer();
+      return api['art::jni::JniIdManager::DecodeMethodId'](jniIdManager, methodId);
     }
   }
-  return e;
+
+  return methodId;
 }
 
-const tn = {
-  ia32: nn,
-  x64: rn,
-  arm: on,
-  arm64: an
+const artQuickCodeReplacementTrampolineWriters = {
+  ia32: writeArtQuickCodeReplacementTrampolineIA32,
+  x64: writeArtQuickCodeReplacementTrampolineX64,
+  arm: writeArtQuickCodeReplacementTrampolineArm,
+  arm64: writeArtQuickCodeReplacementTrampolineArm64
 };
 
-function nn(e, t, n, r, o) {
-  const a = ue(o).offset, i = le(o).offset;
-  let s;
-  return Memory.patchCode(e, 128, (r => {
-    const o = new X86Writer(r, {
-      pc: e
-    }), c = new X86Relocator(t, o);
-    o.putPushax(), o.putMovRegReg("ebp", "esp"), o.putAndRegU32("esp", 4294967280), 
-    o.putSubRegImm("esp", 512), o.putBytes([ 15, 174, 4, 36 ]), o.putMovRegFsU32Ptr("ebx", a.self), 
-    o.putCallAddressWithAlignedArguments(Re.replacedMethods.findReplacementFromQuickCode, [ "eax", "ebx" ]), 
-    o.putTestRegReg("eax", "eax"), o.putJccShortLabel("je", "restore_registers", "no-hint"), 
-    o.putMovRegOffsetPtrReg("ebp", 28, "eax"), o.putLabel("restore_registers"), o.putBytes([ 15, 174, 12, 36 ]), 
-    o.putMovRegReg("esp", "ebp"), o.putPopax(), o.putJccShortLabel("jne", "invoke_replacement", "no-hint");
-    do {
-      s = c.readOne();
-    } while (s < n && !c.eoi);
-    c.writeAll(), c.eoi || o.putJmpAddress(t.add(s)), o.putLabel("invoke_replacement"), 
-    o.putJmpRegOffsetPtr("eax", i.quickCode), o.flush();
-  })), s;
-}
+function writeArtQuickCodeReplacementTrampolineIA32 (trampoline, target, redirectSize, constraints, vm) {
+  const threadOffsets = getArtThreadSpec(vm).offset;
+  const artMethodOffsets = getArtMethodSpec(vm).offset;
 
-function rn(e, t, n, r, o) {
-  const a = ue(o).offset, i = le(o).offset;
-  let s;
-  return Memory.patchCode(e, 256, (r => {
-    const o = new X86Writer(r, {
-      pc: e
-    }), c = new X86Relocator(t, o);
-    o.putPushax(), o.putMovRegReg("rbp", "rsp"), o.putAndRegU32("rsp", 4294967280), 
-    o.putSubRegImm("rsp", 512), o.putBytes([ 15, 174, 4, 36 ]), o.putMovRegGsU32Ptr("rbx", a.self), 
-    o.putCallAddressWithAlignedArguments(Re.replacedMethods.findReplacementFromQuickCode, [ "rdi", "rbx" ]), 
-    o.putTestRegReg("rax", "rax"), o.putJccShortLabel("je", "restore_registers", "no-hint"), 
-    o.putMovRegOffsetPtrReg("rbp", 64, "rax"), o.putLabel("restore_registers"), o.putBytes([ 15, 174, 12, 36 ]), 
-    o.putMovRegReg("rsp", "rbp"), o.putPopax(), o.putJccShortLabel("jne", "invoke_replacement", "no-hint");
-    do {
-      s = c.readOne();
-    } while (s < n && !c.eoi);
-    c.writeAll(), c.eoi || o.putJmpAddress(t.add(s)), o.putLabel("invoke_replacement"), 
-    o.putJmpRegOffsetPtr("rdi", i.quickCode), o.flush();
-  })), s;
-}
+  let offset;
+  Memory.patchCode(trampoline, 128, code => {
+    const writer = new X86Writer(code, { pc: trampoline });
+    const relocator = new X86Relocator(target, writer);
 
-function on(e, t, n, r, o) {
-  const a = le(o).offset, i = t.and(y);
-  let s;
-  return Memory.patchCode(e, 128, (r => {
-    const o = new ThumbWriter(r, {
-      pc: e
-    }), c = new ThumbRelocator(i, o);
-    o.putPushRegs([ "r1", "r2", "r3", "r5", "r6", "r7", "r8", "r10", "r11", "lr" ]), 
-    o.putBytes([ 45, 237, 16, 10 ]), o.putSubRegRegImm("sp", "sp", 8), o.putStrRegRegOffset("r0", "sp", 0), 
-    o.putCallAddressWithArguments(Re.replacedMethods.findReplacementFromQuickCode, [ "r0", "r9" ]), 
-    o.putCmpRegImm("r0", 0), o.putBCondLabel("eq", "restore_registers"), o.putStrRegRegOffset("r0", "sp", 0), 
-    o.putLabel("restore_registers"), o.putLdrRegRegOffset("r0", "sp", 0), o.putAddRegRegImm("sp", "sp", 8), 
-    o.putBytes([ 189, 236, 16, 10 ]), o.putPopRegs([ "lr", "r11", "r10", "r8", "r7", "r6", "r5", "r3", "r2", "r1" ]), 
-    o.putBCondLabel("ne", "invoke_replacement");
-    do {
-      s = c.readOne();
-    } while (s < n && !c.eoi);
-    c.writeAll(), c.eoi || o.putLdrRegAddress("pc", t.add(s)), o.putLabel("invoke_replacement"), 
-    o.putLdrRegRegOffset("pc", "r0", a.quickCode), o.flush();
-  })), s;
-}
+    const fxsave = [0x0f, 0xae, 0x04, 0x24]; /* fxsave [esp] */
+    const fxrstor = [0x0f, 0xae, 0x0c, 0x24]; /* fxrstor [esp] */
 
-function an(e, t, n, {availableScratchRegs: r}, o) {
-  const a = le(o).offset;
-  let i;
-  return Memory.patchCode(e, 256, (o => {
-    const s = new Arm64Writer(o, {
-      pc: e
-    }), c = new Arm64Relocator(t, s);
-    s.putPushRegReg("d0", "d1"), s.putPushRegReg("d2", "d3"), s.putPushRegReg("d4", "d5"), 
-    s.putPushRegReg("d6", "d7"), s.putPushRegReg("x1", "x2"), s.putPushRegReg("x3", "x4"), 
-    s.putPushRegReg("x5", "x6"), s.putPushRegReg("x7", "x20"), s.putPushRegReg("x21", "x22"), 
-    s.putPushRegReg("x23", "x24"), s.putPushRegReg("x25", "x26"), s.putPushRegReg("x27", "x28"), 
-    s.putPushRegReg("x29", "lr"), s.putSubRegRegImm("sp", "sp", 16), s.putStrRegRegOffset("x0", "sp", 0), 
-    s.putCallAddressWithArguments(Re.replacedMethods.findReplacementFromQuickCode, [ "x0", "x19" ]), 
-    s.putCmpRegReg("x0", "xzr"), s.putBCondLabel("eq", "restore_registers"), s.putStrRegRegOffset("x0", "sp", 0), 
-    s.putLabel("restore_registers"), s.putLdrRegRegOffset("x0", "sp", 0), s.putAddRegRegImm("sp", "sp", 16), 
-    s.putPopRegReg("x29", "lr"), s.putPopRegReg("x27", "x28"), s.putPopRegReg("x25", "x26"), 
-    s.putPopRegReg("x23", "x24"), s.putPopRegReg("x21", "x22"), s.putPopRegReg("x7", "x20"), 
-    s.putPopRegReg("x5", "x6"), s.putPopRegReg("x3", "x4"), s.putPopRegReg("x1", "x2"), 
-    s.putPopRegReg("d6", "d7"), s.putPopRegReg("d4", "d5"), s.putPopRegReg("d2", "d3"), 
-    s.putPopRegReg("d0", "d1"), s.putBCondLabel("ne", "invoke_replacement");
+    // Save core args & callee-saves.
+    writer.putPushax();
+
+    writer.putMovRegReg('ebp', 'esp');
+
+    // Save FPRs + alignment padding.
+    writer.putAndRegU32('esp', 0xfffffff0);
+    writer.putSubRegImm('esp', 512);
+    writer.putBytes(fxsave);
+
+    writer.putMovRegFsU32Ptr('ebx', threadOffsets.self);
+    writer.putCallAddressWithAlignedArguments(artController.replacedMethods.findReplacementFromQuickCode, ['eax', 'ebx']);
+
+    writer.putTestRegReg('eax', 'eax');
+    writer.putJccShortLabel('je', 'restore_registers', 'no-hint');
+
+    // Set value of eax in the current frame.
+    writer.putMovRegOffsetPtrReg('ebp', 7 * 4, 'eax');
+
+    writer.putLabel('restore_registers');
+
+    // Restore FPRs.
+    writer.putBytes(fxrstor);
+
+    writer.putMovRegReg('esp', 'ebp');
+
+    // Restore core args & callee-saves.
+    writer.putPopax();
+
+    writer.putJccShortLabel('jne', 'invoke_replacement', 'no-hint');
+
     do {
-      i = c.readOne();
-    } while (i < n && !c.eoi);
-    if (c.writeAll(), !c.eoi) {
-      const e = Array.from(r)[0];
-      s.putLdrRegAddress(e, t.add(i)), s.putBrReg(e);
+      offset = relocator.readOne();
+    } while (offset < redirectSize && !relocator.eoi);
+
+    relocator.writeAll();
+
+    if (!relocator.eoi) {
+      writer.putJmpAddress(target.add(offset));
     }
-    s.putLabel("invoke_replacement"), s.putLdrRegRegOffset("x16", "x0", a.quickCode), 
-    s.putBrReg("x16"), s.flush();
-  })), i;
+
+    writer.putLabel('invoke_replacement');
+
+    writer.putJmpRegOffsetPtr('eax', artMethodOffsets.quickCode);
+
+    writer.flush();
+  });
+
+  return offset;
 }
 
-const sn = {
-  ia32: cn,
-  x64: cn,
-  arm: dn,
-  arm64: ln
+function writeArtQuickCodeReplacementTrampolineX64 (trampoline, target, redirectSize, constraints, vm) {
+  const threadOffsets = getArtThreadSpec(vm).offset;
+  const artMethodOffsets = getArtMethodSpec(vm).offset;
+
+  let offset;
+  Memory.patchCode(trampoline, 256, code => {
+    const writer = new X86Writer(code, { pc: trampoline });
+    const relocator = new X86Relocator(target, writer);
+
+    const fxsave = [0x0f, 0xae, 0x04, 0x24]; /* fxsave [rsp] */
+    const fxrstor = [0x0f, 0xae, 0x0c, 0x24]; /* fxrstor [rsp] */
+
+    // Save core args & callee-saves.
+    writer.putPushax();
+
+    writer.putMovRegReg('rbp', 'rsp');
+
+    // Save FPRs + alignment padding.
+    writer.putAndRegU32('rsp', 0xfffffff0);
+    writer.putSubRegImm('rsp', 512);
+    writer.putBytes(fxsave);
+
+    writer.putMovRegGsU32Ptr('rbx', threadOffsets.self);
+    writer.putCallAddressWithAlignedArguments(artController.replacedMethods.findReplacementFromQuickCode, ['rdi', 'rbx']);
+
+    writer.putTestRegReg('rax', 'rax');
+    writer.putJccShortLabel('je', 'restore_registers', 'no-hint');
+
+    // Set value of rdi in the current frame.
+    writer.putMovRegOffsetPtrReg('rbp', 8 * 8, 'rax');
+
+    writer.putLabel('restore_registers');
+
+    // Restore FPRs.
+    writer.putBytes(fxrstor);
+
+    writer.putMovRegReg('rsp', 'rbp');
+
+    // Restore core args & callee-saves.
+    writer.putPopax();
+
+    writer.putJccShortLabel('jne', 'invoke_replacement', 'no-hint');
+
+    do {
+      offset = relocator.readOne();
+    } while (offset < redirectSize && !relocator.eoi);
+
+    relocator.writeAll();
+
+    if (!relocator.eoi) {
+      writer.putJmpAddress(target.add(offset));
+    }
+
+    writer.putLabel('invoke_replacement');
+
+    writer.putJmpRegOffsetPtr('rdi', artMethodOffsets.quickCode);
+
+    writer.flush();
+  });
+
+  return offset;
+}
+
+function writeArtQuickCodeReplacementTrampolineArm (trampoline, target, redirectSize, constraints, vm) {
+  const artMethodOffsets = getArtMethodSpec(vm).offset;
+
+  const targetAddress = target.and(THUMB_BIT_REMOVAL_MASK);
+
+  let offset;
+  Memory.patchCode(trampoline, 128, code => {
+    const writer = new ThumbWriter(code, { pc: trampoline });
+    const relocator = new ThumbRelocator(targetAddress, writer);
+
+    const vpushFpRegs = [0x2d, 0xed, 0x10, 0x0a]; /* vpush {s0-s15} */
+    const vpopFpRegs = [0xbd, 0xec, 0x10, 0x0a]; /* vpop {s0-s15} */
+
+    // Save core args, callee-saves, LR.
+    writer.putPushRegs([
+      'r1',
+      'r2',
+      'r3',
+      'r5',
+      'r6',
+      'r7',
+      'r8',
+      'r10',
+      'r11',
+      'lr'
+    ]);
+
+    // Save FPRs.
+    writer.putBytes(vpushFpRegs);
+
+    // Save ArtMethod* + alignment padding.
+    writer.putSubRegRegImm('sp', 'sp', 8);
+    writer.putStrRegRegOffset('r0', 'sp', 0);
+
+    writer.putCallAddressWithArguments(artController.replacedMethods.findReplacementFromQuickCode, ['r0', 'r9']);
+
+    writer.putCmpRegImm('r0', 0);
+    writer.putBCondLabel('eq', 'restore_registers');
+
+    // Set value of r0 in the current frame.
+    writer.putStrRegRegOffset('r0', 'sp', 0);
+
+    writer.putLabel('restore_registers');
+
+    // Restore ArtMethod*
+    writer.putLdrRegRegOffset('r0', 'sp', 0);
+    writer.putAddRegRegImm('sp', 'sp', 8);
+
+    // Restore FPRs.
+    writer.putBytes(vpopFpRegs);
+
+    // Restore LR, callee-saves & core args.
+    writer.putPopRegs([
+      'lr',
+      'r11',
+      'r10',
+      'r8',
+      'r7',
+      'r6',
+      'r5',
+      'r3',
+      'r2',
+      'r1'
+    ]);
+
+    writer.putBCondLabel('ne', 'invoke_replacement');
+
+    do {
+      offset = relocator.readOne();
+    } while (offset < redirectSize && !relocator.eoi);
+
+    relocator.writeAll();
+
+    if (!relocator.eoi) {
+      writer.putLdrRegAddress('pc', target.add(offset));
+    }
+
+    writer.putLabel('invoke_replacement');
+
+    writer.putLdrRegRegOffset('pc', 'r0', artMethodOffsets.quickCode);
+
+    writer.flush();
+  });
+
+  return offset;
+}
+
+function writeArtQuickCodeReplacementTrampolineArm64 (trampoline, target, redirectSize, { availableScratchRegs }, vm) {
+  const artMethodOffsets = getArtMethodSpec(vm).offset;
+
+  let offset;
+  Memory.patchCode(trampoline, 256, code => {
+    const writer = new Arm64Writer(code, { pc: trampoline });
+    const relocator = new Arm64Relocator(target, writer);
+
+    // Save FPRs.
+    writer.putPushRegReg('d0', 'd1');
+    writer.putPushRegReg('d2', 'd3');
+    writer.putPushRegReg('d4', 'd5');
+    writer.putPushRegReg('d6', 'd7');
+
+    // Save core args, callee-saves & LR.
+    writer.putPushRegReg('x1', 'x2');
+    writer.putPushRegReg('x3', 'x4');
+    writer.putPushRegReg('x5', 'x6');
+    writer.putPushRegReg('x7', 'x20');
+    writer.putPushRegReg('x21', 'x22');
+    writer.putPushRegReg('x23', 'x24');
+    writer.putPushRegReg('x25', 'x26');
+    writer.putPushRegReg('x27', 'x28');
+    writer.putPushRegReg('x29', 'lr');
+
+    // Save ArtMethod* + alignment padding.
+    writer.putSubRegRegImm('sp', 'sp', 16);
+    writer.putStrRegRegOffset('x0', 'sp', 0);
+
+    writer.putCallAddressWithArguments(artController.replacedMethods.findReplacementFromQuickCode, ['x0', 'x19']);
+
+    writer.putCmpRegReg('x0', 'xzr');
+    writer.putBCondLabel('eq', 'restore_registers');
+
+    // Set value of x0 in the current frame.
+    writer.putStrRegRegOffset('x0', 'sp', 0);
+
+    writer.putLabel('restore_registers');
+
+    // Restore ArtMethod*
+    writer.putLdrRegRegOffset('x0', 'sp', 0);
+    writer.putAddRegRegImm('sp', 'sp', 16);
+
+    // Restore core args, callee-saves & LR.
+    writer.putPopRegReg('x29', 'lr');
+    writer.putPopRegReg('x27', 'x28');
+    writer.putPopRegReg('x25', 'x26');
+    writer.putPopRegReg('x23', 'x24');
+    writer.putPopRegReg('x21', 'x22');
+    writer.putPopRegReg('x7', 'x20');
+    writer.putPopRegReg('x5', 'x6');
+    writer.putPopRegReg('x3', 'x4');
+    writer.putPopRegReg('x1', 'x2');
+
+    // Restore FPRs.
+    writer.putPopRegReg('d6', 'd7');
+    writer.putPopRegReg('d4', 'd5');
+    writer.putPopRegReg('d2', 'd3');
+    writer.putPopRegReg('d0', 'd1');
+
+    writer.putBCondLabel('ne', 'invoke_replacement');
+
+    do {
+      offset = relocator.readOne();
+    } while (offset < redirectSize && !relocator.eoi);
+
+    relocator.writeAll();
+
+    if (!relocator.eoi) {
+      const scratchReg = Array.from(availableScratchRegs)[0];
+      writer.putLdrRegAddress(scratchReg, target.add(offset));
+      writer.putBrReg(scratchReg);
+    }
+
+    writer.putLabel('invoke_replacement');
+
+    writer.putLdrRegRegOffset('x16', 'x0', artMethodOffsets.quickCode);
+    writer.putBrReg('x16');
+
+    writer.flush();
+  });
+
+  return offset;
+}
+
+const artQuickCodePrologueWriters = {
+  ia32: writeArtQuickCodePrologueX86,
+  x64: writeArtQuickCodePrologueX86,
+  arm: writeArtQuickCodePrologueArm,
+  arm64: writeArtQuickCodePrologueArm64
 };
 
-function cn(e, t, n) {
-  Memory.patchCode(e, 16, (n => {
-    const r = new X86Writer(n, {
-      pc: e
-    });
-    r.putJmpAddress(t), r.flush();
-  }));
+function writeArtQuickCodePrologueX86 (target, trampoline, redirectSize) {
+  Memory.patchCode(target, 16, code => {
+    const writer = new X86Writer(code, { pc: target });
+
+    writer.putJmpAddress(trampoline);
+    writer.flush();
+  });
 }
 
-function dn(e, t, n) {
-  const r = e.and(y);
-  Memory.patchCode(r, 16, (e => {
-    const n = new ThumbWriter(e, {
-      pc: r
-    });
-    n.putLdrRegAddress("pc", t.or(1)), n.flush();
-  }));
+function writeArtQuickCodePrologueArm (target, trampoline, redirectSize) {
+  const targetAddress = target.and(THUMB_BIT_REMOVAL_MASK);
+
+  Memory.patchCode(targetAddress, 16, code => {
+    const writer = new ThumbWriter(code, { pc: targetAddress });
+
+    writer.putLdrRegAddress('pc', trampoline.or(1));
+    writer.flush();
+  });
 }
 
-function ln(e, t, n) {
-  Memory.patchCode(e, 16, (r => {
-    const o = new Arm64Writer(r, {
-      pc: e
-    });
-    16 === n ? o.putLdrRegAddress("x16", t) : o.putAdrpRegAddress("x16", t), o.putBrReg("x16"), 
-    o.flush();
-  }));
+function writeArtQuickCodePrologueArm64 (target, trampoline, redirectSize) {
+  Memory.patchCode(target, 16, code => {
+    const writer = new Arm64Writer(code, { pc: target });
+
+    if (redirectSize === 16) {
+      writer.putLdrRegAddress('x16', trampoline);
+    } else {
+      writer.putAdrpRegAddress('x16', trampoline);
+    }
+
+    writer.putBrReg('x16');
+
+    writer.flush();
+  });
 }
 
-const un = {
+const artQuickCodeHookRedirectSize = {
   ia32: 5,
   x64: 16,
   arm: 8,
   arm64: 16
 };
 
-class pn {
-  constructor(e) {
-    this.quickCode = e, this.quickCodeAddress = "arm" === Process.arch ? e.and(y) : e, 
-    this.redirectSize = 0, this.trampoline = null, this.overwrittenPrologue = null, 
+class ArtQuickCodeInterceptor {
+  constructor (quickCode) {
+    this.quickCode = quickCode;
+    this.quickCodeAddress = (Process.arch === 'arm')
+      ? quickCode.and(THUMB_BIT_REMOVAL_MASK)
+      : quickCode;
+
+    this.redirectSize = 0;
+    this.trampoline = null;
+    this.overwrittenPrologue = null;
     this.overwrittenPrologueLength = 0;
   }
-  _canRelocateCode(e, t) {
-    const n = It[Process.arch], r = yt[Process.arch], {quickCodeAddress: o} = this, a = new r(o, new n(o));
-    let i;
-    if ("arm64" === Process.arch) {
-      let n = new Set([ "x16", "x17" ]);
+
+  _canRelocateCode (relocationSize, constraints) {
+    const Writer = thunkWriters[Process.arch];
+    const Relocator = thunkRelocators[Process.arch];
+
+    const { quickCodeAddress } = this;
+
+    const writer = new Writer(quickCodeAddress);
+    const relocator = new Relocator(quickCodeAddress, writer);
+
+    let offset;
+    if (Process.arch === 'arm64') {
+      let availableScratchRegs = new Set(['x16', 'x17']);
+
       do {
-        const e = a.readOne(), t = new Set(n), {read: r, written: o} = a.input.regsAccessed;
-        for (const e of [ r, o ]) for (const n of e) {
-          let e;
-          e = n.startsWith("w") ? "x" + n.substring(1) : n, t.delete(e);
+        const nextOffset = relocator.readOne();
+
+        const nextScratchRegs = new Set(availableScratchRegs);
+        const { read, written } = relocator.input.regsAccessed;
+        for (const regs of [read, written]) {
+          for (const reg of regs) {
+            let name;
+            if (reg.startsWith('w')) {
+              name = 'x' + reg.substring(1);
+            } else {
+              name = reg;
+            }
+            nextScratchRegs.delete(name);
+          }
         }
-        if (0 === t.size) break;
-        i = e, n = t;
-      } while (i < e && !a.eoi);
-      t.availableScratchRegs = n;
-    } else do {
-      i = a.readOne();
-    } while (i < e && !a.eoi);
-    return i >= e;
-  }
-  _allocateTrampoline() {
-    if (null === je) {
-      je = e(4 === l ? 128 : 256);
+        if (nextScratchRegs.size === 0) {
+          break;
+        }
+
+        offset = nextOffset;
+        availableScratchRegs = nextScratchRegs;
+      } while (offset < relocationSize && !relocator.eoi);
+
+      constraints.availableScratchRegs = availableScratchRegs;
+    } else {
+      do {
+        offset = relocator.readOne();
+      } while (offset < relocationSize && !relocator.eoi);
     }
-    const t = un[Process.arch];
-    let n, r, o = 1;
-    const a = {};
-    if (4 === l || this._canRelocateCode(t, a)) n = t, r = {}; else {
-      let e;
-      "x64" === Process.arch ? (n = 5, e = I) : "arm64" === Process.arch && (n = 8, e = L, 
-      o = 4096), r = {
-        near: this.quickCodeAddress,
-        maxDistance: e
-      };
+
+    return offset >= relocationSize;
+  }
+
+  _allocateTrampoline () {
+    if (trampolineAllocator === null) {
+      const trampolineSize = (pointerSize === 4) ? 128 : 256;
+      trampolineAllocator = makeCodeAllocator(trampolineSize);
     }
-    return this.redirectSize = n, this.trampoline = je.allocateSlice(r, o), a;
+
+    const maxRedirectSize = artQuickCodeHookRedirectSize[Process.arch];
+
+    let redirectSize, spec;
+    let alignment = 1;
+    const constraints = {};
+    if (pointerSize === 4 || this._canRelocateCode(maxRedirectSize, constraints)) {
+      redirectSize = maxRedirectSize;
+
+      spec = {};
+    } else {
+      let maxDistance;
+      if (Process.arch === 'x64') {
+        redirectSize = 5;
+        maxDistance = X86_JMP_MAX_DISTANCE;
+      } else if (Process.arch === 'arm64') {
+        redirectSize = 8;
+        maxDistance = ARM64_ADRP_MAX_DISTANCE;
+        alignment = 4096;
+      }
+
+      spec = { near: this.quickCodeAddress, maxDistance };
+    }
+
+    this.redirectSize = redirectSize;
+    this.trampoline = trampolineAllocator.allocateSlice(spec, alignment);
+
+    return constraints;
   }
-  _destroyTrampoline() {
-    je.freeSlice(this.trampoline);
+
+  _destroyTrampoline () {
+    trampolineAllocator.freeSlice(this.trampoline);
   }
-  activate(e) {
-    const t = this._allocateTrampoline(), {trampoline: n, quickCode: r, redirectSize: o} = this, a = (0, 
-    tn[Process.arch])(n, r, o, t, e);
-    this.overwrittenPrologueLength = a, this.overwrittenPrologue = Memory.dup(this.quickCodeAddress, a);
-    (0, sn[Process.arch])(r, n, o);
+
+  activate (vm) {
+    const constraints = this._allocateTrampoline();
+
+    const { trampoline, quickCode, redirectSize } = this;
+
+    const writeTrampoline = artQuickCodeReplacementTrampolineWriters[Process.arch];
+    const prologueLength = writeTrampoline(trampoline, quickCode, redirectSize, constraints, vm);
+    this.overwrittenPrologueLength = prologueLength;
+
+    this.overwrittenPrologue = Memory.dup(this.quickCodeAddress, prologueLength);
+
+    const writePrologue = artQuickCodePrologueWriters[Process.arch];
+    writePrologue(quickCode, trampoline, redirectSize);
   }
-  deactivate() {
-    const {quickCodeAddress: e, overwrittenPrologueLength: t} = this, n = It[Process.arch];
-    Memory.patchCode(e, t, (r => {
-      const o = new n(r, {
-        pc: e
-      }), {overwrittenPrologue: a} = this;
-      o.putBytes(a.readByteArray(t)), o.flush();
-    })), this._destroyTrampoline();
+
+  deactivate () {
+    const { quickCodeAddress, overwrittenPrologueLength: prologueLength } = this;
+
+    const Writer = thunkWriters[Process.arch];
+    Memory.patchCode(quickCodeAddress, prologueLength, code => {
+      const writer = new Writer(code, { pc: quickCodeAddress });
+
+      const { overwrittenPrologue } = this;
+
+      writer.putBytes(overwrittenPrologue.readByteArray(prologueLength));
+      writer.flush();
+    });
+
+    this._destroyTrampoline();
   }
 }
 
-function _n(e) {
-  const t = Oe(), {module: n, artClassLinker: r} = t;
-  return e.equals(r.quickGenericJniTrampoline) || e.equals(r.quickToInterpreterBridgeTrampoline) || e.equals(r.quickResolutionTrampoline) || e.equals(r.quickImtConflictTrampoline) || e.compare(n.base) >= 0 && e.compare(n.base.add(n.size)) < 0;
+function isArtQuickEntrypoint (address) {
+  const api = getApi();
+
+  const { module: m, artClassLinker } = api;
+
+  return address.equals(artClassLinker.quickGenericJniTrampoline) ||
+      address.equals(artClassLinker.quickToInterpreterBridgeTrampoline) ||
+      address.equals(artClassLinker.quickResolutionTrampoline) ||
+      address.equals(artClassLinker.quickImtConflictTrampoline) ||
+      (address.compare(m.base) >= 0 && address.compare(m.base.add(m.size)) < 0);
 }
 
-class mn {
-  constructor(e) {
-    const t = en(e);
-    this.methodId = t, this.originalMethod = null, this.hookedMethodId = t, this.replacementMethodId = null, 
+class ArtMethodMangler {
+  constructor (opaqueMethodId) {
+    const methodId = unwrapMethodId(opaqueMethodId);
+
+    this.methodId = methodId;
+    this.originalMethod = null;
+    this.hookedMethodId = methodId;
+    this.replacementMethodId = null;
+
     this.interceptor = null;
   }
-  replace(e, t, n, r, o) {
-    const {kAccCompileDontBother: a, artNterpEntryPoint: i} = o;
-    this.originalMethod = gn(this.methodId, r);
-    const s = this.originalMethod.accessFlags;
-    if (0 != (s & x) && hn()) {
-      const e = this.originalMethod.jniCode;
-      this.hookedMethodId = e.add(2 * l).readPointer(), this.originalMethod = gn(this.hookedMethodId, r);
+
+  replace (impl, isInstanceMethod, argTypes, vm, api) {
+    const { kAccCompileDontBother, artNterpEntryPoint } = api;
+
+    this.originalMethod = fetchArtMethod(this.methodId, vm);
+
+    const originalFlags = this.originalMethod.accessFlags;
+
+    if ((originalFlags & kAccXposedHookedMethod) !== 0 && xposedIsSupported()) {
+      const hookInfo = this.originalMethod.jniCode;
+      this.hookedMethodId = hookInfo.add(2 * pointerSize).readPointer();
+      this.originalMethod = fetchArtMethod(this.hookedMethodId, vm);
     }
-    const {hookedMethodId: c} = this, d = kn(c, r);
-    this.replacementMethodId = d, fn(d, {
-      jniCode: e,
-      accessFlags: (-3670017 & s | b | a) >>> 0,
-      quickCode: o.artClassLinker.quickGenericJniTrampoline,
-      interpreterCode: o.artInterpreterToCompiledCodeBridge
-    }, r);
-    let u = 1209008128;
-    0 == (s & b) && (u |= E), fn(c, {
-      accessFlags: (s & ~u | a) >>> 0
-    }, r);
-    const p = this.originalMethod.quickCode;
-    if (void 0 !== i && p.equals(i) && fn(c, {
-      quickCode: o.artQuickToInterpreterBridge
-    }, r), !_n(p)) {
-      const e = new pn(p);
-      e.activate(r), this.interceptor = e;
+
+    const { hookedMethodId } = this;
+
+    const replacementMethodId = cloneArtMethod(hookedMethodId, vm);
+    this.replacementMethodId = replacementMethodId;
+
+    patchArtMethod(replacementMethodId, {
+      jniCode: impl,
+      accessFlags: ((originalFlags & ~(kAccCriticalNative | kAccFastNative | kAccNterpEntryPointFastPathFlag)) | kAccNative | kAccCompileDontBother) >>> 0,
+      quickCode: api.artClassLinker.quickGenericJniTrampoline,
+      interpreterCode: api.artInterpreterToCompiledCodeBridge
+    }, vm);
+
+    // Remove kAccFastInterpreterToInterpreterInvoke and kAccSkipAccessChecks to disable use_fast_path
+    // in interpreter_common.h
+    let hookedMethodRemovedFlags = kAccFastInterpreterToInterpreterInvoke | kAccSingleImplementation | kAccNterpEntryPointFastPathFlag;
+    if ((originalFlags & kAccNative) === 0) {
+      hookedMethodRemovedFlags |= kAccSkipAccessChecks;
     }
-    Re.replacedMethods.set(c, d), Tt(c, r);
+
+    patchArtMethod(hookedMethodId, {
+      accessFlags: ((originalFlags & ~(hookedMethodRemovedFlags)) | kAccCompileDontBother) >>> 0
+    }, vm);
+
+    const quickCode = this.originalMethod.quickCode;
+
+    // Replace Nterp quick entrypoints with art_quick_to_interpreter_bridge to force stepping out
+    // of ART's next-generation interpreter and use the quick stub instead.
+    if (artNterpEntryPoint !== undefined && quickCode.equals(artNterpEntryPoint)) {
+      patchArtMethod(hookedMethodId, {
+        quickCode: api.artQuickToInterpreterBridge
+      }, vm);
+    }
+
+    if (!isArtQuickEntrypoint(quickCode)) {
+      const interceptor = new ArtQuickCodeInterceptor(quickCode);
+      interceptor.activate(vm);
+
+      this.interceptor = interceptor;
+    }
+
+    artController.replacedMethods.set(hookedMethodId, replacementMethodId);
+
+    notifyArtMethodHooked(hookedMethodId, vm);
   }
-  revert(e) {
-    const {hookedMethodId: t, interceptor: n} = this;
-    fn(t, this.originalMethod, e), Re.replacedMethods.delete(t), null !== n && (n.deactivate(), 
-    this.interceptor = null);
+
+  revert (vm) {
+    const { hookedMethodId, interceptor } = this;
+
+    patchArtMethod(hookedMethodId, this.originalMethod, vm);
+
+    artController.replacedMethods.delete(hookedMethodId);
+
+    if (interceptor !== null) {
+      interceptor.deactivate();
+
+      this.interceptor = null;
+    }
   }
-  resolveTarget(e, t, n, r) {
+
+  resolveTarget (wrapper, isInstanceMethod, env, api) {
     return this.hookedMethodId;
   }
 }
 
-function hn() {
-  return ge() < 28;
+function xposedIsSupported () {
+  return getAndroidApiLevel() < 28;
 }
 
-function gn(e, t) {
-  const n = le(t).offset;
-  return [ "jniCode", "accessFlags", "quickCode", "interpreterCode" ].reduce(((t, r) => {
-    const o = n[r];
-    if (void 0 === o) return t;
-    const a = e.add(o), i = "accessFlags" === r ? u : p;
-    return t[r] = i.call(a), t;
-  }), {});
-}
-
-function fn(e, t, n) {
-  const r = le(n).offset;
-  Object.keys(t).forEach((n => {
-    const o = r[n];
-    if (void 0 === o) return;
-    const a = e.add(o);
-    ("accessFlags" === n ? _ : m).call(a, t[n]);
-  }));
-}
-
-class bn {
-  constructor(e) {
-    this.methodId = e, this.originalMethod = null;
-  }
-  replace(e, t, n, r, o) {
-    const {methodId: a} = this;
-    this.originalMethod = Memory.dup(a, V);
-    let i = n.reduce(((e, t) => e + t.size), 0);
-    t && i++;
-    const s = (a.add(4).readU32() | b) >>> 0, c = i, d = i;
-    a.add(4).writeU32(s), a.add(U).writeU16(c), a.add(G).writeU16(0), a.add(B).writeU16(d), 
-    a.add(W).writeU32(vn(a)), o.dvmUseJNIBridge(a, e);
-  }
-  revert(e) {
-    Memory.copy(this.methodId, this.originalMethod, V);
-  }
-  resolveTarget(e, t, n, r) {
-    const o = n.handle.add(O).readPointer();
-    let a, i;
-    if (t) a = r.dvmDecodeIndirectRef(o, e.$h); else {
-      const t = e.$borrowClassHandle(n);
-      a = r.dvmDecodeIndirectRef(o, t.value), t.unref(n);
-    }
-    i = t ? a.add(0).readPointer() : a;
-    const s = i.toString(16);
-    let c = Pe.get(s);
-    if (void 0 === c) {
-      const e = i.add(D), t = i.add(z), n = e.readPointer(), r = t.readS32(), o = r * l, a = Memory.alloc(2 * o);
-      Memory.copy(a, n, o), e.writePointer(a), c = {
-        classObject: i,
-        vtablePtr: e,
-        vtableCountPtr: t,
-        vtable: n,
-        vtableCount: r,
-        shadowVtable: a,
-        shadowVtableCount: r,
-        targetMethods: new Map
-      }, Pe.set(s, c);
-    }
-    const d = this.methodId.toString(16);
-    let u = c.targetMethods.get(d);
-    if (void 0 === u) {
-      u = Memory.dup(this.originalMethod, V);
-      const e = c.shadowVtableCount++;
-      c.shadowVtable.add(e * l).writePointer(u), u.add(8).writeU16(e), c.vtableCountPtr.writeS32(c.shadowVtableCount), 
-      c.targetMethods.set(d, u);
-    }
-    return u;
-  }
-}
-
-function vn(e) {
-  if ("ia32" !== Process.arch) return ne;
-  const t = e.add(q).readPointer().readCString();
-  if (null === t || 0 === t.length || t.length > 65535) return ne;
-  let n;
-  switch (t[0]) {
-   case "V":
-    n = 0;
-    break;
-
-   case "F":
-    n = 1;
-    break;
-
-   case "D":
-    n = 2;
-    break;
-
-   case "J":
-    n = 3;
-    break;
-
-   case "Z":
-   case "B":
-    n = 7;
-    break;
-
-   case "C":
-    n = 6;
-    break;
-
-   case "S":
-    n = 5;
-    break;
-
-   default:
-    n = 4;
-  }
-  let r = 0;
-  for (let e = t.length - 1; e > 0; e--) {
-    const n = t[e];
-    r += "D" === n || "J" === n ? 2 : 1;
-  }
-  return n << re | r;
-}
-
-function kn(e, t) {
-  const n = Oe();
-  if (ge() < 23) {
-    const t = n["art::Thread::CurrentFromGdb"]();
-    return n["art::mirror::Object::Clone"](e, t);
-  }
-  return Memory.dup(e, le(t).size);
-}
-
-function Sn(e, t, n) {
-  Rn(e, t, A, n);
-}
-
-function En(e, t) {
-  Rn(e, t, C);
-}
-
-function Nn(e, t) {
-  const n = Oe();
-  if (ge() < 26) throw new Error("This API is only available on Android >= 8.0");
-  bt(e, t, (e => {
-    n["art::Runtime::DeoptimizeBootImage"](n.artRuntime);
-  }));
-}
-
-function Rn(e, t, n, r) {
-  const o = Oe();
-  if (ge() < 24) throw new Error("This API is only available on Android >= 7.0");
-  bt(e, t, (e => {
-    if (ge() < 30) {
-      if (!o.isJdwpStarted()) {
-        const e = Pn(o);
-        Le.push(e);
+function fetchArtMethod (methodId, vm) {
+  const artMethodSpec = getArtMethodSpec(vm);
+  const artMethodOffset = artMethodSpec.offset;
+  return (['jniCode', 'accessFlags', 'quickCode', 'interpreterCode']
+    .reduce((original, name) => {
+      const offset = artMethodOffset[name];
+      if (offset === undefined) {
+        return original;
       }
-      o.isDebuggerActive() || o["art::Dbg::GoActive"]();
-      const e = Memory.alloc(8 + l);
-      switch (e.writeU32(n), n) {
-       case C:
-        break;
+      const address = methodId.add(offset);
+      const read = (name === 'accessFlags') ? readU32 : readPointer;
+      original[name] = read.call(address);
+      return original;
+    }, {}));
+}
 
-       case A:
-        e.add(8).writePointer(r);
-        break;
+function patchArtMethod (methodId, patches, vm) {
+  const artMethodSpec = getArtMethodSpec(vm);
+  const artMethodOffset = artMethodSpec.offset;
+  Object.keys(patches).forEach(name => {
+    const offset = artMethodOffset[name];
+    if (offset === undefined) {
+      return;
+    }
+    const address = methodId.add(offset);
+    const write = (name === 'accessFlags') ? writeU32 : writePointer;
+    write.call(address, patches[name]);
+  });
+}
 
-       default:
-        throw new Error("Unsupported deoptimization kind");
-      }
-      o["art::Dbg::RequestDeoptimization"](e), o["art::Dbg::ManageDeoptimization"]();
+class DalvikMethodMangler {
+  constructor (methodId) {
+    this.methodId = methodId;
+    this.originalMethod = null;
+  }
+
+  replace (impl, isInstanceMethod, argTypes, vm, api) {
+    const { methodId } = this;
+
+    this.originalMethod = Memory.dup(methodId, DVM_METHOD_SIZE);
+
+    let argsSize = argTypes.reduce((acc, t) => (acc + t.size), 0);
+    if (isInstanceMethod) {
+      argsSize++;
+    }
+
+    /*
+     * make method native (with kAccNative)
+     * insSize and registersSize are set to arguments size
+     */
+    const accessFlags = (methodId.add(DVM_METHOD_OFFSET_ACCESS_FLAGS).readU32() | kAccNative) >>> 0;
+    const registersSize = argsSize;
+    const outsSize = 0;
+    const insSize = argsSize;
+
+    methodId.add(DVM_METHOD_OFFSET_ACCESS_FLAGS).writeU32(accessFlags);
+    methodId.add(DVM_METHOD_OFFSET_REGISTERS_SIZE).writeU16(registersSize);
+    methodId.add(DVM_METHOD_OFFSET_OUTS_SIZE).writeU16(outsSize);
+    methodId.add(DVM_METHOD_OFFSET_INS_SIZE).writeU16(insSize);
+    methodId.add(DVM_METHOD_OFFSET_JNI_ARG_INFO).writeU32(computeDalvikJniArgInfo(methodId));
+
+    api.dvmUseJNIBridge(methodId, impl);
+  }
+
+  revert (vm) {
+    Memory.copy(this.methodId, this.originalMethod, DVM_METHOD_SIZE);
+  }
+
+  resolveTarget (wrapper, isInstanceMethod, env, api) {
+    const thread = env.handle.add(DVM_JNI_ENV_OFFSET_SELF).readPointer();
+
+    let objectPtr;
+    if (isInstanceMethod) {
+      objectPtr = api.dvmDecodeIndirectRef(thread, wrapper.$h);
     } else {
-      const e = o.artInstrumentation;
-      if (null === e) throw new Error("Unable to find Instrumentation class in ART; please file a bug");
-      const t = o["art::Instrumentation::EnableDeoptimization"];
-      if (void 0 !== t) {
-        !!e.add(de().offset.deoptimizationEnabled).readU8() || t(e);
+      const h = wrapper.$borrowClassHandle(env);
+      objectPtr = api.dvmDecodeIndirectRef(thread, h.value);
+      h.unref(env);
+    }
+
+    let classObject;
+    if (isInstanceMethod) {
+      classObject = objectPtr.add(DVM_OBJECT_OFFSET_CLAZZ).readPointer();
+    } else {
+      classObject = objectPtr;
+    }
+
+    const classKey = classObject.toString(16);
+    let entry = patchedClasses.get(classKey);
+    if (entry === undefined) {
+      const vtablePtr = classObject.add(DVM_CLASS_OBJECT_OFFSET_VTABLE);
+      const vtableCountPtr = classObject.add(DVM_CLASS_OBJECT_OFFSET_VTABLE_COUNT);
+      const vtable = vtablePtr.readPointer();
+      const vtableCount = vtableCountPtr.readS32();
+
+      const vtableSize = vtableCount * pointerSize;
+      const shadowVtable = Memory.alloc(2 * vtableSize);
+      Memory.copy(shadowVtable, vtable, vtableSize);
+      vtablePtr.writePointer(shadowVtable);
+
+      entry = {
+        classObject,
+        vtablePtr,
+        vtableCountPtr,
+        vtable,
+        vtableCount,
+        shadowVtable,
+        shadowVtableCount: vtableCount,
+        targetMethods: new Map()
+      };
+      patchedClasses.set(classKey, entry);
+    }
+
+    const methodKey = this.methodId.toString(16);
+    let targetMethod = entry.targetMethods.get(methodKey);
+    if (targetMethod === undefined) {
+      targetMethod = Memory.dup(this.originalMethod, DVM_METHOD_SIZE);
+
+      const methodIndex = entry.shadowVtableCount++;
+      entry.shadowVtable.add(methodIndex * pointerSize).writePointer(targetMethod);
+      targetMethod.add(DVM_METHOD_OFFSET_METHOD_INDEX).writeU16(methodIndex);
+      entry.vtableCountPtr.writeS32(entry.shadowVtableCount);
+
+      entry.targetMethods.set(methodKey, targetMethod);
+    }
+
+    return targetMethod;
+  }
+}
+
+function computeDalvikJniArgInfo (methodId) {
+  if (Process.arch !== 'ia32') {
+    return DALVIK_JNI_NO_ARG_INFO;
+  }
+
+  // For the x86 ABI, valid hints should always be generated.
+  const shorty = methodId.add(DVM_METHOD_OFFSET_SHORTY).readPointer().readCString();
+  if (shorty === null || shorty.length === 0 || shorty.length > 0xffff) {
+    return DALVIK_JNI_NO_ARG_INFO;
+  }
+
+  let returnType;
+  switch (shorty[0]) {
+    case 'V':
+      returnType = DALVIK_JNI_RETURN_VOID;
+      break;
+    case 'F':
+      returnType = DALVIK_JNI_RETURN_FLOAT;
+      break;
+    case 'D':
+      returnType = DALVIK_JNI_RETURN_DOUBLE;
+      break;
+    case 'J':
+      returnType = DALVIK_JNI_RETURN_S8;
+      break;
+    case 'Z':
+    case 'B':
+      returnType = DALVIK_JNI_RETURN_S1;
+      break;
+    case 'C':
+      returnType = DALVIK_JNI_RETURN_U2;
+      break;
+    case 'S':
+      returnType = DALVIK_JNI_RETURN_S2;
+      break;
+    default:
+      returnType = DALVIK_JNI_RETURN_S4;
+      break;
+  }
+
+  let hints = 0;
+  for (let i = shorty.length - 1; i > 0; i--) {
+    const ch = shorty[i];
+    hints += (ch === 'D' || ch === 'J') ? 2 : 1;
+  }
+
+  return (returnType << DALVIK_JNI_RETURN_SHIFT) | hints;
+}
+
+function cloneArtMethod (method, vm) {
+  const api = getApi();
+
+  if (getAndroidApiLevel() < 23) {
+    const thread = api['art::Thread::CurrentFromGdb']();
+    return api['art::mirror::Object::Clone'](method, thread);
+  }
+
+  return Memory.dup(method, getArtMethodSpec(vm).size);
+}
+
+function deoptimizeMethod (vm, env, method) {
+  requestDeoptimization(vm, env, kSelectiveDeoptimization, method);
+}
+
+function deoptimizeEverything (vm, env) {
+  requestDeoptimization(vm, env, kFullDeoptimization);
+}
+
+function deoptimizeBootImage (vm, env) {
+  const api = getApi();
+
+  if (getAndroidApiLevel() < 26) {
+    throw new Error('This API is only available on Android >= 8.0');
+  }
+
+  withRunnableArtThread(vm, env, thread => {
+    api['art::Runtime::DeoptimizeBootImage'](api.artRuntime);
+  });
+}
+
+function requestDeoptimization (vm, env, kind, method) {
+  const api = getApi();
+
+  if (getAndroidApiLevel() < 24) {
+    throw new Error('This API is only available on Android >= 7.0');
+  }
+
+  withRunnableArtThread(vm, env, thread => {
+    if (getAndroidApiLevel() < 30) {
+      if (!api.isJdwpStarted()) {
+        const session = startJdwp(api);
+        jdwpSessions.push(session);
       }
-      switch (n) {
-       case C:
-        o["art::Instrumentation::DeoptimizeEverything"](e, Memory.allocUtf8String("frida"));
-        break;
 
-       case A:
-        o["art::Instrumentation::Deoptimize"](e, r);
-        break;
+      if (!api.isDebuggerActive()) {
+        api['art::Dbg::GoActive']();
+      }
 
-       default:
-        throw new Error("Unsupported deoptimization kind");
+      const request = Memory.alloc(8 + pointerSize);
+      request.writeU32(kind);
+
+      switch (kind) {
+        case kFullDeoptimization:
+          break;
+        case kSelectiveDeoptimization:
+          request.add(8).writePointer(method);
+          break;
+        default:
+          throw new Error('Unsupported deoptimization kind');
+      }
+
+      api['art::Dbg::RequestDeoptimization'](request);
+
+      api['art::Dbg::ManageDeoptimization']();
+    } else {
+      const instrumentation = api.artInstrumentation;
+      if (instrumentation === null) {
+        throw new Error('Unable to find Instrumentation class in ART; please file a bug');
+      }
+
+      const enableDeopt = api['art::Instrumentation::EnableDeoptimization'];
+      if (enableDeopt !== undefined) {
+        const deoptimizationEnabled = !!instrumentation.add(getArtInstrumentationSpec().offset.deoptimizationEnabled).readU8();
+        if (!deoptimizationEnabled) {
+          enableDeopt(instrumentation);
+        }
+      }
+
+      switch (kind) {
+        case kFullDeoptimization:
+          api['art::Instrumentation::DeoptimizeEverything'](instrumentation, Memory.allocUtf8String('frida'));
+          break;
+        case kSelectiveDeoptimization:
+          api['art::Instrumentation::Deoptimize'](instrumentation, method);
+          break;
+        default:
+          throw new Error('Unsupported deoptimization kind');
       }
     }
-  }));
+  });
 }
 
-class wn {
-  constructor() {
-    const e = Module.getExportByName("libart.so", "_ZN3art4JDWP12JdwpAdbState6AcceptEv"), t = Module.getExportByName("libart.so", "_ZN3art4JDWP12JdwpAdbState15ReceiveClientFdEv"), n = Mn(), r = Mn();
-    this._controlFd = n[0], this._clientFd = r[0];
-    let o = null;
-    o = Interceptor.attach(e, (function(e) {
-      const t = e[0];
-      Memory.scanSync(t.add(8252), 256, "00 ff ff ff ff 00")[0].address.add(1).writeS32(n[1]), 
-      o.detach();
-    })), Interceptor.replace(t, new NativeCallback((function(e) {
-      return Interceptor.revert(t), r[1];
-    }), "int", [ "pointer" ])), Interceptor.flush(), this._handshakeRequest = this._performHandshake();
+class JdwpSession {
+  constructor () {
+    /*
+     * We partially stub out the ADB JDWP transport to ensure we always
+     * succeed in starting JDWP. Failure will crash the process.
+     */
+    const acceptImpl = Module.getExportByName('libart.so', '_ZN3art4JDWP12JdwpAdbState6AcceptEv');
+    const receiveClientFdImpl = Module.getExportByName('libart.so', '_ZN3art4JDWP12JdwpAdbState15ReceiveClientFdEv');
+
+    const controlPair = makeSocketPair();
+    const clientPair = makeSocketPair();
+
+    this._controlFd = controlPair[0];
+    this._clientFd = clientPair[0];
+
+    let acceptListener = null;
+    acceptListener = Interceptor.attach(acceptImpl, function (args) {
+      const state = args[0];
+
+      const controlSockPtr = Memory.scanSync(state.add(8252), 256, '00 ff ff ff ff 00')[0].address.add(1);
+
+      /*
+       * This will make JdwpAdbState::Accept() skip the control socket() and connect(),
+       * and skip right to calling ReceiveClientFd(), replaced below.
+       */
+      controlSockPtr.writeS32(controlPair[1]);
+
+      acceptListener.detach();
+    });
+
+    Interceptor.replace(receiveClientFdImpl, new NativeCallback(function (state) {
+      Interceptor.revert(receiveClientFdImpl);
+
+      return clientPair[1];
+    }, 'int', ['pointer']));
+
+    Interceptor.flush();
+
+    this._handshakeRequest = this._performHandshake();
   }
-  async _performHandshake() {
-    const e = new UnixInputStream(this._clientFd, {
-      autoClose: !1
-    }), t = new UnixOutputStream(this._clientFd, {
-      autoClose: !1
-    }), n = [ 74, 68, 87, 80, 45, 72, 97, 110, 100, 115, 104, 97, 107, 101 ];
+
+  async _performHandshake () {
+    const input = new UnixInputStream(this._clientFd, { autoClose: false });
+    const output = new UnixOutputStream(this._clientFd, { autoClose: false });
+
+    const handshakePacket = [0x4a, 0x44, 0x57, 0x50, 0x2d, 0x48, 0x61, 0x6e, 0x64, 0x73, 0x68, 0x61, 0x6b, 0x65];
     try {
-      await t.writeAll(n), await e.readAll(n.length);
-    } catch (e) {}
+      await output.writeAll(handshakePacket);
+      await input.readAll(handshakePacket.length);
+    } catch (e) {
+    }
   }
 }
 
-function Pn(e) {
-  const t = new wn;
-  e["art::Dbg::SetJdwpAllowed"](1);
-  const n = xn();
-  e["art::Dbg::ConfigureJdwp"](n);
-  const r = e["art::InternalDebuggerControlCallback::StartDebugger"];
-  return void 0 !== r ? r(NULL) : e["art::Dbg::StartJdwp"](), t;
+function startJdwp (api) {
+  const session = new JdwpSession();
+
+  api['art::Dbg::SetJdwpAllowed'](1);
+
+  const options = makeJdwpOptions();
+  api['art::Dbg::ConfigureJdwp'](options);
+
+  const startDebugger = api['art::InternalDebuggerControlCallback::StartDebugger'];
+  if (startDebugger !== undefined) {
+    startDebugger(NULL);
+  } else {
+    api['art::Dbg::StartJdwp']();
+  }
+
+  return session;
 }
 
-function xn() {
-  const e = ge() < 28 ? 2 : 3, t = 8 + oe + 2, n = Memory.alloc(t);
-  return n.writeU32(e).add(4).writeU8(1).add(1).writeU8(0).add(1).add(oe).writeU16(0), 
-  n;
+function makeJdwpOptions () {
+  const kJdwpTransportAndroidAdb = getAndroidApiLevel() < 28 ? 2 : 3;
+  const kJdwpPortFirstAvailable = 0;
+
+  const transport = kJdwpTransportAndroidAdb;
+  const server = true;
+  const suspend = false;
+  const port = kJdwpPortFirstAvailable;
+
+  const size = 8 + STD_STRING_SIZE + 2;
+  const result = Memory.alloc(size);
+  result
+    .writeU32(transport).add(4)
+    .writeU8(server ? 1 : 0).add(1)
+    .writeU8(suspend ? 1 : 0).add(1)
+    .add(STD_STRING_SIZE) // We leave `host` zeroed, i.e. empty string
+    .writeU16(port);
+  return result;
 }
 
-function Mn() {
-  null === Te && (Te = new NativeFunction(Module.getExportByName("libc.so", "socketpair"), "int", [ "int", "int", "int", "pointer" ]));
-  const e = Memory.alloc(8);
-  if (-1 === Te(1, 1, 0, e)) throw new Error("Unable to create socketpair for JDWP");
-  return [ e.readS32(), e.add(4).readS32() ];
+function makeSocketPair () {
+  if (socketpair === null) {
+    socketpair = new NativeFunction(
+      Module.getExportByName('libc.so', 'socketpair'),
+      'int',
+      ['int', 'int', 'int', 'pointer']);
+  }
+
+  const buf = Memory.alloc(8);
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, buf) === -1) {
+    throw new Error('Unable to create socketpair for JDWP');
+  }
+
+  return [
+    buf.readS32(),
+    buf.add(4).readS32()
+  ];
 }
 
-function Cn(e) {
-  const t = Ve().offset, n = e.vm.add(t.globalsLock), r = e.vm.add(t.globals), o = e["art::IndirectReferenceTable::Add"], a = e["art::ReaderWriterMutex::ExclusiveLock"], i = e["art::ReaderWriterMutex::ExclusiveUnlock"];
-  return function(e, t, s) {
-    a(n, t);
+function makeAddGlobalRefFallbackForAndroid5 (api) {
+  const offset = getArtVMSpec().offset;
+  const lock = api.vm.add(offset.globalsLock);
+  const table = api.vm.add(offset.globals);
+
+  const add = api['art::IndirectReferenceTable::Add'];
+  const acquire = api['art::ReaderWriterMutex::ExclusiveLock'];
+  const release = api['art::ReaderWriterMutex::ExclusiveUnlock'];
+
+  const IRT_FIRST_SEGMENT = 0;
+
+  return function (vm, thread, obj) {
+    acquire(lock, thread);
     try {
-      return o(r, 0, s);
+      return add(table, IRT_FIRST_SEGMENT, obj);
     } finally {
-      i(n, t);
+      release(lock, thread);
     }
   };
 }
 
-function An(e) {
-  const t = e["art::Thread::DecodeJObject"];
-  return function(e, n, r) {
-    return t(n, r);
+function makeDecodeGlobalFallbackForAndroid5 (api) {
+  const decode = api['art::Thread::DecodeJObject'];
+
+  return function (vm, thread, ref) {
+    return decode(thread, ref);
   };
 }
 
-const yn = {
-  ia32: Ln,
-  x64: Ln,
-  arm: Tn,
-  arm64: jn
+/*
+ * In order to call internal ART APIs we need to transition our native thread's
+ * art::Thread to the proper state. The ScopedObjectAccess (SOA) helper that ART
+ * uses internally is what we would like to use to accomplish this goal.
+ *
+ * There is however a challenge. The SOA implementation is fully inlined, so
+ * we cannot just allocate a chunk of memory and call its constructor and
+ * destructor to get the desired setup and teardown.
+ *
+ * We could however precompile such code using a C++ compiler, but considering
+ * how many versions of ART we would need to compile it for, multiplied by the
+ * number of supported architectures, we really don't want to go there.
+ *
+ * Reimplementing it in JavaScript is not desirable either, as we would need
+ * to keep track of even more internals prone to change as ART evolves.
+ *
+ * So our least terrible option is to find a really simple C++ method in ART
+ * that sets up a SOA object, performs as few and distinct operations as
+ * possible, and then returns. If we clone that implementation we can swap
+ * out the few/distinct operations with our own.
+ *
+ * We can accomplish this by using Frida's relocator API, and detecting the
+ * few/distinct operations happening between setup and teardown of the scope.
+ * We skip those when making our copy and instead put a call to a NativeCallback
+ * there. Our NativeCallback is thus able to call internal ART APIs safely.
+ *
+ * The ExceptionClear() implementation that's part of the JNIEnv's vtable is
+ * a perfect fit, as all it does is clear one field of the art::Thread.
+ * (Except on older versions where it also clears a bit more... but still
+ * pretty simple.)
+ *
+ * However, checked JNI might be enabled, making ExceptionClear() a bit more
+ * complex, and essentially a wrapper around the unchecked version.
+ *
+ * One last thing to note is that we also look up the address of FatalError(),
+ * as ExceptionClear() typically ends with a __stack_chk_fail() noreturn call
+ * that's followed by the next JNIEnv vtable method, FatalError(). We don't want
+ * to recompile its code as well, so we try to detect it. There might however be
+ * padding between the two functions, which we need to ignore. Ideally we would
+ * know that the call is to __stack_chk_fail(), so we can stop at that point,
+ * but detecting that isn't trivial.
+ */
+
+const threadStateTransitionRecompilers = {
+  ia32: recompileExceptionClearForX86,
+  x64: recompileExceptionClearForX86,
+  arm: recompileExceptionClearForArm,
+  arm64: recompileExceptionClearForArm64
 };
 
-function In(e, t, n) {
-  const r = t.handle.readPointer(), o = r.add(T).readPointer(), a = r.add(j).readPointer(), i = yn[Process.arch];
-  if (void 0 === i) throw new Error("Not yet implemented for " + Process.arch);
-  let s = null;
-  const c = ue(e).offset, d = c.exception, u = new Set, p = c.isExceptionReportedToInstrumentation;
-  null !== p && u.add(p);
-  const _ = c.throwLocation;
-  null !== _ && (u.add(_), u.add(_ + l), u.add(_ + 2 * l));
-  const m = Memory.alloc(65536);
-  return Memory.patchCode(m, 65536, (e => {
-    s = i(e, m, o, a, d, u, n);
-  })), s._code = m, s._callback = n, s;
+function makeArtThreadStateTransitionImpl (vm, env, callback) {
+  const envVtable = env.handle.readPointer();
+  const exceptionClearImpl = envVtable.add(ENV_VTABLE_OFFSET_EXCEPTION_CLEAR).readPointer();
+  const nextFuncImpl = envVtable.add(ENV_VTABLE_OFFSET_FATAL_ERROR).readPointer();
+
+  const recompile = threadStateTransitionRecompilers[Process.arch];
+  if (recompile === undefined) {
+    throw new Error('Not yet implemented for ' + Process.arch);
+  }
+
+  let perform = null;
+
+  const threadOffsets = getArtThreadSpec(vm).offset;
+
+  const exceptionOffset = threadOffsets.exception;
+
+  const neuteredOffsets = new Set();
+  const isReportedOffset = threadOffsets.isExceptionReportedToInstrumentation;
+  if (isReportedOffset !== null) {
+    neuteredOffsets.add(isReportedOffset);
+  }
+  const throwLocationStartOffset = threadOffsets.throwLocation;
+  if (throwLocationStartOffset !== null) {
+    neuteredOffsets.add(throwLocationStartOffset);
+    neuteredOffsets.add(throwLocationStartOffset + pointerSize);
+    neuteredOffsets.add(throwLocationStartOffset + (2 * pointerSize));
+  }
+
+  const codeSize = 65536;
+  const code = Memory.alloc(codeSize);
+  Memory.patchCode(code, codeSize, buffer => {
+    perform = recompile(buffer, code, exceptionClearImpl, nextFuncImpl, exceptionOffset, neuteredOffsets, callback);
+  });
+
+  perform._code = code;
+  perform._callback = callback;
+
+  return perform;
 }
 
-function Ln(e, t, n, r, o, a, i) {
-  const s = {}, c = new Set, d = [ n ];
-  for (;d.length > 0; ) {
-    let e = d.shift();
-    if (Object.values(s).some((({begin: t, end: n}) => e.compare(t) >= 0 && e.compare(n) < 0))) continue;
-    const t = e.toString();
-    let n = {
-      begin: e
-    }, o = null, a = !1;
+function recompileExceptionClearForX86 (buffer, pc, exceptionClearImpl, nextFuncImpl, exceptionOffset, neuteredOffsets, callback) {
+  const blocks = {};
+  const branchTargets = new Set();
+
+  const pending = [exceptionClearImpl];
+  while (pending.length > 0) {
+    let current = pending.shift();
+
+    const alreadyCovered = Object.values(blocks).some(({ begin, end }) => current.compare(begin) >= 0 && current.compare(end) < 0);
+    if (alreadyCovered) {
+      continue;
+    }
+
+    const blockAddressKey = current.toString();
+
+    let block = {
+      begin: current
+    };
+    let lastInsn = null;
+
+    let reachedEndOfBlock = false;
     do {
-      if (e.equals(r)) {
-        a = !0;
+      if (current.equals(nextFuncImpl)) {
+        reachedEndOfBlock = true;
         break;
       }
-      const i = Instruction.parse(e);
-      o = i;
-      const l = s[i.address.toString()];
-      if (void 0 !== l) {
-        delete s[l.begin.toString()], s[t] = l, l.begin = n.begin, n = null;
-        break;
-      }
-      let u = null;
-      switch (i.mnemonic) {
-       case "jmp":
-        u = ptr(i.operands[0].value), a = !0;
-        break;
 
-       case "je":
-       case "jg":
-       case "jle":
-       case "jne":
-       case "js":
-        u = ptr(i.operands[0].value);
-        break;
+      const insn = Instruction.parse(current);
+      lastInsn = insn;
 
-       case "ret":
-        a = !0;
+      const existingBlock = blocks[insn.address.toString()];
+      if (existingBlock !== undefined) {
+        delete blocks[existingBlock.begin.toString()];
+        blocks[blockAddressKey] = existingBlock;
+        existingBlock.begin = block.begin;
+        block = null;
+        break;
       }
-      null !== u && (c.add(u.toString()), d.push(u), d.sort(((e, t) => e.compare(t)))), 
-      e = i.next;
-    } while (!a);
-    null !== n && (n.end = o.address.add(o.size), s[t] = n);
+
+      let branchTarget = null;
+      switch (insn.mnemonic) {
+        case 'jmp':
+          branchTarget = ptr(insn.operands[0].value);
+          reachedEndOfBlock = true;
+          break;
+        case 'je':
+        case 'jg':
+        case 'jle':
+        case 'jne':
+        case 'js':
+          branchTarget = ptr(insn.operands[0].value);
+          break;
+        case 'ret':
+          reachedEndOfBlock = true;
+          break;
+      }
+
+      if (branchTarget !== null) {
+        branchTargets.add(branchTarget.toString());
+
+        pending.push(branchTarget);
+        pending.sort((a, b) => a.compare(b));
+      }
+
+      current = insn.next;
+    } while (!reachedEndOfBlock);
+
+    if (block !== null) {
+      block.end = lastInsn.address.add(lastInsn.size);
+      blocks[blockAddressKey] = block;
+    }
   }
-  const u = Object.keys(s).map((e => s[e]));
-  u.sort(((e, t) => e.begin.compare(t.begin)));
-  const p = s[n.toString()];
-  u.splice(u.indexOf(p), 1), u.unshift(p);
-  const _ = new X86Writer(e, {
-    pc: t
-  });
-  let m = !1, h = null;
-  return u.forEach((e => {
-    const t = e.end.sub(e.begin).toInt32(), n = new X86Relocator(e.begin, _);
-    let r;
-    for (;0 !== (r = n.readOne()); ) {
-      const e = n.input, {mnemonic: s} = e, d = e.address.toString();
-      c.has(d) && _.putLabel(d);
-      let u = !0;
-      switch (s) {
-       case "jmp":
-        _.putJmpNearLabel(Dn(e.operands[0])), u = !1;
-        break;
 
-       case "je":
-       case "jg":
-       case "jle":
-       case "jne":
-       case "js":
-        _.putJccNearLabel(s, Dn(e.operands[0]), "no-hint"), u = !1;
-        break;
+  const blocksOrdered = Object.keys(blocks).map(key => blocks[key]);
+  blocksOrdered.sort((a, b) => a.begin.compare(b.begin));
 
-       case "mov":
-        {
-          const [t, n] = e.operands;
-          if ("mem" === t.type && "imm" === n.type) {
-            const e = t.value, r = e.disp;
-            if (r === o && 0 === n.value.valueOf()) {
-              if (h = e.base, _.putPushfx(), _.putPushax(), _.putMovRegReg("xbp", "xsp"), 4 === l) _.putAndRegU32("esp", 4294967280); else {
-                const e = "rdi" !== h ? "rdi" : "rsi";
-                _.putMovRegU64(e, uint64("0xfffffffffffffff0")), _.putAndRegReg("rsp", e);
+  const entryBlock = blocks[exceptionClearImpl.toString()];
+  blocksOrdered.splice(blocksOrdered.indexOf(entryBlock), 1);
+  blocksOrdered.unshift(entryBlock);
+
+  const writer = new X86Writer(buffer, { pc });
+
+  let foundCore = false;
+  let threadReg = null;
+
+  blocksOrdered.forEach(block => {
+    const size = block.end.sub(block.begin).toInt32();
+
+    const relocator = new X86Relocator(block.begin, writer);
+
+    let offset;
+    while ((offset = relocator.readOne()) !== 0) {
+      const insn = relocator.input;
+      const { mnemonic } = insn;
+
+      const insnAddressId = insn.address.toString();
+      if (branchTargets.has(insnAddressId)) {
+        writer.putLabel(insnAddressId);
+      }
+
+      let keep = true;
+
+      switch (mnemonic) {
+        case 'jmp':
+          writer.putJmpNearLabel(branchLabelFromOperand(insn.operands[0]));
+          keep = false;
+          break;
+        case 'je':
+        case 'jg':
+        case 'jle':
+        case 'jne':
+        case 'js':
+          writer.putJccNearLabel(mnemonic, branchLabelFromOperand(insn.operands[0]), 'no-hint');
+          keep = false;
+          break;
+        /*
+         * JNI::ExceptionClear(), when checked JNI is off.
+         */
+        case 'mov': {
+          const [dst, src] = insn.operands;
+
+          if (dst.type === 'mem' && src.type === 'imm') {
+            const dstValue = dst.value;
+            const dstOffset = dstValue.disp;
+
+            if (dstOffset === exceptionOffset && src.value.valueOf() === 0) {
+              threadReg = dstValue.base;
+
+              writer.putPushfx();
+              writer.putPushax();
+              writer.putMovRegReg('xbp', 'xsp');
+              if (pointerSize === 4) {
+                writer.putAndRegU32('esp', 0xfffffff0);
+              } else {
+                const scratchReg = (threadReg !== 'rdi') ? 'rdi' : 'rsi';
+                writer.putMovRegU64(scratchReg, uint64('0xfffffffffffffff0'));
+                writer.putAndRegReg('rsp', scratchReg);
               }
-              _.putCallAddressWithAlignedArguments(i, [ h ]), _.putMovRegReg("xsp", "xbp"), _.putPopax(), 
-              _.putPopfx(), m = !0, u = !1;
-            } else a.has(r) && e.base === h && (u = !1);
+              writer.putCallAddressWithAlignedArguments(callback, [threadReg]);
+              writer.putMovRegReg('xsp', 'xbp');
+              writer.putPopax();
+              writer.putPopfx();
+
+              foundCore = true;
+              keep = false;
+            } else if (neuteredOffsets.has(dstOffset) && dstValue.base === threadReg) {
+              keep = false;
+            }
           }
+
           break;
         }
+        /*
+         * CheckJNI::ExceptionClear, when checked JNI is on. Wrapper that calls JNI::ExceptionClear().
+         */
+        case 'call': {
+          const target = insn.operands[0];
+          if (target.type === 'mem' && target.value.disp === ENV_VTABLE_OFFSET_EXCEPTION_CLEAR) {
+            /*
+             * Get art::Thread * from JNIEnv *
+             */
+            if (pointerSize === 4) {
+              writer.putPopReg('eax');
+              writer.putMovRegRegOffsetPtr('eax', 'eax', 4);
+              writer.putPushReg('eax');
+            } else {
+              writer.putMovRegRegOffsetPtr('rdi', 'rdi', 8);
+            }
 
-       case "call":
-        {
-          const t = e.operands[0];
-          "mem" === t.type && t.value.disp === T && (4 === l ? (_.putPopReg("eax"), _.putMovRegRegOffsetPtr("eax", "eax", 4), 
-          _.putPushReg("eax")) : _.putMovRegRegOffsetPtr("rdi", "rdi", 8), _.putCallAddressWithArguments(i, []), 
-          m = !0, u = !1);
+            writer.putCallAddressWithArguments(callback, []);
+
+            foundCore = true;
+            keep = false;
+          }
+
           break;
         }
       }
-      if (u ? n.writeAll() : n.skipOne(), r === t) break;
+
+      if (keep) {
+        relocator.writeAll();
+      } else {
+        relocator.skipOne();
+      }
+
+      if (offset === size) {
+        break;
+      }
     }
-    n.dispose();
-  })), _.dispose(), m || On(), new NativeFunction(t, "void", [ "pointer" ], ve);
+
+    relocator.dispose();
+  });
+
+  writer.dispose();
+
+  if (!foundCore) {
+    throwThreadStateTransitionParseError();
+  }
+
+  return new NativeFunction(pc, 'void', ['pointer'], nativeFunctionOptions);
 }
 
-function Tn(e, t, n, r, o, a, i) {
-  const s = {}, c = new Set, d = ptr(1).not(), l = [ n ];
-  for (;l.length > 0; ) {
-    let e = l.shift();
-    const t = Object.values(s).some((({begin: t, end: n}) => e.compare(t) >= 0 && e.compare(n) < 0));
-    if (t) continue;
-    const n = e.and(d), o = n.toString(), a = e.and(1);
-    let i = {
-      begin: n
-    }, u = null, p = !1, _ = 0;
+function recompileExceptionClearForArm (buffer, pc, exceptionClearImpl, nextFuncImpl, exceptionOffset, neuteredOffsets, callback) {
+  const blocks = {};
+  const branchTargets = new Set();
+
+  const thumbBitRemovalMask = ptr(1).not();
+
+  const pending = [exceptionClearImpl];
+  while (pending.length > 0) {
+    let current = pending.shift();
+
+    const alreadyCovered = Object.values(blocks).some(({ begin, end }) => current.compare(begin) >= 0 && current.compare(end) < 0);
+    if (alreadyCovered) {
+      continue;
+    }
+
+    const begin = current.and(thumbBitRemovalMask);
+    const blockId = begin.toString();
+    const thumbBit = current.and(1);
+
+    let block = {
+      begin
+    };
+    let lastInsn = null;
+
+    let reachedEndOfBlock = false;
+    let ifThenBlockRemaining = 0;
     do {
-      if (e.equals(r)) {
-        p = !0;
+      if (current.equals(nextFuncImpl)) {
+        reachedEndOfBlock = true;
         break;
       }
-      const t = Instruction.parse(e), {mnemonic: n} = t;
-      u = t;
-      const m = e.and(d).toString(), h = s[m];
-      if (void 0 !== h) {
-        delete s[h.begin.toString()], s[o] = h, h.begin = i.begin, i = null;
+
+      const insn = Instruction.parse(current);
+      const { mnemonic } = insn;
+      lastInsn = insn;
+
+      const currentAddress = current.and(thumbBitRemovalMask);
+      const insnId = currentAddress.toString();
+
+      const existingBlock = blocks[insnId];
+      if (existingBlock !== undefined) {
+        delete blocks[existingBlock.begin.toString()];
+        blocks[blockId] = existingBlock;
+        existingBlock.begin = block.begin;
+        block = null;
         break;
       }
-      const g = 0 === _;
-      let f = null;
-      switch (n) {
-       case "b":
-        f = ptr(t.operands[0].value), p = g;
-        break;
 
-       case "beq.w":
-       case "beq":
-       case "bne":
-       case "bgt":
-        f = ptr(t.operands[0].value);
-        break;
+      const isOutsideIfThenBlock = ifThenBlockRemaining === 0;
 
-       case "cbz":
-       case "cbnz":
-        f = ptr(t.operands[1].value);
-        break;
+      let branchTarget = null;
 
-       case "pop.w":
-        g && (p = 1 === t.operands.filter((e => "pc" === e.value)).length);
-      }
-      switch (n) {
-       case "it":
-        _ = 1;
-        break;
-
-       case "itt":
-        _ = 2;
-        break;
-
-       case "ittt":
-        _ = 3;
-        break;
-
-       case "itttt":
-        _ = 4;
-        break;
-
-       default:
-        _ > 0 && _--;
-      }
-      null !== f && (c.add(f.toString()), l.push(f.or(a)), l.sort(((e, t) => e.compare(t)))), 
-      e = t.next;
-    } while (!p);
-    null !== i && (i.end = u.address.add(u.size), s[o] = i);
-  }
-  const u = Object.keys(s).map((e => s[e]));
-  u.sort(((e, t) => e.begin.compare(t.begin)));
-  const p = s[n.and(d).toString()];
-  u.splice(u.indexOf(p), 1), u.unshift(p);
-  const _ = new ThumbWriter(e, {
-    pc: t
-  });
-  let m = !1, h = null, g = null;
-  return u.forEach((e => {
-    const t = new ThumbRelocator(e.begin, _);
-    let n = e.begin;
-    const r = e.end;
-    let s = 0;
-    do {
-      if (0 === t.readOne()) throw new Error("Unexpected end of block");
-      const e = t.input;
-      n = e.address, s = e.size;
-      const {mnemonic: r} = e, d = n.toString();
-      c.has(d) && _.putLabel(d);
-      let l = !0;
-      switch (r) {
-       case "b":
-        _.putBLabel(Dn(e.operands[0])), l = !1;
-        break;
-
-       case "beq.w":
-        _.putBCondLabelWide("eq", Dn(e.operands[0])), l = !1;
-        break;
-
-       case "beq":
-       case "bne":
-       case "bgt":
-        _.putBCondLabelWide(r.substr(1), Dn(e.operands[0])), l = !1;
-        break;
-
-       case "cbz":
-        {
-          const t = e.operands;
-          _.putCbzRegLabel(t[0].value, Dn(t[1])), l = !1;
+      switch (mnemonic) {
+        case 'b':
+          branchTarget = ptr(insn.operands[0].value);
+          reachedEndOfBlock = isOutsideIfThenBlock;
           break;
-        }
-
-       case "cbnz":
-        {
-          const t = e.operands;
-          _.putCbnzRegLabel(t[0].value, Dn(t[1])), l = !1;
+        case 'beq.w':
+        case 'beq':
+        case 'bne':
+        case 'bgt':
+          branchTarget = ptr(insn.operands[0].value);
           break;
-        }
-
-       case "str":
-       case "str.w":
-        {
-          const t = e.operands[1].value, n = t.disp;
-          if (n === o) {
-            h = t.base;
-            const e = "r4" !== h ? "r4" : "r5", n = [ "r0", "r1", "r2", "r3", e, "r9", "r12", "lr" ];
-            _.putPushRegs(n), _.putMrsRegReg(e, "apsr-nzcvq"), _.putCallAddressWithArguments(i, [ h ]), 
-            _.putMsrRegReg("apsr-nzcvq", e), _.putPopRegs(n), m = !0, l = !1;
-          } else a.has(n) && t.base === h && (l = !1);
+        case 'cbz':
+        case 'cbnz':
+          branchTarget = ptr(insn.operands[1].value);
           break;
-        }
-
-       case "ldr":
-        {
-          const [t, n] = e.operands;
-          if ("mem" === n.type) {
-            const e = n.value;
-            "r" === e.base[0] && e.disp === T && (g = t.value);
+        case 'pop.w':
+          if (isOutsideIfThenBlock) {
+            reachedEndOfBlock = insn.operands.filter(op => op.value === 'pc').length === 1;
           }
           break;
-        }
-
-       case "blx":
-        e.operands[0].value === g && (_.putLdrRegRegOffset("r0", "r0", 4), _.putCallAddressWithArguments(i, [ "r0" ]), 
-        m = !0, g = null, l = !1);
       }
-      l ? t.writeAll() : t.skipOne();
-    } while (!n.add(s).equals(r));
-    t.dispose();
-  })), _.dispose(), m || On(), new NativeFunction(t.or(1), "void", [ "pointer" ], ve);
+
+      switch (mnemonic) {
+        case 'it':
+          ifThenBlockRemaining = 1;
+          break;
+        case 'itt':
+          ifThenBlockRemaining = 2;
+          break;
+        case 'ittt':
+          ifThenBlockRemaining = 3;
+          break;
+        case 'itttt':
+          ifThenBlockRemaining = 4;
+          break;
+        default:
+          if (ifThenBlockRemaining > 0) {
+            ifThenBlockRemaining--;
+          }
+          break;
+      }
+
+      if (branchTarget !== null) {
+        branchTargets.add(branchTarget.toString());
+
+        pending.push(branchTarget.or(thumbBit));
+        pending.sort((a, b) => a.compare(b));
+      }
+
+      current = insn.next;
+    } while (!reachedEndOfBlock);
+
+    if (block !== null) {
+      block.end = lastInsn.address.add(lastInsn.size);
+      blocks[blockId] = block;
+    }
+  }
+
+  const blocksOrdered = Object.keys(blocks).map(key => blocks[key]);
+  blocksOrdered.sort((a, b) => a.begin.compare(b.begin));
+
+  const entryBlock = blocks[exceptionClearImpl.and(thumbBitRemovalMask).toString()];
+  blocksOrdered.splice(blocksOrdered.indexOf(entryBlock), 1);
+  blocksOrdered.unshift(entryBlock);
+
+  const writer = new ThumbWriter(buffer, { pc });
+
+  let foundCore = false;
+  let threadReg = null;
+  let realImplReg = null;
+
+  blocksOrdered.forEach(block => {
+    const relocator = new ThumbRelocator(block.begin, writer);
+
+    let address = block.begin;
+    const end = block.end;
+    let size = 0;
+    do {
+      const offset = relocator.readOne();
+      if (offset === 0) {
+        throw new Error('Unexpected end of block');
+      }
+      const insn = relocator.input;
+      address = insn.address;
+      size = insn.size;
+      const { mnemonic } = insn;
+
+      const insnAddressId = address.toString();
+      if (branchTargets.has(insnAddressId)) {
+        writer.putLabel(insnAddressId);
+      }
+
+      let keep = true;
+
+      switch (mnemonic) {
+        case 'b':
+          writer.putBLabel(branchLabelFromOperand(insn.operands[0]));
+          keep = false;
+          break;
+        case 'beq.w':
+          writer.putBCondLabelWide('eq', branchLabelFromOperand(insn.operands[0]));
+          keep = false;
+          break;
+        case 'beq':
+        case 'bne':
+        case 'bgt':
+          writer.putBCondLabelWide(mnemonic.substr(1), branchLabelFromOperand(insn.operands[0]));
+          keep = false;
+          break;
+        case 'cbz': {
+          const ops = insn.operands;
+          writer.putCbzRegLabel(ops[0].value, branchLabelFromOperand(ops[1]));
+          keep = false;
+          break;
+        }
+        case 'cbnz': {
+          const ops = insn.operands;
+          writer.putCbnzRegLabel(ops[0].value, branchLabelFromOperand(ops[1]));
+          keep = false;
+          break;
+        }
+        /*
+         * JNI::ExceptionClear(), when checked JNI is off.
+         */
+        case 'str':
+        case 'str.w': {
+          const dstValue = insn.operands[1].value;
+          const dstOffset = dstValue.disp;
+
+          if (dstOffset === exceptionOffset) {
+            threadReg = dstValue.base;
+
+            const nzcvqReg = (threadReg !== 'r4') ? 'r4' : 'r5';
+            const clobberedRegs = ['r0', 'r1', 'r2', 'r3', nzcvqReg, 'r9', 'r12', 'lr'];
+
+            writer.putPushRegs(clobberedRegs);
+            writer.putMrsRegReg(nzcvqReg, 'apsr-nzcvq');
+
+            writer.putCallAddressWithArguments(callback, [threadReg]);
+
+            writer.putMsrRegReg('apsr-nzcvq', nzcvqReg);
+            writer.putPopRegs(clobberedRegs);
+
+            foundCore = true;
+            keep = false;
+          } else if (neuteredOffsets.has(dstOffset) && dstValue.base === threadReg) {
+            keep = false;
+          }
+
+          break;
+        }
+        /*
+         * CheckJNI::ExceptionClear, when checked JNI is on. Wrapper that calls JNI::ExceptionClear().
+         */
+        case 'ldr': {
+          const [dstOp, srcOp] = insn.operands;
+
+          if (srcOp.type === 'mem') {
+            const src = srcOp.value;
+
+            if (src.base[0] === 'r' && src.disp === ENV_VTABLE_OFFSET_EXCEPTION_CLEAR) {
+              realImplReg = dstOp.value;
+            }
+          }
+
+          break;
+        }
+        case 'blx':
+          if (insn.operands[0].value === realImplReg) {
+            writer.putLdrRegRegOffset('r0', 'r0', 4); // Get art::Thread * from JNIEnv *
+            writer.putCallAddressWithArguments(callback, ['r0']);
+
+            foundCore = true;
+            realImplReg = null;
+            keep = false;
+          }
+
+          break;
+      }
+
+      if (keep) {
+        relocator.writeAll();
+      } else {
+        relocator.skipOne();
+      }
+    } while (!address.add(size).equals(end));
+
+    relocator.dispose();
+  });
+
+  writer.dispose();
+
+  if (!foundCore) {
+    throwThreadStateTransitionParseError();
+  }
+
+  return new NativeFunction(pc.or(1), 'void', ['pointer'], nativeFunctionOptions);
 }
 
-function jn(e, t, n, r, o, a, i) {
-  const s = {}, c = new Set, d = [ n ];
-  for (;d.length > 0; ) {
-    let e = d.shift();
-    if (Object.values(s).some((({begin: t, end: n}) => e.compare(t) >= 0 && e.compare(n) < 0))) continue;
-    const t = e.toString();
-    let n = {
-      begin: e
-    }, o = null, a = !1;
+function recompileExceptionClearForArm64 (buffer, pc, exceptionClearImpl, nextFuncImpl, exceptionOffset, neuteredOffsets, callback) {
+  const blocks = {};
+  const branchTargets = new Set();
+
+  const pending = [exceptionClearImpl];
+  while (pending.length > 0) {
+    let current = pending.shift();
+
+    const alreadyCovered = Object.values(blocks).some(({ begin, end }) => current.compare(begin) >= 0 && current.compare(end) < 0);
+    if (alreadyCovered) {
+      continue;
+    }
+
+    const blockAddressKey = current.toString();
+
+    let block = {
+      begin: current
+    };
+    let lastInsn = null;
+
+    let reachedEndOfBlock = false;
     do {
-      if (e.equals(r)) {
-        a = !0;
+      if (current.equals(nextFuncImpl)) {
+        reachedEndOfBlock = true;
         break;
       }
-      let i;
+
+      let insn;
       try {
-        i = Instruction.parse(e);
-      } catch (t) {
-        if (0 === e.readU32()) {
-          a = !0;
+        insn = Instruction.parse(current);
+      } catch (e) {
+        if (current.readU32() === 0x00000000) {
+          reachedEndOfBlock = true;
           break;
+        } else {
+          throw e;
         }
-        throw t;
       }
-      o = i;
-      const l = s[i.address.toString()];
-      if (void 0 !== l) {
-        delete s[l.begin.toString()], s[t] = l, l.begin = n.begin, n = null;
+      lastInsn = insn;
+
+      const existingBlock = blocks[insn.address.toString()];
+      if (existingBlock !== undefined) {
+        delete blocks[existingBlock.begin.toString()];
+        blocks[blockAddressKey] = existingBlock;
+        existingBlock.begin = block.begin;
+        block = null;
         break;
       }
-      let u = null;
-      switch (i.mnemonic) {
-       case "b":
-        u = ptr(i.operands[0].value), a = !0;
-        break;
 
-       case "b.eq":
-       case "b.ne":
-       case "b.le":
-       case "b.gt":
-        u = ptr(i.operands[0].value);
-        break;
-
-       case "cbz":
-       case "cbnz":
-        u = ptr(i.operands[1].value);
-        break;
-
-       case "tbz":
-       case "tbnz":
-        u = ptr(i.operands[2].value);
-        break;
-
-       case "ret":
-        a = !0;
+      let branchTarget = null;
+      switch (insn.mnemonic) {
+        case 'b':
+          branchTarget = ptr(insn.operands[0].value);
+          reachedEndOfBlock = true;
+          break;
+        case 'b.eq':
+        case 'b.ne':
+        case 'b.le':
+        case 'b.gt':
+          branchTarget = ptr(insn.operands[0].value);
+          break;
+        case 'cbz':
+        case 'cbnz':
+          branchTarget = ptr(insn.operands[1].value);
+          break;
+        case 'tbz':
+        case 'tbnz':
+          branchTarget = ptr(insn.operands[2].value);
+          break;
+        case 'ret':
+          reachedEndOfBlock = true;
+          break;
       }
-      null !== u && (c.add(u.toString()), d.push(u), d.sort(((e, t) => e.compare(t)))), 
-      e = i.next;
-    } while (!a);
-    null !== n && (n.end = o.address.add(o.size), s[t] = n);
-  }
-  const l = Object.keys(s).map((e => s[e]));
-  l.sort(((e, t) => e.begin.compare(t.begin)));
-  const u = s[n.toString()];
-  l.splice(l.indexOf(u), 1), l.unshift(u);
-  const p = new Arm64Writer(e, {
-    pc: t
-  });
-  p.putBLabel("performTransition");
-  const _ = t.add(p.offset);
-  p.putPushAllXRegisters(), p.putCallAddressWithArguments(i, [ "x0" ]), p.putPopAllXRegisters(), 
-  p.putRet(), p.putLabel("performTransition");
-  let m = !1, h = null, g = null;
-  return l.forEach((e => {
-    const t = e.end.sub(e.begin).toInt32(), n = new Arm64Relocator(e.begin, p);
-    let r;
-    for (;0 !== (r = n.readOne()); ) {
-      const e = n.input, {mnemonic: s} = e, d = e.address.toString();
-      c.has(d) && p.putLabel(d);
-      let l = !0;
-      switch (s) {
-       case "b":
-        p.putBLabel(Dn(e.operands[0])), l = !1;
-        break;
 
-       case "b.eq":
-       case "b.ne":
-       case "b.le":
-       case "b.gt":
-        p.putBCondLabel(s.substr(2), Dn(e.operands[0])), l = !1;
-        break;
+      if (branchTarget !== null) {
+        branchTargets.add(branchTarget.toString());
 
-       case "cbz":
-        {
-          const t = e.operands;
-          p.putCbzRegLabel(t[0].value, Dn(t[1])), l = !1;
-          break;
-        }
-
-       case "cbnz":
-        {
-          const t = e.operands;
-          p.putCbnzRegLabel(t[0].value, Dn(t[1])), l = !1;
-          break;
-        }
-
-       case "tbz":
-        {
-          const t = e.operands;
-          p.putTbzRegImmLabel(t[0].value, t[1].value.valueOf(), Dn(t[2])), l = !1;
-          break;
-        }
-
-       case "tbnz":
-        {
-          const t = e.operands;
-          p.putTbnzRegImmLabel(t[0].value, t[1].value.valueOf(), Dn(t[2])), l = !1;
-          break;
-        }
-
-       case "str":
-        {
-          const t = e.operands, n = t[0].value, r = t[1].value, i = r.disp;
-          "xzr" === n && i === o ? (h = r.base, p.putPushRegReg("x0", "lr"), p.putMovRegReg("x0", h), 
-          p.putBlImm(_), p.putPopRegReg("x0", "lr"), m = !0, l = !1) : a.has(i) && r.base === h && (l = !1);
-          break;
-        }
-
-       case "ldr":
-        {
-          const t = e.operands, n = t[1].value;
-          "x" === n.base[0] && n.disp === T && (g = t[0].value);
-          break;
-        }
-
-       case "blr":
-        e.operands[0].value === g && (p.putLdrRegRegOffset("x0", "x0", 8), p.putCallAddressWithArguments(i, [ "x0" ]), 
-        m = !0, g = null, l = !1);
+        pending.push(branchTarget);
+        pending.sort((a, b) => a.compare(b));
       }
-      if (l ? n.writeAll() : n.skipOne(), r === t) break;
+
+      current = insn.next;
+    } while (!reachedEndOfBlock);
+
+    if (block !== null) {
+      block.end = lastInsn.address.add(lastInsn.size);
+      blocks[blockAddressKey] = block;
     }
-    n.dispose();
-  })), p.dispose(), m || On(), new NativeFunction(t, "void", [ "pointer" ], ve);
+  }
+
+  const blocksOrdered = Object.keys(blocks).map(key => blocks[key]);
+  blocksOrdered.sort((a, b) => a.begin.compare(b.begin));
+
+  const entryBlock = blocks[exceptionClearImpl.toString()];
+  blocksOrdered.splice(blocksOrdered.indexOf(entryBlock), 1);
+  blocksOrdered.unshift(entryBlock);
+
+  const writer = new Arm64Writer(buffer, { pc });
+
+  writer.putBLabel('performTransition');
+
+  const invokeCallback = pc.add(writer.offset);
+  writer.putPushAllXRegisters();
+  writer.putCallAddressWithArguments(callback, ['x0']);
+  writer.putPopAllXRegisters();
+  writer.putRet();
+
+  writer.putLabel('performTransition');
+
+  let foundCore = false;
+  let threadReg = null;
+  let realImplReg = null;
+
+  blocksOrdered.forEach(block => {
+    const size = block.end.sub(block.begin).toInt32();
+
+    const relocator = new Arm64Relocator(block.begin, writer);
+
+    let offset;
+    while ((offset = relocator.readOne()) !== 0) {
+      const insn = relocator.input;
+      const { mnemonic } = insn;
+
+      const insnAddressId = insn.address.toString();
+      if (branchTargets.has(insnAddressId)) {
+        writer.putLabel(insnAddressId);
+      }
+
+      let keep = true;
+
+      switch (mnemonic) {
+        case 'b':
+          writer.putBLabel(branchLabelFromOperand(insn.operands[0]));
+          keep = false;
+          break;
+        case 'b.eq':
+        case 'b.ne':
+        case 'b.le':
+        case 'b.gt':
+          writer.putBCondLabel(mnemonic.substr(2), branchLabelFromOperand(insn.operands[0]));
+          keep = false;
+          break;
+        case 'cbz': {
+          const ops = insn.operands;
+          writer.putCbzRegLabel(ops[0].value, branchLabelFromOperand(ops[1]));
+          keep = false;
+          break;
+        }
+        case 'cbnz': {
+          const ops = insn.operands;
+          writer.putCbnzRegLabel(ops[0].value, branchLabelFromOperand(ops[1]));
+          keep = false;
+          break;
+        }
+        case 'tbz': {
+          const ops = insn.operands;
+          writer.putTbzRegImmLabel(ops[0].value, ops[1].value.valueOf(), branchLabelFromOperand(ops[2]));
+          keep = false;
+          break;
+        }
+        case 'tbnz': {
+          const ops = insn.operands;
+          writer.putTbnzRegImmLabel(ops[0].value, ops[1].value.valueOf(), branchLabelFromOperand(ops[2]));
+          keep = false;
+          break;
+        }
+        /*
+         * JNI::ExceptionClear(), when checked JNI is off.
+         */
+        case 'str': {
+          const ops = insn.operands;
+          const srcReg = ops[0].value;
+          const dstValue = ops[1].value;
+          const dstOffset = dstValue.disp;
+
+          if (srcReg === 'xzr' && dstOffset === exceptionOffset) {
+            threadReg = dstValue.base;
+
+            writer.putPushRegReg('x0', 'lr');
+            writer.putMovRegReg('x0', threadReg);
+            writer.putBlImm(invokeCallback);
+            writer.putPopRegReg('x0', 'lr');
+
+            foundCore = true;
+            keep = false;
+          } else if (neuteredOffsets.has(dstOffset) && dstValue.base === threadReg) {
+            keep = false;
+          }
+
+          break;
+        }
+        /*
+         * CheckJNI::ExceptionClear, when checked JNI is on. Wrapper that calls JNI::ExceptionClear().
+         */
+        case 'ldr': {
+          const ops = insn.operands;
+
+          const src = ops[1].value;
+          if (src.base[0] === 'x' && src.disp === ENV_VTABLE_OFFSET_EXCEPTION_CLEAR) {
+            realImplReg = ops[0].value;
+          }
+
+          break;
+        }
+        case 'blr':
+          if (insn.operands[0].value === realImplReg) {
+            writer.putLdrRegRegOffset('x0', 'x0', 8); // Get art::Thread * from JNIEnv *
+            writer.putCallAddressWithArguments(callback, ['x0']);
+
+            foundCore = true;
+            realImplReg = null;
+            keep = false;
+          }
+
+          break;
+      }
+
+      if (keep) {
+        relocator.writeAll();
+      } else {
+        relocator.skipOne();
+      }
+
+      if (offset === size) {
+        break;
+      }
+    }
+
+    relocator.dispose();
+  });
+
+  writer.dispose();
+
+  if (!foundCore) {
+    throwThreadStateTransitionParseError();
+  }
+
+  return new NativeFunction(pc, 'void', ['pointer'], nativeFunctionOptions);
 }
 
-function On() {
-  throw new Error("Unable to parse ART internals; please file a bug");
+function throwThreadStateTransitionParseError () {
+  throw new Error('Unable to parse ART internals; please file a bug');
 }
 
-function zn(e) {
-  const t = e["art::ArtMethod::PrettyMethod"];
-  void 0 !== t && (Interceptor.attach(t.impl, Re.hooks.ArtMethod.prettyMethod), Interceptor.flush());
+function fixupArtQuickDeliverExceptionBug (api) {
+  const prettyMethod = api['art::ArtMethod::PrettyMethod'];
+  if (prettyMethod === undefined) {
+    return;
+  }
+
+  /*
+   * There is a bug in art::Thread::QuickDeliverException() where it assumes
+   * there is a Java stack frame present on the art::Thread's stack. This is
+   * not the case if a native thread calls a throwing method like FindClass().
+   *
+   * We work around this bug here by detecting when method->PrettyMethod()
+   * happens with method == nullptr.
+   */
+  Interceptor.attach(prettyMethod.impl, artController.hooks.ArtMethod.prettyMethod);
+  Interceptor.flush();
 }
 
-function Dn(e) {
-  return ptr(e.value).toString();
+function branchLabelFromOperand (op) {
+  return ptr(op.value).toString();
 }
 
-function Fn(e, t) {
-  return new NativeFunction(e, "pointer", t, ve);
+function makeCxxMethodWrapperReturningPointerByValueGeneric (address, argTypes) {
+  return new NativeFunction(address, 'pointer', argTypes, nativeFunctionOptions);
 }
 
-function Vn(e, t) {
-  const n = new NativeFunction(e, "void", [ "pointer" ].concat(t), ve);
-  return function() {
-    const e = Memory.alloc(l);
-    return n(e, ...arguments), e.readPointer();
+function makeCxxMethodWrapperReturningPointerByValueInFirstArg (address, argTypes) {
+  const impl = new NativeFunction(address, 'void', ['pointer'].concat(argTypes), nativeFunctionOptions);
+  return function () {
+    const resultPtr = Memory.alloc(pointerSize);
+    impl(resultPtr, ...arguments);
+    return resultPtr.readPointer();
   };
 }
 
-function Zn(e, t) {
-  const {arch: n} = Process;
-  switch (n) {
-   case "ia32":
-   case "arm64":
-    {
-      let r;
-      r = "ia32" === n ? Lt(64, (n => {
-        const r = 1 + t.length, o = 4 * r;
-        n.putSubRegImm("esp", o);
-        for (let e = 0; e !== r; e++) {
-          const t = 4 * e;
-          n.putMovRegRegOffsetPtr("eax", "esp", o + 4 + t), n.putMovRegOffsetPtrReg("esp", t, "eax");
-        }
-        n.putCallAddress(e), n.putAddRegImm("esp", o - 4), n.putRet();
-      })) : Lt(32, (n => {
-        n.putMovRegReg("x8", "x0"), t.forEach(((e, t) => {
-          n.putMovRegReg("x" + t, "x" + (t + 1));
-        })), n.putLdrRegAddress("x7", e), n.putBrReg("x7");
-      }));
-      const o = new NativeFunction(r, "void", [ "pointer" ].concat(t), ve), a = function(...e) {
-        o(...e);
+function makeCxxMethodWrapperReturningStdStringByValue (impl, argTypes) {
+  const { arch } = Process;
+  switch (arch) {
+    case 'ia32':
+    case 'arm64': {
+      let thunk;
+      if (arch === 'ia32') {
+        thunk = makeThunk(64, writer => {
+          const argCount = 1 + argTypes.length;
+          const argvSize = argCount * 4;
+          writer.putSubRegImm('esp', argvSize);
+          for (let i = 0; i !== argCount; i++) {
+            const offset = i * 4;
+            writer.putMovRegRegOffsetPtr('eax', 'esp', argvSize + 4 + offset);
+            writer.putMovRegOffsetPtrReg('esp', offset, 'eax');
+          }
+          writer.putCallAddress(impl);
+          writer.putAddRegImm('esp', argvSize - 4);
+          writer.putRet();
+        });
+      } else {
+        thunk = makeThunk(32, writer => {
+          writer.putMovRegReg('x8', 'x0');
+          argTypes.forEach((t, i) => {
+            writer.putMovRegReg('x' + i, 'x' + (i + 1));
+          });
+          writer.putLdrRegAddress('x7', impl);
+          writer.putBrReg('x7');
+        });
+      }
+
+      const invokeThunk = new NativeFunction(thunk, 'void', ['pointer'].concat(argTypes), nativeFunctionOptions);
+      const wrapper = function (...args) {
+        invokeThunk(...args);
       };
-      return a.handle = r, a.impl = e, a;
+      wrapper.handle = thunk;
+      wrapper.impl = impl;
+      return wrapper;
     }
-
-   default:
-    {
-      const n = new NativeFunction(e, "void", [ "pointer" ].concat(t), ve);
-      return n.impl = e, n;
+    default: {
+      const result = new NativeFunction(impl, 'void', ['pointer'].concat(argTypes), nativeFunctionOptions);
+      result.impl = impl;
+      return result;
     }
   }
 }
 
-class Jn {
-  constructor() {
-    this.handle = Memory.alloc(oe);
+class StdString {
+  constructor () {
+    this.handle = Memory.alloc(STD_STRING_SIZE);
   }
-  dispose() {
-    const [e, t] = this._getData();
-    t || Oe().$delete(e);
+
+  dispose () {
+    const [data, isTiny] = this._getData();
+    if (!isTiny) {
+      getApi().$delete(data);
+    }
   }
-  disposeToString() {
-    const e = this.toString();
-    return this.dispose(), e;
+
+  disposeToString () {
+    const result = this.toString();
+    this.dispose();
+    return result;
   }
-  toString() {
-    const [e] = this._getData();
-    return e.readUtf8String();
+
+  toString () {
+    const [data] = this._getData();
+    return data.readUtf8String();
   }
-  _getData() {
-    const e = this.handle, t = 0 == (1 & e.readU8());
-    return [ t ? e.add(1) : e.add(2 * l).readPointer(), t ];
+
+  _getData () {
+    const str = this.handle;
+    const isTiny = (str.readU8() & 1) === 0;
+    const data = isTiny ? str.add(1) : str.add(2 * pointerSize).readPointer();
+    return [data, isTiny];
   }
 }
 
-class Un {
-  $delete() {
-    this.dispose(), Oe().$delete(this);
+class StdVector {
+  $delete () {
+    this.dispose();
+    getApi().$delete(this);
   }
-  constructor(e, t) {
-    this.handle = e, this._begin = e, this._end = e.add(l), this._storage = e.add(2 * l), 
-    this._elementSize = t;
+
+  constructor (storage, elementSize) {
+    this.handle = storage;
+
+    this._begin = storage;
+    this._end = storage.add(pointerSize);
+    this._storage = storage.add(2 * pointerSize);
+
+    this._elementSize = elementSize;
   }
-  init() {
-    this.begin = NULL, this.end = NULL, this.storage = NULL;
+
+  init () {
+    this.begin = NULL;
+    this.end = NULL;
+    this.storage = NULL;
   }
-  dispose() {
-    Oe().$delete(this.begin);
+
+  dispose () {
+    getApi().$delete(this.begin);
   }
-  get begin() {
+
+  get begin () {
     return this._begin.readPointer();
   }
-  set begin(e) {
-    this._begin.writePointer(e);
+
+  set begin (value) {
+    this._begin.writePointer(value);
   }
-  get end() {
+
+  get end () {
     return this._end.readPointer();
   }
-  set end(e) {
-    this._end.writePointer(e);
+
+  set end (value) {
+    this._end.writePointer(value);
   }
-  get storage() {
+
+  get storage () {
     return this._storage.readPointer();
   }
-  set storage(e) {
-    this._storage.writePointer(e);
+
+  set storage (value) {
+    this._storage.writePointer(value);
   }
-  get size() {
+
+  get size () {
     return this.end.sub(this.begin).toInt32() / this._elementSize;
   }
 }
 
-class Gn extends Un {
-  static $new() {
-    const e = new Gn(Oe().$new(ae));
-    return e.init(), e;
+class HandleVector extends StdVector {
+  static $new () {
+    const vector = new HandleVector(getApi().$new(STD_VECTOR_SIZE));
+    vector.init();
+    return vector;
   }
-  constructor(e) {
-    super(e, l);
+
+  constructor (storage) {
+    super(storage, pointerSize);
   }
-  get handles() {
-    const e = [];
-    let t = this.begin;
-    const n = this.end;
-    for (;!t.equals(n); ) e.push(t.readPointer()), t = t.add(l);
-    return e;
+
+  get handles () {
+    const result = [];
+
+    let cur = this.begin;
+    const end = this.end;
+    while (!cur.equals(end)) {
+      result.push(cur.readPointer());
+      cur = cur.add(pointerSize);
+    }
+
+    return result;
   }
 }
 
-const Bn = 0, qn = l, Wn = qn + 4, Hn = -1;
+const BHS_OFFSET_LINK = 0;
+const BHS_OFFSET_NUM_REFS = pointerSize;
+const BHS_SIZE = BHS_OFFSET_NUM_REFS + 4;
 
-class Kn {
-  $delete() {
-    this.dispose(), Oe().$delete(this);
+const kNumReferencesVariableSized = -1;
+
+class BaseHandleScope {
+  $delete () {
+    this.dispose();
+    getApi().$delete(this);
   }
-  constructor(e) {
-    this.handle = e, this._link = e.add(0), this._numberOfReferences = e.add(qn);
+
+  constructor (storage) {
+    this.handle = storage;
+
+    this._link = storage.add(BHS_OFFSET_LINK);
+    this._numberOfReferences = storage.add(BHS_OFFSET_NUM_REFS);
   }
-  init(e, t) {
-    this.link = e, this.numberOfReferences = t;
+
+  init (link, numberOfReferences) {
+    this.link = link;
+    this.numberOfReferences = numberOfReferences;
   }
-  dispose() {}
-  get link() {
-    return new Kn(this._link.readPointer());
+
+  dispose () {
   }
-  set link(e) {
-    this._link.writePointer(e);
+
+  get link () {
+    return new BaseHandleScope(this._link.readPointer());
   }
-  get numberOfReferences() {
+
+  set link (value) {
+    this._link.writePointer(value);
+  }
+
+  get numberOfReferences () {
     return this._numberOfReferences.readS32();
   }
-  set numberOfReferences(e) {
-    this._numberOfReferences.writeS32(e);
+
+  set numberOfReferences (value) {
+    this._numberOfReferences.writeS32(value);
   }
 }
 
-const Qn = or(Wn), $n = Qn + l, Xn = $n + l;
+const VSHS_OFFSET_SELF = alignPointerOffset(BHS_SIZE);
+const VSHS_OFFSET_CURRENT_SCOPE = VSHS_OFFSET_SELF + pointerSize;
+const VSHS_SIZE = VSHS_OFFSET_CURRENT_SCOPE + pointerSize;
 
-class Yn extends Kn {
-  static $new(e, t) {
-    const n = new Yn(Oe().$new(Xn));
-    return n.init(e, t), n;
+class VariableSizedHandleScope extends BaseHandleScope {
+  static $new (thread, vm) {
+    const scope = new VariableSizedHandleScope(getApi().$new(VSHS_SIZE));
+    scope.init(thread, vm);
+    return scope;
   }
-  constructor(e) {
-    super(e), this._self = e.add(Qn), this._currentScope = e.add($n);
-    const t = (64 - l - 4 - 4) / 4;
-    this._scopeLayout = er.layoutForCapacity(t), this._topHandleScopePtr = null;
+
+  constructor (storage) {
+    super(storage);
+
+    this._self = storage.add(VSHS_OFFSET_SELF);
+    this._currentScope = storage.add(VSHS_OFFSET_CURRENT_SCOPE);
+
+    const kLocalScopeSize = 64;
+    const kSizeOfReferencesPerScope = kLocalScopeSize - pointerSize - 4 - 4;
+    const kNumReferencesPerScope = kSizeOfReferencesPerScope / 4;
+    this._scopeLayout = FixedSizeHandleScope.layoutForCapacity(kNumReferencesPerScope);
+    this._topHandleScopePtr = null;
   }
-  init(e, t) {
-    const n = e.add(ue(t).offset.topHandleScope);
-    this._topHandleScopePtr = n, super.init(n.readPointer(), Hn), this.self = e, this.currentScope = er.$new(this._scopeLayout), 
-    n.writePointer(this);
+
+  init (thread, vm) {
+    const topHandleScopePtr = thread.add(getArtThreadSpec(vm).offset.topHandleScope);
+    this._topHandleScopePtr = topHandleScopePtr;
+
+    super.init(topHandleScopePtr.readPointer(), kNumReferencesVariableSized);
+
+    this.self = thread;
+    this.currentScope = FixedSizeHandleScope.$new(this._scopeLayout);
+
+    topHandleScopePtr.writePointer(this);
   }
-  dispose() {
-    let e;
-    for (this._topHandleScopePtr.writePointer(this.link); null !== (e = this.currentScope); ) {
-      const t = e.link;
-      e.$delete(), this.currentScope = t;
+
+  dispose () {
+    this._topHandleScopePtr.writePointer(this.link);
+
+    let scope;
+    while ((scope = this.currentScope) !== null) {
+      const next = scope.link;
+      scope.$delete();
+      this.currentScope = next;
     }
   }
-  get self() {
+
+  get self () {
     return this._self.readPointer();
   }
-  set self(e) {
-    this._self.writePointer(e);
+
+  set self (value) {
+    this._self.writePointer(value);
   }
-  get currentScope() {
-    const e = this._currentScope.readPointer();
-    return e.isNull() ? null : new er(e, this._scopeLayout);
+
+  get currentScope () {
+    const storage = this._currentScope.readPointer();
+    if (storage.isNull()) {
+      return null;
+    }
+    return new FixedSizeHandleScope(storage, this._scopeLayout);
   }
-  set currentScope(e) {
-    this._currentScope.writePointer(e);
+
+  set currentScope (value) {
+    this._currentScope.writePointer(value);
   }
-  newHandle(e) {
-    return this.currentScope.newHandle(e);
+
+  newHandle (object) {
+    return this.currentScope.newHandle(object);
   }
 }
 
-class er extends Kn {
-  static $new(e) {
-    const t = new er(Oe().$new(e.size), e);
-    return t.init(), t;
+class FixedSizeHandleScope extends BaseHandleScope {
+  static $new (layout) {
+    const scope = new FixedSizeHandleScope(getApi().$new(layout.size), layout);
+    scope.init();
+    return scope;
   }
-  constructor(e, t) {
-    super(e);
-    const {offset: n} = t;
-    this._refsStorage = e.add(n.refsStorage), this._pos = e.add(n.pos), this._layout = t;
+
+  constructor (storage, layout) {
+    super(storage);
+
+    const { offset } = layout;
+    this._refsStorage = storage.add(offset.refsStorage);
+    this._pos = storage.add(offset.pos);
+
+    this._layout = layout;
   }
-  init() {
-    super.init(NULL, this._layout.numberOfReferences), this.pos = 0;
+
+  init () {
+    super.init(NULL, this._layout.numberOfReferences);
+
+    this.pos = 0;
   }
-  get pos() {
+
+  get pos () {
     return this._pos.readU32();
   }
-  set pos(e) {
-    this._pos.writeU32(e);
+
+  set pos (value) {
+    this._pos.writeU32(value);
   }
-  newHandle(e) {
-    const t = this.pos, n = this._refsStorage.add(4 * t);
-    return n.writeS32(e.toInt32()), this.pos = t + 1, n;
+
+  newHandle (object) {
+    const pos = this.pos;
+    const handle = this._refsStorage.add(pos * 4);
+    handle.writeS32(object.toInt32());
+    this.pos = pos + 1;
+    return handle;
   }
-  static layoutForCapacity(e) {
-    const t = Wn + 4 * e;
+
+  static layoutForCapacity (numRefs) {
+    const refsStorage = BHS_SIZE;
+    const pos = refsStorage + (numRefs * 4);
+
     return {
-      size: t + 4,
-      numberOfReferences: e,
+      size: pos + 4,
+      numberOfReferences: numRefs,
       offset: {
-        refsStorage: Wn,
-        pos: t
+        refsStorage,
+        pos
       }
     };
   }
 }
 
-const tr = {
-  arm: function(e, t) {
-    const n = Process.pageSize, r = Memory.alloc(n);
-    Memory.protect(r, n, "rwx");
-    const o = new NativeCallback(t, "void", [ "pointer" ]);
-    r._onMatchCallback = o;
-    const a = [ 26625, 18947, 17041, 53505, 19202, 18200, 18288, 48896 ], i = 2 * a.length, s = i + 4, c = s + 4;
-    return Memory.patchCode(r, c, (function(t) {
-      a.forEach(((e, n) => {
-        t.add(2 * n).writeU16(e);
-      })), t.add(i).writeS32(e), t.add(s).writePointer(o);
-    })), r.or(1);
+const objectVisitorPredicateFactories = {
+  arm: function (needle, onMatch) {
+    const size = Process.pageSize;
+
+    const predicate = Memory.alloc(size);
+
+    Memory.protect(predicate, size, 'rwx');
+
+    const onMatchCallback = new NativeCallback(onMatch, 'void', ['pointer']);
+    predicate._onMatchCallback = onMatchCallback;
+
+    const instructions = [
+      0x6801, // ldr r1, [r0]
+      0x4a03, // ldr r2, =needle
+      0x4291, // cmp r1, r2
+      0xd101, // bne mismatch
+      0x4b02, // ldr r3, =onMatch
+      0x4718, // bx r3
+      0x4770, // bx lr
+      0xbf00 // nop
+    ];
+    const needleOffset = instructions.length * 2;
+    const onMatchOffset = needleOffset + 4;
+    const codeSize = onMatchOffset + 4;
+
+    Memory.patchCode(predicate, codeSize, function (address) {
+      instructions.forEach((instruction, index) => {
+        address.add(index * 2).writeU16(instruction);
+      });
+      address.add(needleOffset).writeS32(needle);
+      address.add(onMatchOffset).writePointer(onMatchCallback);
+    });
+
+    return predicate.or(1);
   },
-  arm64: function(e, t) {
-    const n = Process.pageSize, r = Memory.alloc(n);
-    Memory.protect(r, n, "rwx");
-    const o = new NativeCallback(t, "void", [ "pointer" ]);
-    r._onMatchCallback = o;
-    const a = [ 3107979265, 402653378, 1795293247, 1409286241, 1476395139, 3592355936, 3596551104 ], i = 4 * a.length, s = i + 4, c = s + 8;
-    return Memory.patchCode(r, c, (function(t) {
-      a.forEach(((e, n) => {
-        t.add(4 * n).writeU32(e);
-      })), t.add(i).writeS32(e), t.add(s).writePointer(o);
-    })), r;
+  arm64: function (needle, onMatch) {
+    const size = Process.pageSize;
+
+    const predicate = Memory.alloc(size);
+
+    Memory.protect(predicate, size, 'rwx');
+
+    const onMatchCallback = new NativeCallback(onMatch, 'void', ['pointer']);
+    predicate._onMatchCallback = onMatchCallback;
+
+    const instructions = [
+      0xb9400001, // ldr w1, [x0]
+      0x180000c2, // ldr w2, =needle
+      0x6b02003f, // cmp w1, w2
+      0x54000061, // b.ne mismatch
+      0x58000083, // ldr x3, =onMatch
+      0xd61f0060, // br x3
+      0xd65f03c0 // ret
+    ];
+    const needleOffset = instructions.length * 4;
+    const onMatchOffset = needleOffset + 4;
+    const codeSize = onMatchOffset + 8;
+
+    Memory.patchCode(predicate, codeSize, function (address) {
+      instructions.forEach((instruction, index) => {
+        address.add(index * 4).writeU32(instruction);
+      });
+      address.add(needleOffset).writeS32(needle);
+      address.add(onMatchOffset).writePointer(onMatchCallback);
+    });
+
+    return predicate;
   }
 };
 
-function nr(e, t) {
-  return (tr[Process.arch] || rr)(e, t);
+function makeObjectVisitorPredicate (needle, onMatch) {
+  const factory = objectVisitorPredicateFactories[Process.arch] || makeGenericObjectVisitorPredicate;
+  return factory(needle, onMatch);
 }
 
-function rr(e, t) {
-  return new NativeCallback((n => {
-    n.readS32() === e && t(n);
-  }), "void", [ "pointer", "pointer" ]);
+function makeGenericObjectVisitorPredicate (needle, onMatch) {
+  return new NativeCallback(object => {
+    const klass = object.readS32();
+    if (klass === needle) {
+      onMatch(object);
+    }
+  }, 'void', ['pointer', 'pointer']);
 }
 
-function or(e) {
-  const t = e % l;
-  return 0 !== t ? e + l - t : e;
+function alignPointerOffset (offset) {
+  const remainder = offset % pointerSize;
+  if (remainder !== 0) {
+    return offset + pointerSize - remainder;
+  }
+  return offset;
 }
 
 module.exports = {
-  getApi: Oe,
-  ensureClassInitialized: Fe,
-  getAndroidVersion: me,
-  getAndroidApiLevel: ge,
-  getArtClassSpec: tt,
-  getArtMethodSpec: le,
-  getArtFieldSpec: rt,
-  getArtThreadSpec: ue,
-  getArtThreadFromEnv: ut,
-  withRunnableArtThread: bt,
-  withAllArtThreadsSuspended: St,
-  makeArtClassVisitor: Nt,
-  makeArtClassLoaderVisitor: wt,
-  ArtStackVisitor: xt,
-  ArtMethod: Mt,
-  makeMethodMangler: Ht,
-  translateMethod: Kt,
-  backtrace: Qt,
-  revertGlobalPatches: Yt,
-  deoptimizeEverything: En,
-  deoptimizeBootImage: Nn,
-  deoptimizeMethod: Sn,
-  HandleVector: Gn,
-  VariableSizedHandleScope: Yn,
-  makeObjectVisitorPredicate: nr,
-  DVM_JNI_ENV_OFFSET_SELF: O
+  getApi,
+  ensureClassInitialized,
+  getAndroidVersion,
+  getAndroidApiLevel,
+  getArtClassSpec,
+  getArtMethodSpec,
+  getArtFieldSpec,
+  getArtThreadSpec,
+  getArtThreadFromEnv,
+  withRunnableArtThread,
+  withAllArtThreadsSuspended,
+  makeArtClassVisitor,
+  makeArtClassLoaderVisitor,
+  ArtStackVisitor,
+  ArtMethod,
+  makeMethodMangler,
+  translateMethod,
+  backtrace,
+  revertGlobalPatches,
+  deoptimizeEverything,
+  deoptimizeBootImage,
+  deoptimizeMethod,
+  HandleVector,
+  VariableSizedHandleScope,
+  makeObjectVisitorPredicate,
+  DVM_JNI_ENV_OFFSET_SELF
 };
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
 },{"./alloc":25,"./jvmti":28,"./machine-code":29,"./memoize":30,"./result":31,"./vm":32}],27:[function(require,module,exports){
-function t(t, e) {
-  this.handle = t, this.vm = e;
+function Env (handle, vm) {
+  this.handle = handle;
+  this.vm = vm;
 }
 
-const e = Process.pointerSize, n = 2, r = 28, i = 34, o = 37, a = 40, p = 43, l = 46, s = 49, c = 52, h = 55, u = 58, d = 61, f = 64, y = 67, g = 70, v = 73, L = 76, m = 79, j = 82, T = 85, R = 88, A = 91, w = 114, b = 117, C = 120, S = 123, N = 126, M = 129, E = 132, G = 135, I = 138, U = 141, F = 95, O = 96, P = 97, B = 98, x = 99, D = 100, V = 101, z = 102, W = 103, J = 104, Z = 105, k = 106, $ = 107, q = 108, H = 109, K = 110, Q = 111, X = 112, Y = 145, _ = 146, tt = 147, et = 148, nt = 149, rt = 150, it = 151, ot = 152, at = 153, pt = 154, lt = 155, st = 156, ct = 157, ht = 158, ut = 159, dt = 160, ft = 161, yt = 162, gt = {
-  pointer: i,
-  uint8: o,
-  int8: a,
-  uint16: p,
-  int16: l,
-  int32: s,
-  int64: c,
-  float: h,
-  double: u,
-  void: d
-}, vt = {
-  pointer: f,
-  uint8: y,
-  int8: g,
-  uint16: v,
-  int16: L,
-  int32: m,
-  int64: j,
-  float: T,
-  double: R,
-  void: A
-}, Lt = {
-  pointer: w,
-  uint8: b,
-  int8: C,
-  uint16: S,
-  int16: N,
-  int32: M,
-  int64: E,
-  float: G,
-  double: I,
-  void: U
-}, mt = {
-  pointer: F,
-  uint8: O,
-  int8: P,
-  uint16: B,
-  int16: x,
-  int32: D,
-  int64: V,
-  float: z,
-  double: W
-}, jt = {
-  pointer: J,
-  uint8: Z,
-  int8: k,
-  uint16: $,
-  int16: q,
-  int32: H,
-  int64: K,
-  float: Q,
-  double: X
-}, Tt = {
-  pointer: Y,
-  uint8: _,
-  int8: tt,
-  uint16: et,
-  int16: nt,
-  int32: rt,
-  int64: it,
-  float: ot,
-  double: at
-}, Rt = {
-  pointer: pt,
-  uint8: lt,
-  int8: st,
-  uint16: ct,
-  int16: ht,
-  int32: ut,
-  int64: dt,
-  float: ft,
-  double: yt
-}, At = {
-  exceptions: "propagate"
+const pointerSize = Process.pointerSize;
+
+const JNI_ABORT = 2;
+
+const CALL_CONSTRUCTOR_METHOD_OFFSET = 28;
+
+const CALL_OBJECT_METHOD_OFFSET = 34;
+const CALL_BOOLEAN_METHOD_OFFSET = 37;
+const CALL_BYTE_METHOD_OFFSET = 40;
+const CALL_CHAR_METHOD_OFFSET = 43;
+const CALL_SHORT_METHOD_OFFSET = 46;
+const CALL_INT_METHOD_OFFSET = 49;
+const CALL_LONG_METHOD_OFFSET = 52;
+const CALL_FLOAT_METHOD_OFFSET = 55;
+const CALL_DOUBLE_METHOD_OFFSET = 58;
+const CALL_VOID_METHOD_OFFSET = 61;
+
+const CALL_NONVIRTUAL_OBJECT_METHOD_OFFSET = 64;
+const CALL_NONVIRTUAL_BOOLEAN_METHOD_OFFSET = 67;
+const CALL_NONVIRTUAL_BYTE_METHOD_OFFSET = 70;
+const CALL_NONVIRTUAL_CHAR_METHOD_OFFSET = 73;
+const CALL_NONVIRTUAL_SHORT_METHOD_OFFSET = 76;
+const CALL_NONVIRTUAL_INT_METHOD_OFFSET = 79;
+const CALL_NONVIRTUAL_LONG_METHOD_OFFSET = 82;
+const CALL_NONVIRTUAL_FLOAT_METHOD_OFFSET = 85;
+const CALL_NONVIRTUAL_DOUBLE_METHOD_OFFSET = 88;
+const CALL_NONVIRTUAL_VOID_METHOD_OFFSET = 91;
+
+const CALL_STATIC_OBJECT_METHOD_OFFSET = 114;
+const CALL_STATIC_BOOLEAN_METHOD_OFFSET = 117;
+const CALL_STATIC_BYTE_METHOD_OFFSET = 120;
+const CALL_STATIC_CHAR_METHOD_OFFSET = 123;
+const CALL_STATIC_SHORT_METHOD_OFFSET = 126;
+const CALL_STATIC_INT_METHOD_OFFSET = 129;
+const CALL_STATIC_LONG_METHOD_OFFSET = 132;
+const CALL_STATIC_FLOAT_METHOD_OFFSET = 135;
+const CALL_STATIC_DOUBLE_METHOD_OFFSET = 138;
+const CALL_STATIC_VOID_METHOD_OFFSET = 141;
+
+const GET_OBJECT_FIELD_OFFSET = 95;
+const GET_BOOLEAN_FIELD_OFFSET = 96;
+const GET_BYTE_FIELD_OFFSET = 97;
+const GET_CHAR_FIELD_OFFSET = 98;
+const GET_SHORT_FIELD_OFFSET = 99;
+const GET_INT_FIELD_OFFSET = 100;
+const GET_LONG_FIELD_OFFSET = 101;
+const GET_FLOAT_FIELD_OFFSET = 102;
+const GET_DOUBLE_FIELD_OFFSET = 103;
+
+const SET_OBJECT_FIELD_OFFSET = 104;
+const SET_BOOLEAN_FIELD_OFFSET = 105;
+const SET_BYTE_FIELD_OFFSET = 106;
+const SET_CHAR_FIELD_OFFSET = 107;
+const SET_SHORT_FIELD_OFFSET = 108;
+const SET_INT_FIELD_OFFSET = 109;
+const SET_LONG_FIELD_OFFSET = 110;
+const SET_FLOAT_FIELD_OFFSET = 111;
+const SET_DOUBLE_FIELD_OFFSET = 112;
+
+const GET_STATIC_OBJECT_FIELD_OFFSET = 145;
+const GET_STATIC_BOOLEAN_FIELD_OFFSET = 146;
+const GET_STATIC_BYTE_FIELD_OFFSET = 147;
+const GET_STATIC_CHAR_FIELD_OFFSET = 148;
+const GET_STATIC_SHORT_FIELD_OFFSET = 149;
+const GET_STATIC_INT_FIELD_OFFSET = 150;
+const GET_STATIC_LONG_FIELD_OFFSET = 151;
+const GET_STATIC_FLOAT_FIELD_OFFSET = 152;
+const GET_STATIC_DOUBLE_FIELD_OFFSET = 153;
+
+const SET_STATIC_OBJECT_FIELD_OFFSET = 154;
+const SET_STATIC_BOOLEAN_FIELD_OFFSET = 155;
+const SET_STATIC_BYTE_FIELD_OFFSET = 156;
+const SET_STATIC_CHAR_FIELD_OFFSET = 157;
+const SET_STATIC_SHORT_FIELD_OFFSET = 158;
+const SET_STATIC_INT_FIELD_OFFSET = 159;
+const SET_STATIC_LONG_FIELD_OFFSET = 160;
+const SET_STATIC_FLOAT_FIELD_OFFSET = 161;
+const SET_STATIC_DOUBLE_FIELD_OFFSET = 162;
+
+const callMethodOffset = {
+  pointer: CALL_OBJECT_METHOD_OFFSET,
+  uint8: CALL_BOOLEAN_METHOD_OFFSET,
+  int8: CALL_BYTE_METHOD_OFFSET,
+  uint16: CALL_CHAR_METHOD_OFFSET,
+  int16: CALL_SHORT_METHOD_OFFSET,
+  int32: CALL_INT_METHOD_OFFSET,
+  int64: CALL_LONG_METHOD_OFFSET,
+  float: CALL_FLOAT_METHOD_OFFSET,
+  double: CALL_DOUBLE_METHOD_OFFSET,
+  void: CALL_VOID_METHOD_OFFSET
 };
 
-let wt = null, bt = [];
+const callNonvirtualMethodOffset = {
+  pointer: CALL_NONVIRTUAL_OBJECT_METHOD_OFFSET,
+  uint8: CALL_NONVIRTUAL_BOOLEAN_METHOD_OFFSET,
+  int8: CALL_NONVIRTUAL_BYTE_METHOD_OFFSET,
+  uint16: CALL_NONVIRTUAL_CHAR_METHOD_OFFSET,
+  int16: CALL_NONVIRTUAL_SHORT_METHOD_OFFSET,
+  int32: CALL_NONVIRTUAL_INT_METHOD_OFFSET,
+  int64: CALL_NONVIRTUAL_LONG_METHOD_OFFSET,
+  float: CALL_NONVIRTUAL_FLOAT_METHOD_OFFSET,
+  double: CALL_NONVIRTUAL_DOUBLE_METHOD_OFFSET,
+  void: CALL_NONVIRTUAL_VOID_METHOD_OFFSET
+};
 
-function Ct(t) {
-  return bt.push(t), t;
+const callStaticMethodOffset = {
+  pointer: CALL_STATIC_OBJECT_METHOD_OFFSET,
+  uint8: CALL_STATIC_BOOLEAN_METHOD_OFFSET,
+  int8: CALL_STATIC_BYTE_METHOD_OFFSET,
+  uint16: CALL_STATIC_CHAR_METHOD_OFFSET,
+  int16: CALL_STATIC_SHORT_METHOD_OFFSET,
+  int32: CALL_STATIC_INT_METHOD_OFFSET,
+  int64: CALL_STATIC_LONG_METHOD_OFFSET,
+  float: CALL_STATIC_FLOAT_METHOD_OFFSET,
+  double: CALL_STATIC_DOUBLE_METHOD_OFFSET,
+  void: CALL_STATIC_VOID_METHOD_OFFSET
+};
+
+const getFieldOffset = {
+  pointer: GET_OBJECT_FIELD_OFFSET,
+  uint8: GET_BOOLEAN_FIELD_OFFSET,
+  int8: GET_BYTE_FIELD_OFFSET,
+  uint16: GET_CHAR_FIELD_OFFSET,
+  int16: GET_SHORT_FIELD_OFFSET,
+  int32: GET_INT_FIELD_OFFSET,
+  int64: GET_LONG_FIELD_OFFSET,
+  float: GET_FLOAT_FIELD_OFFSET,
+  double: GET_DOUBLE_FIELD_OFFSET
+};
+
+const setFieldOffset = {
+  pointer: SET_OBJECT_FIELD_OFFSET,
+  uint8: SET_BOOLEAN_FIELD_OFFSET,
+  int8: SET_BYTE_FIELD_OFFSET,
+  uint16: SET_CHAR_FIELD_OFFSET,
+  int16: SET_SHORT_FIELD_OFFSET,
+  int32: SET_INT_FIELD_OFFSET,
+  int64: SET_LONG_FIELD_OFFSET,
+  float: SET_FLOAT_FIELD_OFFSET,
+  double: SET_DOUBLE_FIELD_OFFSET
+};
+
+const getStaticFieldOffset = {
+  pointer: GET_STATIC_OBJECT_FIELD_OFFSET,
+  uint8: GET_STATIC_BOOLEAN_FIELD_OFFSET,
+  int8: GET_STATIC_BYTE_FIELD_OFFSET,
+  uint16: GET_STATIC_CHAR_FIELD_OFFSET,
+  int16: GET_STATIC_SHORT_FIELD_OFFSET,
+  int32: GET_STATIC_INT_FIELD_OFFSET,
+  int64: GET_STATIC_LONG_FIELD_OFFSET,
+  float: GET_STATIC_FLOAT_FIELD_OFFSET,
+  double: GET_STATIC_DOUBLE_FIELD_OFFSET
+};
+
+const setStaticFieldOffset = {
+  pointer: SET_STATIC_OBJECT_FIELD_OFFSET,
+  uint8: SET_STATIC_BOOLEAN_FIELD_OFFSET,
+  int8: SET_STATIC_BYTE_FIELD_OFFSET,
+  uint16: SET_STATIC_CHAR_FIELD_OFFSET,
+  int16: SET_STATIC_SHORT_FIELD_OFFSET,
+  int32: SET_STATIC_INT_FIELD_OFFSET,
+  int64: SET_STATIC_LONG_FIELD_OFFSET,
+  float: SET_STATIC_FLOAT_FIELD_OFFSET,
+  double: SET_STATIC_DOUBLE_FIELD_OFFSET
+};
+
+const nativeFunctionOptions = {
+  exceptions: 'propagate'
+};
+
+let cachedVtable = null;
+let globalRefs = [];
+Env.dispose = function (env) {
+  globalRefs.forEach(env.deleteGlobalRef, env);
+  globalRefs = [];
+};
+
+function register (globalRef) {
+  globalRefs.push(globalRef);
+  return globalRef;
 }
 
-function St(t) {
-  return null === wt && (wt = t.handle.readPointer()), wt;
+function vtable (instance) {
+  if (cachedVtable === null) {
+    cachedVtable = instance.handle.readPointer();
+  }
+  return cachedVtable;
 }
 
-function Nt(t, n, r, i) {
-  let o = null;
-  return function() {
-    null === o && (o = new NativeFunction(St(this).add(t * e).readPointer(), n, r, At));
-    let a = [ o ];
-    return a = a.concat.apply(a, arguments), i.apply(this, a);
+function proxy (offset, retType, argTypes, wrapper) {
+  let impl = null;
+  return function () {
+    if (impl === null) {
+      impl = new NativeFunction(vtable(this).add(offset * pointerSize).readPointer(), retType, argTypes, nativeFunctionOptions);
+    }
+    let args = [impl];
+    args = args.concat.apply(args, arguments);
+    return wrapper.apply(this, args);
   };
 }
 
-function Mt(t, e) {
-  return function() {
-    t.perform((t => {
-      t.deleteGlobalRef(e);
-    }));
-  };
-}
+Env.prototype.getVersion = proxy(4, 'int32', ['pointer'], function (impl) {
+  return impl(this.handle);
+});
 
-t.dispose = function(t) {
-  bt.forEach(t.deleteGlobalRef, t), bt = [];
-}, t.prototype.getVersion = Nt(4, "int32", [ "pointer" ], (function(t) {
-  return t(this.handle);
-})), t.prototype.findClass = Nt(6, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  const n = t(this.handle, Memory.allocUtf8String(e));
-  return this.throwIfExceptionPending(), n;
-})), t.prototype.throwIfExceptionPending = function() {
-  const t = this.exceptionOccurred();
-  if (t.isNull()) return;
+Env.prototype.findClass = proxy(6, 'pointer', ['pointer', 'pointer'], function (impl, name) {
+  const result = impl(this.handle, Memory.allocUtf8String(name));
+  this.throwIfExceptionPending();
+  return result;
+});
+
+Env.prototype.throwIfExceptionPending = function () {
+  const throwable = this.exceptionOccurred();
+  if (throwable.isNull()) {
+    return;
+  }
   this.exceptionClear();
-  const e = this.newGlobalRef(t);
-  this.deleteLocalRef(t);
-  const n = this.vaMethod("pointer", [])(this.handle, e, this.javaLangObject().toString), r = this.stringFromJni(n);
-  this.deleteLocalRef(n);
-  const i = new Error(r);
-  throw i.$h = e, Script.bindWeak(i, Mt(this.vm, e)), i;
-}, t.prototype.fromReflectedMethod = Nt(7, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.fromReflectedField = Nt(8, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.toReflectedMethod = Nt(9, "pointer", [ "pointer", "pointer", "pointer", "uint8" ], (function(t, e, n, r) {
-  return t(this.handle, e, n, r);
-})), t.prototype.getSuperclass = Nt(10, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.isAssignableFrom = Nt(11, "uint8", [ "pointer", "pointer", "pointer" ], (function(t, e, n) {
-  return !!t(this.handle, e, n);
-})), t.prototype.toReflectedField = Nt(12, "pointer", [ "pointer", "pointer", "pointer", "uint8" ], (function(t, e, n, r) {
-  return t(this.handle, e, n, r);
-})), t.prototype.throw = Nt(13, "int32", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.exceptionOccurred = Nt(15, "pointer", [ "pointer" ], (function(t) {
-  return t(this.handle);
-})), t.prototype.exceptionDescribe = Nt(16, "void", [ "pointer" ], (function(t) {
-  t(this.handle);
-})), t.prototype.exceptionClear = Nt(17, "void", [ "pointer" ], (function(t) {
-  t(this.handle);
-})), t.prototype.pushLocalFrame = Nt(19, "int32", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.popLocalFrame = Nt(20, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newGlobalRef = Nt(21, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.deleteGlobalRef = Nt(22, "void", [ "pointer", "pointer" ], (function(t, e) {
-  t(this.handle, e);
-})), t.prototype.deleteLocalRef = Nt(23, "void", [ "pointer", "pointer" ], (function(t, e) {
-  t(this.handle, e);
-})), t.prototype.isSameObject = Nt(24, "uint8", [ "pointer", "pointer", "pointer" ], (function(t, e, n) {
-  return !!t(this.handle, e, n);
-})), t.prototype.newLocalRef = Nt(25, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.allocObject = Nt(27, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.getObjectClass = Nt(31, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.isInstanceOf = Nt(32, "uint8", [ "pointer", "pointer", "pointer" ], (function(t, e, n) {
-  return !!t(this.handle, e, n);
-})), t.prototype.getMethodId = Nt(33, "pointer", [ "pointer", "pointer", "pointer", "pointer" ], (function(t, e, n, r) {
-  return t(this.handle, e, Memory.allocUtf8String(n), Memory.allocUtf8String(r));
-})), t.prototype.getFieldId = Nt(94, "pointer", [ "pointer", "pointer", "pointer", "pointer" ], (function(t, e, n, r) {
-  return t(this.handle, e, Memory.allocUtf8String(n), Memory.allocUtf8String(r));
-})), t.prototype.getIntField = Nt(100, "int32", [ "pointer", "pointer", "pointer" ], (function(t, e, n) {
-  return t(this.handle, e, n);
-})), t.prototype.getStaticMethodId = Nt(113, "pointer", [ "pointer", "pointer", "pointer", "pointer" ], (function(t, e, n, r) {
-  return t(this.handle, e, Memory.allocUtf8String(n), Memory.allocUtf8String(r));
-})), t.prototype.getStaticFieldId = Nt(144, "pointer", [ "pointer", "pointer", "pointer", "pointer" ], (function(t, e, n, r) {
-  return t(this.handle, e, Memory.allocUtf8String(n), Memory.allocUtf8String(r));
-})), t.prototype.getStaticIntField = Nt(150, "int32", [ "pointer", "pointer", "pointer" ], (function(t, e, n) {
-  return t(this.handle, e, n);
-})), t.prototype.getStringLength = Nt(164, "int32", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.getStringChars = Nt(165, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.releaseStringChars = Nt(166, "void", [ "pointer", "pointer", "pointer" ], (function(t, e, n) {
-  t(this.handle, e, n);
-})), t.prototype.newStringUtf = Nt(167, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  const n = Memory.allocUtf8String(e);
-  return t(this.handle, n);
-})), t.prototype.getStringUtfChars = Nt(169, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.releaseStringUtfChars = Nt(170, "void", [ "pointer", "pointer", "pointer" ], (function(t, e, n) {
-  t(this.handle, e, n);
-})), t.prototype.getArrayLength = Nt(171, "int32", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newObjectArray = Nt(172, "pointer", [ "pointer", "int32", "pointer", "pointer" ], (function(t, e, n, r) {
-  return t(this.handle, e, n, r);
-})), t.prototype.getObjectArrayElement = Nt(173, "pointer", [ "pointer", "pointer", "int32" ], (function(t, e, n) {
-  return t(this.handle, e, n);
-})), t.prototype.setObjectArrayElement = Nt(174, "void", [ "pointer", "pointer", "int32", "pointer" ], (function(t, e, n, r) {
-  t(this.handle, e, n, r);
-})), t.prototype.newBooleanArray = Nt(175, "pointer", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newByteArray = Nt(176, "pointer", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newCharArray = Nt(177, "pointer", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newShortArray = Nt(178, "pointer", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newIntArray = Nt(179, "pointer", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newLongArray = Nt(180, "pointer", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newFloatArray = Nt(181, "pointer", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.newDoubleArray = Nt(182, "pointer", [ "pointer", "int32" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.getBooleanArrayElements = Nt(183, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.getByteArrayElements = Nt(184, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.getCharArrayElements = Nt(185, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.getShortArrayElements = Nt(186, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.getIntArrayElements = Nt(187, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.getLongArrayElements = Nt(188, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.getFloatArrayElements = Nt(189, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.getDoubleArrayElements = Nt(190, "pointer", [ "pointer", "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e, NULL);
-})), t.prototype.releaseBooleanArrayElements = Nt(191, "pointer", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n) {
-  t(this.handle, e, n, 2);
-})), t.prototype.releaseByteArrayElements = Nt(192, "pointer", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n) {
-  t(this.handle, e, n, 2);
-})), t.prototype.releaseCharArrayElements = Nt(193, "pointer", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n) {
-  t(this.handle, e, n, 2);
-})), t.prototype.releaseShortArrayElements = Nt(194, "pointer", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n) {
-  t(this.handle, e, n, 2);
-})), t.prototype.releaseIntArrayElements = Nt(195, "pointer", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n) {
-  t(this.handle, e, n, 2);
-})), t.prototype.releaseLongArrayElements = Nt(196, "pointer", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n) {
-  t(this.handle, e, n, 2);
-})), t.prototype.releaseFloatArrayElements = Nt(197, "pointer", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n) {
-  t(this.handle, e, n, 2);
-})), t.prototype.releaseDoubleArrayElements = Nt(198, "pointer", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n) {
-  t(this.handle, e, n, 2);
-})), t.prototype.getByteArrayRegion = Nt(200, "void", [ "pointer", "pointer", "int", "int", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.setBooleanArrayRegion = Nt(207, "void", [ "pointer", "pointer", "int32", "int32", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.setByteArrayRegion = Nt(208, "void", [ "pointer", "pointer", "int32", "int32", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.setCharArrayRegion = Nt(209, "void", [ "pointer", "pointer", "int32", "int32", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.setShortArrayRegion = Nt(210, "void", [ "pointer", "pointer", "int32", "int32", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.setIntArrayRegion = Nt(211, "void", [ "pointer", "pointer", "int32", "int32", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.setLongArrayRegion = Nt(212, "void", [ "pointer", "pointer", "int32", "int32", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.setFloatArrayRegion = Nt(213, "void", [ "pointer", "pointer", "int32", "int32", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.setDoubleArrayRegion = Nt(214, "void", [ "pointer", "pointer", "int32", "int32", "pointer" ], (function(t, e, n, r, i) {
-  t(this.handle, e, n, r, i);
-})), t.prototype.registerNatives = Nt(215, "int32", [ "pointer", "pointer", "pointer", "int32" ], (function(t, e, n, r) {
-  return t(this.handle, e, n, r);
-})), t.prototype.monitorEnter = Nt(217, "int32", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.monitorExit = Nt(218, "int32", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.getDirectBufferAddress = Nt(230, "pointer", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), t.prototype.getObjectRefType = Nt(232, "int32", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-}));
+  const handle = this.newGlobalRef(throwable);
+  this.deleteLocalRef(throwable);
 
-const Et = new Map;
+  const description = this.vaMethod('pointer', [])(this.handle, handle, this.javaLangObject().toString);
+  const descriptionStr = this.stringFromJni(description);
+  this.deleteLocalRef(description);
 
-function Gt(t, e, n, r) {
-  return Ft(this, "p", Ot, t, e, n, r);
+  const error = new Error(descriptionStr);
+  error.$h = handle;
+  Script.bindWeak(error, makeErrorHandleDestructor(this.vm, handle));
+
+  throw error;
+};
+
+function makeErrorHandleDestructor (vm, handle) {
+  return function () {
+    vm.perform(env => {
+      env.deleteGlobalRef(handle);
+    });
+  };
 }
 
-function It(t, e, n, r) {
-  return Ft(this, "v", Pt, t, e, n, r);
+Env.prototype.fromReflectedMethod = proxy(7, 'pointer', ['pointer', 'pointer'], function (impl, method) {
+  return impl(this.handle, method);
+});
+
+Env.prototype.fromReflectedField = proxy(8, 'pointer', ['pointer', 'pointer'], function (impl, method) {
+  return impl(this.handle, method);
+});
+
+Env.prototype.toReflectedMethod = proxy(9, 'pointer', ['pointer', 'pointer', 'pointer', 'uint8'], function (impl, klass, methodId, isStatic) {
+  return impl(this.handle, klass, methodId, isStatic);
+});
+
+Env.prototype.getSuperclass = proxy(10, 'pointer', ['pointer', 'pointer'], function (impl, klass) {
+  return impl(this.handle, klass);
+});
+
+Env.prototype.isAssignableFrom = proxy(11, 'uint8', ['pointer', 'pointer', 'pointer'], function (impl, klass1, klass2) {
+  return !!impl(this.handle, klass1, klass2);
+});
+
+Env.prototype.toReflectedField = proxy(12, 'pointer', ['pointer', 'pointer', 'pointer', 'uint8'], function (impl, klass, fieldId, isStatic) {
+  return impl(this.handle, klass, fieldId, isStatic);
+});
+
+Env.prototype.throw = proxy(13, 'int32', ['pointer', 'pointer'], function (impl, obj) {
+  return impl(this.handle, obj);
+});
+
+Env.prototype.exceptionOccurred = proxy(15, 'pointer', ['pointer'], function (impl) {
+  return impl(this.handle);
+});
+
+Env.prototype.exceptionDescribe = proxy(16, 'void', ['pointer'], function (impl) {
+  impl(this.handle);
+});
+
+Env.prototype.exceptionClear = proxy(17, 'void', ['pointer'], function (impl) {
+  impl(this.handle);
+});
+
+Env.prototype.pushLocalFrame = proxy(19, 'int32', ['pointer', 'int32'], function (impl, capacity) {
+  return impl(this.handle, capacity);
+});
+
+Env.prototype.popLocalFrame = proxy(20, 'pointer', ['pointer', 'pointer'], function (impl, result) {
+  return impl(this.handle, result);
+});
+
+Env.prototype.newGlobalRef = proxy(21, 'pointer', ['pointer', 'pointer'], function (impl, obj) {
+  return impl(this.handle, obj);
+});
+
+Env.prototype.deleteGlobalRef = proxy(22, 'void', ['pointer', 'pointer'], function (impl, globalRef) {
+  impl(this.handle, globalRef);
+});
+
+Env.prototype.deleteLocalRef = proxy(23, 'void', ['pointer', 'pointer'], function (impl, localRef) {
+  impl(this.handle, localRef);
+});
+
+Env.prototype.isSameObject = proxy(24, 'uint8', ['pointer', 'pointer', 'pointer'], function (impl, ref1, ref2) {
+  return !!impl(this.handle, ref1, ref2);
+});
+
+Env.prototype.newLocalRef = proxy(25, 'pointer', ['pointer', 'pointer'], function (impl, obj) {
+  return impl(this.handle, obj);
+});
+
+Env.prototype.allocObject = proxy(27, 'pointer', ['pointer', 'pointer'], function (impl, clazz) {
+  return impl(this.handle, clazz);
+});
+
+Env.prototype.getObjectClass = proxy(31, 'pointer', ['pointer', 'pointer'], function (impl, obj) {
+  return impl(this.handle, obj);
+});
+
+Env.prototype.isInstanceOf = proxy(32, 'uint8', ['pointer', 'pointer', 'pointer'], function (impl, obj, klass) {
+  return !!impl(this.handle, obj, klass);
+});
+
+Env.prototype.getMethodId = proxy(33, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer'], function (impl, klass, name, sig) {
+  return impl(this.handle, klass, Memory.allocUtf8String(name), Memory.allocUtf8String(sig));
+});
+
+Env.prototype.getFieldId = proxy(94, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer'], function (impl, klass, name, sig) {
+  return impl(this.handle, klass, Memory.allocUtf8String(name), Memory.allocUtf8String(sig));
+});
+
+Env.prototype.getIntField = proxy(100, 'int32', ['pointer', 'pointer', 'pointer'], function (impl, obj, fieldId) {
+  return impl(this.handle, obj, fieldId);
+});
+
+Env.prototype.getStaticMethodId = proxy(113, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer'], function (impl, klass, name, sig) {
+  return impl(this.handle, klass, Memory.allocUtf8String(name), Memory.allocUtf8String(sig));
+});
+
+Env.prototype.getStaticFieldId = proxy(144, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer'], function (impl, klass, name, sig) {
+  return impl(this.handle, klass, Memory.allocUtf8String(name), Memory.allocUtf8String(sig));
+});
+
+Env.prototype.getStaticIntField = proxy(150, 'int32', ['pointer', 'pointer', 'pointer'], function (impl, obj, fieldId) {
+  return impl(this.handle, obj, fieldId);
+});
+
+Env.prototype.getStringLength = proxy(164, 'int32', ['pointer', 'pointer'], function (impl, str) {
+  return impl(this.handle, str);
+});
+
+Env.prototype.getStringChars = proxy(165, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, str) {
+  return impl(this.handle, str, NULL);
+});
+
+Env.prototype.releaseStringChars = proxy(166, 'void', ['pointer', 'pointer', 'pointer'], function (impl, str, utf) {
+  impl(this.handle, str, utf);
+});
+
+Env.prototype.newStringUtf = proxy(167, 'pointer', ['pointer', 'pointer'], function (impl, str) {
+  const utf = Memory.allocUtf8String(str);
+  return impl(this.handle, utf);
+});
+
+Env.prototype.getStringUtfChars = proxy(169, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, str) {
+  return impl(this.handle, str, NULL);
+});
+
+Env.prototype.releaseStringUtfChars = proxy(170, 'void', ['pointer', 'pointer', 'pointer'], function (impl, str, utf) {
+  impl(this.handle, str, utf);
+});
+
+Env.prototype.getArrayLength = proxy(171, 'int32', ['pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array);
+});
+
+Env.prototype.newObjectArray = proxy(172, 'pointer', ['pointer', 'int32', 'pointer', 'pointer'], function (impl, length, elementClass, initialElement) {
+  return impl(this.handle, length, elementClass, initialElement);
+});
+
+Env.prototype.getObjectArrayElement = proxy(173, 'pointer', ['pointer', 'pointer', 'int32'], function (impl, array, index) {
+  return impl(this.handle, array, index);
+});
+
+Env.prototype.setObjectArrayElement = proxy(174, 'void', ['pointer', 'pointer', 'int32', 'pointer'], function (impl, array, index, value) {
+  impl(this.handle, array, index, value);
+});
+
+Env.prototype.newBooleanArray = proxy(175, 'pointer', ['pointer', 'int32'], function (impl, length) {
+  return impl(this.handle, length);
+});
+
+Env.prototype.newByteArray = proxy(176, 'pointer', ['pointer', 'int32'], function (impl, length) {
+  return impl(this.handle, length);
+});
+
+Env.prototype.newCharArray = proxy(177, 'pointer', ['pointer', 'int32'], function (impl, length) {
+  return impl(this.handle, length);
+});
+
+Env.prototype.newShortArray = proxy(178, 'pointer', ['pointer', 'int32'], function (impl, length) {
+  return impl(this.handle, length);
+});
+
+Env.prototype.newIntArray = proxy(179, 'pointer', ['pointer', 'int32'], function (impl, length) {
+  return impl(this.handle, length);
+});
+
+Env.prototype.newLongArray = proxy(180, 'pointer', ['pointer', 'int32'], function (impl, length) {
+  return impl(this.handle, length);
+});
+
+Env.prototype.newFloatArray = proxy(181, 'pointer', ['pointer', 'int32'], function (impl, length) {
+  return impl(this.handle, length);
+});
+
+Env.prototype.newDoubleArray = proxy(182, 'pointer', ['pointer', 'int32'], function (impl, length) {
+  return impl(this.handle, length);
+});
+
+Env.prototype.getBooleanArrayElements = proxy(183, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array, NULL);
+});
+
+Env.prototype.getByteArrayElements = proxy(184, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array, NULL);
+});
+
+Env.prototype.getCharArrayElements = proxy(185, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array, NULL);
+});
+
+Env.prototype.getShortArrayElements = proxy(186, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array, NULL);
+});
+
+Env.prototype.getIntArrayElements = proxy(187, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array, NULL);
+});
+
+Env.prototype.getLongArrayElements = proxy(188, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array, NULL);
+});
+
+Env.prototype.getFloatArrayElements = proxy(189, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array, NULL);
+});
+
+Env.prototype.getDoubleArrayElements = proxy(190, 'pointer', ['pointer', 'pointer', 'pointer'], function (impl, array) {
+  return impl(this.handle, array, NULL);
+});
+
+Env.prototype.releaseBooleanArrayElements = proxy(191, 'pointer', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, array, cArray) {
+  impl(this.handle, array, cArray, JNI_ABORT);
+});
+
+Env.prototype.releaseByteArrayElements = proxy(192, 'pointer', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, array, cArray) {
+  impl(this.handle, array, cArray, JNI_ABORT);
+});
+
+Env.prototype.releaseCharArrayElements = proxy(193, 'pointer', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, array, cArray) {
+  impl(this.handle, array, cArray, JNI_ABORT);
+});
+
+Env.prototype.releaseShortArrayElements = proxy(194, 'pointer', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, array, cArray) {
+  impl(this.handle, array, cArray, JNI_ABORT);
+});
+
+Env.prototype.releaseIntArrayElements = proxy(195, 'pointer', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, array, cArray) {
+  impl(this.handle, array, cArray, JNI_ABORT);
+});
+
+Env.prototype.releaseLongArrayElements = proxy(196, 'pointer', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, array, cArray) {
+  impl(this.handle, array, cArray, JNI_ABORT);
+});
+
+Env.prototype.releaseFloatArrayElements = proxy(197, 'pointer', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, array, cArray) {
+  impl(this.handle, array, cArray, JNI_ABORT);
+});
+
+Env.prototype.releaseDoubleArrayElements = proxy(198, 'pointer', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, array, cArray) {
+  impl(this.handle, array, cArray, JNI_ABORT);
+});
+
+Env.prototype.getByteArrayRegion = proxy(200, 'void', ['pointer', 'pointer', 'int', 'int', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.setBooleanArrayRegion = proxy(207, 'void', ['pointer', 'pointer', 'int32', 'int32', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.setByteArrayRegion = proxy(208, 'void', ['pointer', 'pointer', 'int32', 'int32', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.setCharArrayRegion = proxy(209, 'void', ['pointer', 'pointer', 'int32', 'int32', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.setShortArrayRegion = proxy(210, 'void', ['pointer', 'pointer', 'int32', 'int32', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.setIntArrayRegion = proxy(211, 'void', ['pointer', 'pointer', 'int32', 'int32', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.setLongArrayRegion = proxy(212, 'void', ['pointer', 'pointer', 'int32', 'int32', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.setFloatArrayRegion = proxy(213, 'void', ['pointer', 'pointer', 'int32', 'int32', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.setDoubleArrayRegion = proxy(214, 'void', ['pointer', 'pointer', 'int32', 'int32', 'pointer'], function (impl, array, start, length, cArray) {
+  impl(this.handle, array, start, length, cArray);
+});
+
+Env.prototype.registerNatives = proxy(215, 'int32', ['pointer', 'pointer', 'pointer', 'int32'], function (impl, klass, methods, numMethods) {
+  return impl(this.handle, klass, methods, numMethods);
+});
+
+Env.prototype.monitorEnter = proxy(217, 'int32', ['pointer', 'pointer'], function (impl, obj) {
+  return impl(this.handle, obj);
+});
+
+Env.prototype.monitorExit = proxy(218, 'int32', ['pointer', 'pointer'], function (impl, obj) {
+  return impl(this.handle, obj);
+});
+
+Env.prototype.getDirectBufferAddress = proxy(230, 'pointer', ['pointer', 'pointer'], function (impl, obj) {
+  return impl(this.handle, obj);
+});
+
+Env.prototype.getObjectRefType = proxy(232, 'int32', ['pointer', 'pointer'], function (impl, ref) {
+  return impl(this.handle, ref);
+});
+
+const cachedMethods = new Map();
+
+function plainMethod (offset, retType, argTypes, options) {
+  return getOrMakeMethod(this, 'p', makePlainMethod, offset, retType, argTypes, options);
 }
 
-function Ut(t, e, n, r) {
-  return Ft(this, "n", Bt, t, e, n, r);
+function vaMethod (offset, retType, argTypes, options) {
+  return getOrMakeMethod(this, 'v', makeVaMethod, offset, retType, argTypes, options);
 }
 
-function Ft(t, e, n, r, i, o, a) {
-  if (void 0 !== a) return n(t, r, i, o, a);
-  const p = [ r, e, i ].concat(o).join("|");
-  let l = Et.get(p);
-  return void 0 === l && (l = n(t, r, i, o, At), Et.set(p, l)), l;
+function nonvirtualVaMethod (offset, retType, argTypes, options) {
+  return getOrMakeMethod(this, 'n', makeNonvirtualVaMethod, offset, retType, argTypes, options);
 }
 
-function Ot(t, n, r, i, o) {
-  return new NativeFunction(St(t).add(n * e).readPointer(), r, [ "pointer", "pointer", "pointer" ].concat(i), o);
+function getOrMakeMethod (env, flavor, construct, offset, retType, argTypes, options) {
+  if (options !== undefined) {
+    return construct(env, offset, retType, argTypes, options);
+  }
+
+  const key = [offset, flavor, retType].concat(argTypes).join('|');
+  let m = cachedMethods.get(key);
+  if (m === undefined) {
+    m = construct(env, offset, retType, argTypes, nativeFunctionOptions);
+    cachedMethods.set(key, m);
+  }
+  return m;
 }
 
-function Pt(t, n, r, i, o) {
-  return new NativeFunction(St(t).add(n * e).readPointer(), r, [ "pointer", "pointer", "pointer", "..." ].concat(i), o);
+function makePlainMethod (env, offset, retType, argTypes, options) {
+  return new NativeFunction(
+    vtable(env).add(offset * pointerSize).readPointer(),
+    retType,
+    ['pointer', 'pointer', 'pointer'].concat(argTypes),
+    options);
 }
 
-function Bt(t, n, r, i, o) {
-  return new NativeFunction(St(t).add(n * e).readPointer(), r, [ "pointer", "pointer", "pointer", "pointer", "..." ].concat(i), o);
+function makeVaMethod (env, offset, retType, argTypes, options) {
+  return new NativeFunction(
+    vtable(env).add(offset * pointerSize).readPointer(),
+    retType,
+    ['pointer', 'pointer', 'pointer', '...'].concat(argTypes),
+    options);
 }
 
-t.prototype.constructor = function(t, e) {
-  return It.call(this, r, "pointer", t, e);
-}, t.prototype.vaMethod = function(t, e, n) {
-  const r = gt[t];
-  if (void 0 === r) throw new Error("Unsupported type: " + t);
-  return It.call(this, r, t, e, n);
-}, t.prototype.nonvirtualVaMethod = function(t, e, n) {
-  const r = vt[t];
-  if (void 0 === r) throw new Error("Unsupported type: " + t);
-  return Ut.call(this, r, t, e, n);
-}, t.prototype.staticVaMethod = function(t, e, n) {
-  const r = Lt[t];
-  if (void 0 === r) throw new Error("Unsupported type: " + t);
-  return It.call(this, r, t, e, n);
-}, t.prototype.getField = function(t) {
-  const e = mt[t];
-  if (void 0 === e) throw new Error("Unsupported type: " + t);
-  return Gt.call(this, e, t, []);
-}, t.prototype.getStaticField = function(t) {
-  const e = Tt[t];
-  if (void 0 === e) throw new Error("Unsupported type: " + t);
-  return Gt.call(this, e, t, []);
-}, t.prototype.setField = function(t) {
-  const e = jt[t];
-  if (void 0 === e) throw new Error("Unsupported type: " + t);
-  return Gt.call(this, e, "void", [ t ]);
-}, t.prototype.setStaticField = function(t) {
-  const e = Rt[t];
-  if (void 0 === e) throw new Error("Unsupported type: " + t);
-  return Gt.call(this, e, "void", [ t ]);
+function makeNonvirtualVaMethod (env, offset, retType, argTypes, options) {
+  return new NativeFunction(
+    vtable(env).add(offset * pointerSize).readPointer(),
+    retType,
+    ['pointer', 'pointer', 'pointer', 'pointer', '...'].concat(argTypes),
+    options);
+}
+
+Env.prototype.constructor = function (argTypes, options) {
+  return vaMethod.call(this, CALL_CONSTRUCTOR_METHOD_OFFSET, 'pointer', argTypes, options);
 };
 
-let xt = null;
-
-t.prototype.javaLangClass = function() {
-  if (null === xt) {
-    const t = this.findClass("java/lang/Class");
-    try {
-      const e = this.getMethodId.bind(this, t);
-      xt = {
-        handle: Ct(this.newGlobalRef(t)),
-        getName: e("getName", "()Ljava/lang/String;"),
-        getSimpleName: e("getSimpleName", "()Ljava/lang/String;"),
-        getGenericSuperclass: e("getGenericSuperclass", "()Ljava/lang/reflect/Type;"),
-        getDeclaredConstructors: e("getDeclaredConstructors", "()[Ljava/lang/reflect/Constructor;"),
-        getDeclaredMethods: e("getDeclaredMethods", "()[Ljava/lang/reflect/Method;"),
-        getDeclaredFields: e("getDeclaredFields", "()[Ljava/lang/reflect/Field;"),
-        isArray: e("isArray", "()Z"),
-        isPrimitive: e("isPrimitive", "()Z"),
-        getComponentType: e("getComponentType", "()Ljava/lang/Class;")
-      };
-    } finally {
-      this.deleteLocalRef(t);
-    }
+Env.prototype.vaMethod = function (retType, argTypes, options) {
+  const offset = callMethodOffset[retType];
+  if (offset === undefined) {
+    throw new Error('Unsupported type: ' + retType);
   }
-  return xt;
+  return vaMethod.call(this, offset, retType, argTypes, options);
 };
 
-let Dt = null;
-
-t.prototype.javaLangObject = function() {
-  if (null === Dt) {
-    const t = this.findClass("java/lang/Object");
-    try {
-      const e = this.getMethodId.bind(this, t);
-      Dt = {
-        toString: e("toString", "()Ljava/lang/String;"),
-        getClass: e("getClass", "()Ljava/lang/Class;")
-      };
-    } finally {
-      this.deleteLocalRef(t);
-    }
+Env.prototype.nonvirtualVaMethod = function (retType, argTypes, options) {
+  const offset = callNonvirtualMethodOffset[retType];
+  if (offset === undefined) {
+    throw new Error('Unsupported type: ' + retType);
   }
-  return Dt;
+  return nonvirtualVaMethod.call(this, offset, retType, argTypes, options);
 };
 
-let Vt = null;
-
-t.prototype.javaLangReflectConstructor = function() {
-  if (null === Vt) {
-    const t = this.findClass("java/lang/reflect/Constructor");
-    try {
-      Vt = {
-        getGenericParameterTypes: this.getMethodId(t, "getGenericParameterTypes", "()[Ljava/lang/reflect/Type;")
-      };
-    } finally {
-      this.deleteLocalRef(t);
-    }
+Env.prototype.staticVaMethod = function (retType, argTypes, options) {
+  const offset = callStaticMethodOffset[retType];
+  if (offset === undefined) {
+    throw new Error('Unsupported type: ' + retType);
   }
-  return Vt;
+  return vaMethod.call(this, offset, retType, argTypes, options);
 };
 
-let zt = null;
-
-t.prototype.javaLangReflectMethod = function() {
-  if (null === zt) {
-    const t = this.findClass("java/lang/reflect/Method");
-    try {
-      const e = this.getMethodId.bind(this, t);
-      zt = {
-        getName: e("getName", "()Ljava/lang/String;"),
-        getGenericParameterTypes: e("getGenericParameterTypes", "()[Ljava/lang/reflect/Type;"),
-        getParameterTypes: e("getParameterTypes", "()[Ljava/lang/Class;"),
-        getGenericReturnType: e("getGenericReturnType", "()Ljava/lang/reflect/Type;"),
-        getGenericExceptionTypes: e("getGenericExceptionTypes", "()[Ljava/lang/reflect/Type;"),
-        getModifiers: e("getModifiers", "()I"),
-        isVarArgs: e("isVarArgs", "()Z")
-      };
-    } finally {
-      this.deleteLocalRef(t);
-    }
+Env.prototype.getField = function (fieldType) {
+  const offset = getFieldOffset[fieldType];
+  if (offset === undefined) {
+    throw new Error('Unsupported type: ' + fieldType);
   }
-  return zt;
+  return plainMethod.call(this, offset, fieldType, []);
 };
 
-let Wt = null;
-
-t.prototype.javaLangReflectField = function() {
-  if (null === Wt) {
-    const t = this.findClass("java/lang/reflect/Field");
-    try {
-      const e = this.getMethodId.bind(this, t);
-      Wt = {
-        getName: e("getName", "()Ljava/lang/String;"),
-        getType: e("getType", "()Ljava/lang/Class;"),
-        getGenericType: e("getGenericType", "()Ljava/lang/reflect/Type;"),
-        getModifiers: e("getModifiers", "()I"),
-        toString: e("toString", "()Ljava/lang/String;")
-      };
-    } finally {
-      this.deleteLocalRef(t);
-    }
+Env.prototype.getStaticField = function (fieldType) {
+  const offset = getStaticFieldOffset[fieldType];
+  if (offset === undefined) {
+    throw new Error('Unsupported type: ' + fieldType);
   }
-  return Wt;
+  return plainMethod.call(this, offset, fieldType, []);
 };
 
-let Jt = null;
-
-t.prototype.javaLangReflectTypeVariable = function() {
-  if (null === Jt) {
-    const t = this.findClass("java/lang/reflect/TypeVariable");
-    try {
-      const e = this.getMethodId.bind(this, t);
-      Jt = {
-        handle: Ct(this.newGlobalRef(t)),
-        getName: e("getName", "()Ljava/lang/String;"),
-        getBounds: e("getBounds", "()[Ljava/lang/reflect/Type;"),
-        getGenericDeclaration: e("getGenericDeclaration", "()Ljava/lang/reflect/GenericDeclaration;")
-      };
-    } finally {
-      this.deleteLocalRef(t);
-    }
+Env.prototype.setField = function (fieldType) {
+  const offset = setFieldOffset[fieldType];
+  if (offset === undefined) {
+    throw new Error('Unsupported type: ' + fieldType);
   }
-  return Jt;
+  return plainMethod.call(this, offset, 'void', [fieldType]);
 };
 
-let Zt = null;
-
-t.prototype.javaLangReflectWildcardType = function() {
-  if (null === Zt) {
-    const t = this.findClass("java/lang/reflect/WildcardType");
-    try {
-      const e = this.getMethodId.bind(this, t);
-      Zt = {
-        handle: Ct(this.newGlobalRef(t)),
-        getLowerBounds: e("getLowerBounds", "()[Ljava/lang/reflect/Type;"),
-        getUpperBounds: e("getUpperBounds", "()[Ljava/lang/reflect/Type;")
-      };
-    } finally {
-      this.deleteLocalRef(t);
-    }
+Env.prototype.setStaticField = function (fieldType) {
+  const offset = setStaticFieldOffset[fieldType];
+  if (offset === undefined) {
+    throw new Error('Unsupported type: ' + fieldType);
   }
-  return Zt;
+  return plainMethod.call(this, offset, 'void', [fieldType]);
 };
 
-let kt = null;
-
-t.prototype.javaLangReflectGenericArrayType = function() {
-  if (null === kt) {
-    const t = this.findClass("java/lang/reflect/GenericArrayType");
+let javaLangClass = null;
+Env.prototype.javaLangClass = function () {
+  if (javaLangClass === null) {
+    const handle = this.findClass('java/lang/Class');
     try {
-      kt = {
-        handle: Ct(this.newGlobalRef(t)),
-        getGenericComponentType: this.getMethodId(t, "getGenericComponentType", "()Ljava/lang/reflect/Type;")
+      const get = this.getMethodId.bind(this, handle);
+      javaLangClass = {
+        handle: register(this.newGlobalRef(handle)),
+        getName: get('getName', '()Ljava/lang/String;'),
+        getSimpleName: get('getSimpleName', '()Ljava/lang/String;'),
+        getGenericSuperclass: get('getGenericSuperclass', '()Ljava/lang/reflect/Type;'),
+        getDeclaredConstructors: get('getDeclaredConstructors', '()[Ljava/lang/reflect/Constructor;'),
+        getDeclaredMethods: get('getDeclaredMethods', '()[Ljava/lang/reflect/Method;'),
+        getDeclaredFields: get('getDeclaredFields', '()[Ljava/lang/reflect/Field;'),
+        isArray: get('isArray', '()Z'),
+        isPrimitive: get('isPrimitive', '()Z'),
+        getComponentType: get('getComponentType', '()Ljava/lang/Class;')
       };
     } finally {
-      this.deleteLocalRef(t);
+      this.deleteLocalRef(handle);
     }
   }
-  return kt;
+  return javaLangClass;
 };
 
-let $t = null;
-
-t.prototype.javaLangReflectParameterizedType = function() {
-  if (null === $t) {
-    const t = this.findClass("java/lang/reflect/ParameterizedType");
+let javaLangObject = null;
+Env.prototype.javaLangObject = function () {
+  if (javaLangObject === null) {
+    const handle = this.findClass('java/lang/Object');
     try {
-      const e = this.getMethodId.bind(this, t);
-      $t = {
-        handle: Ct(this.newGlobalRef(t)),
-        getActualTypeArguments: e("getActualTypeArguments", "()[Ljava/lang/reflect/Type;"),
-        getRawType: e("getRawType", "()Ljava/lang/reflect/Type;"),
-        getOwnerType: e("getOwnerType", "()Ljava/lang/reflect/Type;")
+      const get = this.getMethodId.bind(this, handle);
+      javaLangObject = {
+        toString: get('toString', '()Ljava/lang/String;'),
+        getClass: get('getClass', '()Ljava/lang/Class;')
       };
     } finally {
-      this.deleteLocalRef(t);
+      this.deleteLocalRef(handle);
     }
   }
-  return $t;
+  return javaLangObject;
 };
 
-let qt = null;
-
-t.prototype.javaLangString = function() {
-  if (null === qt) {
-    const t = this.findClass("java/lang/String");
+let javaLangReflectConstructor = null;
+Env.prototype.javaLangReflectConstructor = function () {
+  if (javaLangReflectConstructor === null) {
+    const handle = this.findClass('java/lang/reflect/Constructor');
     try {
-      qt = {
-        handle: Ct(this.newGlobalRef(t))
+      javaLangReflectConstructor = {
+        getGenericParameterTypes: this.getMethodId(handle, 'getGenericParameterTypes', '()[Ljava/lang/reflect/Type;')
       };
     } finally {
-      this.deleteLocalRef(t);
+      this.deleteLocalRef(handle);
     }
   }
-  return qt;
-}, t.prototype.getClassName = function(t) {
-  const e = this.vaMethod("pointer", [])(this.handle, t, this.javaLangClass().getName);
+  return javaLangReflectConstructor;
+};
+
+let javaLangReflectMethod = null;
+Env.prototype.javaLangReflectMethod = function () {
+  if (javaLangReflectMethod === null) {
+    const handle = this.findClass('java/lang/reflect/Method');
+    try {
+      const get = this.getMethodId.bind(this, handle);
+      javaLangReflectMethod = {
+        getName: get('getName', '()Ljava/lang/String;'),
+        getGenericParameterTypes: get('getGenericParameterTypes', '()[Ljava/lang/reflect/Type;'),
+        getParameterTypes: get('getParameterTypes', '()[Ljava/lang/Class;'),
+        getGenericReturnType: get('getGenericReturnType', '()Ljava/lang/reflect/Type;'),
+        getGenericExceptionTypes: get('getGenericExceptionTypes', '()[Ljava/lang/reflect/Type;'),
+        getModifiers: get('getModifiers', '()I'),
+        isVarArgs: get('isVarArgs', '()Z')
+      };
+    } finally {
+      this.deleteLocalRef(handle);
+    }
+  }
+  return javaLangReflectMethod;
+};
+
+let javaLangReflectField = null;
+Env.prototype.javaLangReflectField = function () {
+  if (javaLangReflectField === null) {
+    const handle = this.findClass('java/lang/reflect/Field');
+    try {
+      const get = this.getMethodId.bind(this, handle);
+      javaLangReflectField = {
+        getName: get('getName', '()Ljava/lang/String;'),
+        getType: get('getType', '()Ljava/lang/Class;'),
+        getGenericType: get('getGenericType', '()Ljava/lang/reflect/Type;'),
+        getModifiers: get('getModifiers', '()I'),
+        toString: get('toString', '()Ljava/lang/String;')
+      };
+    } finally {
+      this.deleteLocalRef(handle);
+    }
+  }
+  return javaLangReflectField;
+};
+
+let javaLangReflectTypeVariable = null;
+Env.prototype.javaLangReflectTypeVariable = function () {
+  if (javaLangReflectTypeVariable === null) {
+    const handle = this.findClass('java/lang/reflect/TypeVariable');
+    try {
+      const get = this.getMethodId.bind(this, handle);
+      javaLangReflectTypeVariable = {
+        handle: register(this.newGlobalRef(handle)),
+        getName: get('getName', '()Ljava/lang/String;'),
+        getBounds: get('getBounds', '()[Ljava/lang/reflect/Type;'),
+        getGenericDeclaration: get('getGenericDeclaration', '()Ljava/lang/reflect/GenericDeclaration;')
+      };
+    } finally {
+      this.deleteLocalRef(handle);
+    }
+  }
+  return javaLangReflectTypeVariable;
+};
+
+let javaLangReflectWildcardType = null;
+Env.prototype.javaLangReflectWildcardType = function () {
+  if (javaLangReflectWildcardType === null) {
+    const handle = this.findClass('java/lang/reflect/WildcardType');
+    try {
+      const get = this.getMethodId.bind(this, handle);
+      javaLangReflectWildcardType = {
+        handle: register(this.newGlobalRef(handle)),
+        getLowerBounds: get('getLowerBounds', '()[Ljava/lang/reflect/Type;'),
+        getUpperBounds: get('getUpperBounds', '()[Ljava/lang/reflect/Type;')
+      };
+    } finally {
+      this.deleteLocalRef(handle);
+    }
+  }
+  return javaLangReflectWildcardType;
+};
+
+let javaLangReflectGenericArrayType = null;
+Env.prototype.javaLangReflectGenericArrayType = function () {
+  if (javaLangReflectGenericArrayType === null) {
+    const handle = this.findClass('java/lang/reflect/GenericArrayType');
+    try {
+      javaLangReflectGenericArrayType = {
+        handle: register(this.newGlobalRef(handle)),
+        getGenericComponentType: this.getMethodId(handle, 'getGenericComponentType', '()Ljava/lang/reflect/Type;')
+      };
+    } finally {
+      this.deleteLocalRef(handle);
+    }
+  }
+  return javaLangReflectGenericArrayType;
+};
+
+let javaLangReflectParameterizedType = null;
+Env.prototype.javaLangReflectParameterizedType = function () {
+  if (javaLangReflectParameterizedType === null) {
+    const handle = this.findClass('java/lang/reflect/ParameterizedType');
+    try {
+      const get = this.getMethodId.bind(this, handle);
+      javaLangReflectParameterizedType = {
+        handle: register(this.newGlobalRef(handle)),
+        getActualTypeArguments: get('getActualTypeArguments', '()[Ljava/lang/reflect/Type;'),
+        getRawType: get('getRawType', '()Ljava/lang/reflect/Type;'),
+        getOwnerType: get('getOwnerType', '()Ljava/lang/reflect/Type;')
+      };
+    } finally {
+      this.deleteLocalRef(handle);
+    }
+  }
+  return javaLangReflectParameterizedType;
+};
+
+let javaLangString = null;
+Env.prototype.javaLangString = function () {
+  if (javaLangString === null) {
+    const handle = this.findClass('java/lang/String');
+    try {
+      javaLangString = {
+        handle: register(this.newGlobalRef(handle))
+      };
+    } finally {
+      this.deleteLocalRef(handle);
+    }
+  }
+  return javaLangString;
+};
+
+Env.prototype.getClassName = function (classHandle) {
+  const name = this.vaMethod('pointer', [])(this.handle, classHandle, this.javaLangClass().getName);
   try {
-    return this.stringFromJni(e);
+    return this.stringFromJni(name);
   } finally {
-    this.deleteLocalRef(e);
+    this.deleteLocalRef(name);
   }
-}, t.prototype.getObjectClassName = function(t) {
-  const e = this.getObjectClass(t);
+};
+
+Env.prototype.getObjectClassName = function (objHandle) {
+  const jklass = this.getObjectClass(objHandle);
   try {
-    return this.getClassName(e);
+    return this.getClassName(jklass);
   } finally {
-    this.deleteLocalRef(e);
+    this.deleteLocalRef(jklass);
   }
-}, t.prototype.getActualTypeArgument = function(t) {
-  const e = this.vaMethod("pointer", [])(this.handle, t, this.javaLangReflectParameterizedType().getActualTypeArguments);
-  if (this.throwIfExceptionPending(), !e.isNull()) try {
-    return this.getTypeNameFromFirstTypeElement(e);
-  } finally {
-    this.deleteLocalRef(e);
-  }
-}, t.prototype.getTypeNameFromFirstTypeElement = function(t) {
-  if (!(this.getArrayLength(t) > 0)) return "java.lang.Object";
-  {
-    const e = this.getObjectArrayElement(t, 0);
+};
+
+Env.prototype.getActualTypeArgument = function (type) {
+  const actualTypeArguments = this.vaMethod('pointer', [])(this.handle, type, this.javaLangReflectParameterizedType().getActualTypeArguments);
+  this.throwIfExceptionPending();
+  if (!actualTypeArguments.isNull()) {
     try {
-      return this.getTypeName(e);
+      return this.getTypeNameFromFirstTypeElement(actualTypeArguments);
     } finally {
-      this.deleteLocalRef(e);
+      this.deleteLocalRef(actualTypeArguments);
     }
   }
-}, t.prototype.getTypeName = function(t, e) {
-  const n = this.vaMethod("pointer", []);
-  if (this.isInstanceOf(t, this.javaLangClass().handle)) return this.getClassName(t);
-  if (this.isInstanceOf(t, this.javaLangReflectGenericArrayType().handle)) return this.getArrayTypeName(t);
-  if (this.isInstanceOf(t, this.javaLangReflectParameterizedType().handle)) {
-    const r = n(this.handle, t, this.javaLangReflectParameterizedType().getRawType);
-    let i;
+};
+
+Env.prototype.getTypeNameFromFirstTypeElement = function (typeArray) {
+  const length = this.getArrayLength(typeArray);
+  if (length > 0) {
+    const typeArgument0 = this.getObjectArrayElement(typeArray, 0);
+    try {
+      return this.getTypeName(typeArgument0);
+    } finally {
+      this.deleteLocalRef(typeArgument0);
+    }
+  } else {
+    // TODO
+    return 'java.lang.Object';
+  }
+};
+
+Env.prototype.getTypeName = function (type, getGenericsInformation) {
+  const invokeObjectMethodNoArgs = this.vaMethod('pointer', []);
+
+  if (this.isInstanceOf(type, this.javaLangClass().handle)) {
+    return this.getClassName(type);
+  } else if (this.isInstanceOf(type, this.javaLangReflectGenericArrayType().handle)) {
+    return this.getArrayTypeName(type);
+  } else if (this.isInstanceOf(type, this.javaLangReflectParameterizedType().handle)) {
+    const rawType = invokeObjectMethodNoArgs(this.handle, type, this.javaLangReflectParameterizedType().getRawType);
+    this.throwIfExceptionPending();
+    let result;
+    try {
+      result = this.getTypeName(rawType);
+    } finally {
+      this.deleteLocalRef(rawType);
+    }
+
+    if (getGenericsInformation) {
+      result += '<' + this.getActualTypeArgument(type) + '>';
+    }
+    return result;
+  } else if (this.isInstanceOf(type, this.javaLangReflectTypeVariable().handle)) {
+    // TODO
+    return 'java.lang.Object';
+  } else if (this.isInstanceOf(type, this.javaLangReflectWildcardType().handle)) {
+    // TODO
+    return 'java.lang.Object';
+  } else {
+    return 'java.lang.Object';
+  }
+};
+
+Env.prototype.getArrayTypeName = function (type) {
+  const invokeObjectMethodNoArgs = this.vaMethod('pointer', []);
+
+  if (this.isInstanceOf(type, this.javaLangClass().handle)) {
+    return this.getClassName(type);
+  } else if (this.isInstanceOf(type, this.javaLangReflectGenericArrayType().handle)) {
+    const componentType = invokeObjectMethodNoArgs(this.handle, type, this.javaLangReflectGenericArrayType().getGenericComponentType);
+    // check for TypeNotPresentException and MalformedParameterizedTypeException
     this.throwIfExceptionPending();
     try {
-      i = this.getTypeName(r);
+      return '[L' + this.getTypeName(componentType) + ';';
     } finally {
-      this.deleteLocalRef(r);
+      this.deleteLocalRef(componentType);
     }
-    return e && (i += "<" + this.getActualTypeArgument(t) + ">"), i;
+  } else {
+    return '[Ljava.lang.Object;';
   }
-  return this.isInstanceOf(t, this.javaLangReflectTypeVariable().handle) || this.isInstanceOf(t, this.javaLangReflectWildcardType().handle), 
-  "java.lang.Object";
-}, t.prototype.getArrayTypeName = function(t) {
-  const e = this.vaMethod("pointer", []);
-  if (this.isInstanceOf(t, this.javaLangClass().handle)) return this.getClassName(t);
-  if (!this.isInstanceOf(t, this.javaLangReflectGenericArrayType().handle)) return "[Ljava.lang.Object;";
-  {
-    const n = e(this.handle, t, this.javaLangReflectGenericArrayType().getGenericComponentType);
-    this.throwIfExceptionPending();
-    try {
-      return "[L" + this.getTypeName(n) + ";";
-    } finally {
-      this.deleteLocalRef(n);
-    }
+};
+
+Env.prototype.stringFromJni = function (str) {
+  const utf = this.getStringChars(str);
+  if (utf.isNull()) {
+    throw new Error('Unable to access string');
   }
-}, t.prototype.stringFromJni = function(t) {
-  const e = this.getStringChars(t);
-  if (e.isNull()) throw new Error("Unable to access string");
   try {
-    const n = this.getStringLength(t);
-    return e.readUtf16String(n);
+    const length = this.getStringLength(str);
+    return utf.readUtf16String(length);
   } finally {
-    this.releaseStringChars(t, e);
+    this.releaseStringChars(str, utf);
   }
-}, module.exports = t;
+};
+
+module.exports = Env;
 
 },{}],28:[function(require,module,exports){
-const {checkJniResult: t} = require("./result"), e = {
-  v1_0: 805371904,
-  v1_2: 805372416
-}, n = {
-  canTagObjects: 1
-}, {pointerSize: i} = Process, o = {
-  exceptions: "propagate"
+const { checkJniResult } = require('./result');
+
+const jvmtiVersion = {
+  v1_0: 0x30010000,
+  v1_2: 0x30010200
 };
 
-function r(t, e) {
-  this.handle = t, this.vm = e, this.vtable = t.readPointer();
+const jvmtiCapabilities = {
+  canTagObjects: 1
+};
+
+const { pointerSize } = Process;
+const nativeFunctionOptions = {
+  exceptions: 'propagate'
+};
+
+function EnvJvmti (handle, vm) {
+  this.handle = handle;
+  this.vm = vm;
+  this.vtable = handle.readPointer();
 }
 
-function s(t, e, n, r) {
-  let s = null;
-  return function() {
-    null === s && (s = new NativeFunction(this.vtable.add((t - 1) * i).readPointer(), e, n, o));
-    let a = [ s ];
-    return a = a.concat.apply(a, arguments), r.apply(this, a);
+EnvJvmti.prototype.deallocate = proxy(47, 'int32', ['pointer', 'pointer'], function (impl, mem) {
+  return impl(this.handle, mem);
+});
+
+EnvJvmti.prototype.getLoadedClasses = proxy(78, 'int32', ['pointer', 'pointer', 'pointer'], function (impl, classCountPtr, classesPtr) {
+  const result = impl(this.handle, classCountPtr, classesPtr);
+  checkJniResult('EnvJvmti::getLoadedClasses', result);
+});
+
+EnvJvmti.prototype.iterateOverInstancesOfClass = proxy(112, 'int32', ['pointer', 'pointer', 'int', 'pointer', 'pointer'], function (impl, klass, objectFilter, heapObjectCallback, userData) {
+  const result = impl(this.handle, klass, objectFilter, heapObjectCallback, userData);
+  checkJniResult('EnvJvmti::iterateOverInstancesOfClass', result);
+});
+
+EnvJvmti.prototype.getObjectsWithTags = proxy(114, 'int32', ['pointer', 'int', 'pointer', 'pointer', 'pointer', 'pointer'], function (impl, tagCount, tags, countPtr, objectResultPtr, tagResultPtr) {
+  const result = impl(this.handle, tagCount, tags, countPtr, objectResultPtr, tagResultPtr);
+  checkJniResult('EnvJvmti::getObjectsWithTags', result);
+});
+
+EnvJvmti.prototype.addCapabilities = proxy(142, 'int32', ['pointer', 'pointer'], function (impl, capabilitiesPtr) {
+  return impl(this.handle, capabilitiesPtr);
+});
+
+function proxy (offset, retType, argTypes, wrapper) {
+  let impl = null;
+  return function () {
+    if (impl === null) {
+      impl = new NativeFunction(this.vtable.add((offset - 1) * pointerSize).readPointer(), retType, argTypes, nativeFunctionOptions);
+    }
+    let args = [impl];
+    args = args.concat.apply(args, arguments);
+    return wrapper.apply(this, args);
   };
 }
 
-r.prototype.deallocate = s(47, "int32", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), r.prototype.getLoadedClasses = s(78, "int32", [ "pointer", "pointer", "pointer" ], (function(e, n, i) {
-  const o = e(this.handle, n, i);
-  t("EnvJvmti::getLoadedClasses", o);
-})), r.prototype.iterateOverInstancesOfClass = s(112, "int32", [ "pointer", "pointer", "int", "pointer", "pointer" ], (function(e, n, i, o, r) {
-  const s = e(this.handle, n, i, o, r);
-  t("EnvJvmti::iterateOverInstancesOfClass", s);
-})), r.prototype.getObjectsWithTags = s(114, "int32", [ "pointer", "int", "pointer", "pointer", "pointer", "pointer" ], (function(e, n, i, o, r, s) {
-  const a = e(this.handle, n, i, o, r, s);
-  t("EnvJvmti::getObjectsWithTags", a);
-})), r.prototype.addCapabilities = s(142, "int32", [ "pointer", "pointer" ], (function(t, e) {
-  return t(this.handle, e);
-})), module.exports = {
-  jvmtiVersion: e,
-  jvmtiCapabilities: n,
-  EnvJvmti: r
+module.exports = {
+  jvmtiVersion,
+  jvmtiCapabilities,
+  EnvJvmti
 };
 
 },{"./result":31}],29:[function(require,module,exports){
-function t(t, n, {limit: l}) {
-  let r = t, e = null;
-  for (let t = 0; t !== l; t++) {
-    const t = Instruction.parse(r), l = n(t, e);
-    if (null !== l) return l;
-    r = t.next, e = t;
+function parseInstructionsAt (address, tryParse, { limit }) {
+  let cursor = address;
+  let prevInsn = null;
+
+  for (let i = 0; i !== limit; i++) {
+    const insn = Instruction.parse(cursor);
+
+    const value = tryParse(insn, prevInsn);
+    if (value !== null) {
+      return value;
+    }
+
+    cursor = insn.next;
+    prevInsn = insn;
   }
+
   return null;
 }
 
 module.exports = {
-  parseInstructionsAt: t
+  parseInstructionsAt
 };
 
 },{}],30:[function(require,module,exports){
-function n(n) {
-  let t = null, u = !1;
-  return function(...e) {
-    return u || (t = n(...e), u = !0), t;
+function memoize (compute) {
+  let value = null;
+  let computed = false;
+
+  return function (...args) {
+    if (!computed) {
+      value = compute(...args);
+      computed = true;
+    }
+
+    return value;
   };
 }
 
-module.exports = n;
+module.exports = memoize;
 
 },{}],31:[function(require,module,exports){
-const e = 0;
+const JNI_OK = 0;
 
-function o(e, o) {
-  if (0 !== o) throw new Error(e + " failed: " + o);
+function checkJniResult (name, result) {
+  if (result !== JNI_OK) {
+    throw new Error(name + ' failed: ' + result);
+  }
 }
 
 module.exports = {
-  checkJniResult: o,
+  checkJniResult,
   JNI_OK: 0
 };
 
 },{}],32:[function(require,module,exports){
-const t = require("./env"), {JNI_OK: e, checkJniResult: n} = require("./result"), r = 65542, i = Process.pointerSize, o = Process.getCurrentThreadId(), s = new Map, a = new Map;
+const Env = require('./env');
+const { JNI_OK, checkJniResult } = require('./result');
 
-function c(c) {
-  const u = c.vm;
-  let l = null, h = null, d = null;
-  function f(t) {
-    const e = a.get(t);
-    return void 0 === e ? null : e[0];
+const JNI_VERSION_1_6 = 0x00010006;
+
+const pointerSize = Process.pointerSize;
+
+const jsThreadID = Process.getCurrentThreadId();
+const attachedThreads = new Map();
+const activeEnvs = new Map();
+
+function VM (api) {
+  const handle = api.vm;
+  let attachCurrentThread = null;
+  let detachCurrentThread = null;
+  let getEnv = null;
+
+  function initialize () {
+    const vtable = handle.readPointer();
+    const options = {
+      exceptions: 'propagate'
+    };
+    attachCurrentThread = new NativeFunction(vtable.add(4 * pointerSize).readPointer(), 'int32', ['pointer', 'pointer', 'pointer'], options);
+    detachCurrentThread = new NativeFunction(vtable.add(5 * pointerSize).readPointer(), 'int32', ['pointer'], options);
+    getEnv = new NativeFunction(vtable.add(6 * pointerSize).readPointer(), 'int32', ['pointer', 'pointer', 'int32'], options);
   }
-  this.handle = u, this.perform = function(t) {
-    const e = Process.getCurrentThreadId(), n = f(e);
-    if (null !== n) return t(n);
-    let r = this._tryGetEnv();
-    const i = null !== r;
-    i || (r = this.attachCurrentThread(), s.set(e, !0)), this.link(e, r);
+
+  this.handle = handle;
+
+  this.perform = function (fn) {
+    const threadId = Process.getCurrentThreadId();
+
+    const cachedEnv = tryGetCachedEnv(threadId);
+    if (cachedEnv !== null) {
+      return fn(cachedEnv);
+    }
+
+    let env = this._tryGetEnv();
+    const alreadyAttached = env !== null;
+    if (!alreadyAttached) {
+      env = this.attachCurrentThread();
+      attachedThreads.set(threadId, true);
+    }
+
+    this.link(threadId, env);
+
     try {
-      return t(r);
+      return fn(env);
     } finally {
-      const t = e === o;
-      if (t || this.unlink(e), !i && !t) {
-        const t = s.get(e);
-        s.delete(e), t && this.detachCurrentThread();
+      const isJsThread = threadId === jsThreadID;
+
+      if (!isJsThread) {
+        this.unlink(threadId);
+      }
+
+      if (!alreadyAttached && !isJsThread) {
+        const allowedToDetach = attachedThreads.get(threadId);
+        attachedThreads.delete(threadId);
+
+        if (allowedToDetach) {
+          this.detachCurrentThread();
+        }
       }
     }
-  }, this.attachCurrentThread = function() {
-    const e = Memory.alloc(i);
-    return n("VM::AttachCurrentThread", l(u, e, NULL)), new t(e.readPointer(), this);
-  }, this.detachCurrentThread = function() {
-    n("VM::DetachCurrentThread", h(u));
-  }, this.preventDetachDueToClassLoader = function() {
-    const t = Process.getCurrentThreadId();
-    s.has(t) && s.set(t, !1);
-  }, this.getEnv = function() {
-    const e = f(Process.getCurrentThreadId());
-    if (null !== e) return e;
-    const o = Memory.alloc(i), s = d(u, o, r);
-    if (-2 === s) throw new Error("Current thread is not attached to the Java VM; please move this code inside a Java.perform() callback");
-    return n("VM::GetEnv", s), new t(o.readPointer(), this);
-  }, this.tryGetEnv = function() {
-    const t = f(Process.getCurrentThreadId());
-    return null !== t ? t : this._tryGetEnv();
-  }, this._tryGetEnv = function() {
-    const e = this.tryGetEnvHandle(r);
-    return null === e ? null : new t(e, this);
-  }, this.tryGetEnvHandle = function(t) {
-    const n = Memory.alloc(i);
-    return d(u, n, t) !== e ? null : n.readPointer();
-  }, this.makeHandleDestructor = function(t) {
+  };
+
+  this.attachCurrentThread = function () {
+    const envBuf = Memory.alloc(pointerSize);
+    checkJniResult('VM::AttachCurrentThread', attachCurrentThread(handle, envBuf, NULL));
+    return new Env(envBuf.readPointer(), this);
+  };
+
+  this.detachCurrentThread = function () {
+    checkJniResult('VM::DetachCurrentThread', detachCurrentThread(handle));
+  };
+
+  this.preventDetachDueToClassLoader = function () {
+    const threadId = Process.getCurrentThreadId();
+
+    if (attachedThreads.has(threadId)) {
+      attachedThreads.set(threadId, false);
+    }
+  };
+
+  this.getEnv = function () {
+    const cachedEnv = tryGetCachedEnv(Process.getCurrentThreadId());
+    if (cachedEnv !== null) {
+      return cachedEnv;
+    }
+
+    const envBuf = Memory.alloc(pointerSize);
+    const result = getEnv(handle, envBuf, JNI_VERSION_1_6);
+    if (result === -2) {
+      throw new Error('Current thread is not attached to the Java VM; please move this code inside a Java.perform() callback');
+    }
+    checkJniResult('VM::GetEnv', result);
+    return new Env(envBuf.readPointer(), this);
+  };
+
+  this.tryGetEnv = function () {
+    const cachedEnv = tryGetCachedEnv(Process.getCurrentThreadId());
+    if (cachedEnv !== null) {
+      return cachedEnv;
+    }
+
+    return this._tryGetEnv();
+  };
+
+  this._tryGetEnv = function () {
+    const h = this.tryGetEnvHandle(JNI_VERSION_1_6);
+    if (h === null) {
+      return null;
+    }
+    return new Env(h, this);
+  };
+
+  this.tryGetEnvHandle = function (version) {
+    const envBuf = Memory.alloc(pointerSize);
+    const result = getEnv(handle, envBuf, version);
+    if (result !== JNI_OK) {
+      return null;
+    }
+    return envBuf.readPointer();
+  };
+
+  this.makeHandleDestructor = function (handle) {
     return () => {
-      this.perform((e => {
-        e.deleteGlobalRef(t);
-      }));
+      this.perform(env => {
+        env.deleteGlobalRef(handle);
+      });
     };
-  }, this.link = function(t, e) {
-    const n = a.get(t);
-    void 0 === n ? a.set(t, [ e, 1 ]) : n[1]++;
-  }, this.unlink = function(t) {
-    const e = a.get(t);
-    1 === e[1] ? a.delete(t) : e[1]--;
-  }, function() {
-    const t = u.readPointer(), e = {
-      exceptions: "propagate"
-    };
-    l = new NativeFunction(t.add(4 * i).readPointer(), "int32", [ "pointer", "pointer", "pointer" ], e), 
-    h = new NativeFunction(t.add(5 * i).readPointer(), "int32", [ "pointer" ], e), d = new NativeFunction(t.add(6 * i).readPointer(), "int32", [ "pointer", "pointer", "int32" ], e);
-  }.call(this);
+  };
+
+  this.link = function (tid, env) {
+    const entry = activeEnvs.get(tid);
+    if (entry === undefined) {
+      activeEnvs.set(tid, [env, 1]);
+    } else {
+      entry[1]++;
+    }
+  };
+
+  this.unlink = function (tid) {
+    const entry = activeEnvs.get(tid);
+    if (entry[1] === 1) {
+      activeEnvs.delete(tid);
+    } else {
+      entry[1]--;
+    }
+  };
+
+  function tryGetCachedEnv (threadId) {
+    const entry = activeEnvs.get(threadId);
+    if (entry === undefined) {
+      return null;
+    }
+    return entry[0];
+  }
+
+  initialize.call(this);
 }
 
-c.dispose = function(t) {
-  !0 === s.get(o) && (s.delete(o), t.detachCurrentThread());
-}, module.exports = c;
+VM.dispose = function (vm) {
+  if (attachedThreads.get(jsThreadID) === true) {
+    attachedThreads.delete(jsThreadID);
+    vm.detachCurrentThread();
+  }
+};
+
+module.exports = VM;
+
+/* global Memory, NativeFunction, NULL, Process */
 
 },{"./env":27,"./result":31}],33:[function(require,module,exports){
-var t, e, n = module.exports = {};
+// shim for using process in browser
+var process = module.exports = {};
 
-function r() {
-  throw new Error("setTimeout has not been defined");
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
 }
-
-function o() {
-  throw new Error("clearTimeout has not been defined");
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
 }
-
-function i(e) {
-  if (t === setTimeout) return setTimeout(e, 0);
-  if ((t === r || !t) && setTimeout) return t = setTimeout, setTimeout(e, 0);
-  try {
-    return t(e, 0);
-  } catch (n) {
+(function () {
     try {
-      return t.call(null, e, 0);
-    } catch (n) {
-      return t.call(this, e, 0);
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
     }
-  }
-}
-
-function u(t) {
-  if (e === clearTimeout) return clearTimeout(t);
-  if ((e === o || !e) && clearTimeout) return e = clearTimeout, clearTimeout(t);
-  try {
-    return e(t);
-  } catch (n) {
     try {
-      return e.call(null, t);
-    } catch (n) {
-      return e.call(this, t);
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
     }
-  }
-}
-
-!function() {
-  try {
-    t = "function" == typeof setTimeout ? setTimeout : r;
-  } catch (e) {
-    t = r;
-  }
-  try {
-    e = "function" == typeof clearTimeout ? clearTimeout : o;
-  } catch (t) {
-    e = o;
-  }
-}();
-
-var c, s = [], l = !1, a = -1;
-
-function f() {
-  l && c && (l = !1, c.length ? s = c.concat(s) : a = -1, s.length && h());
-}
-
-function h() {
-  if (!l) {
-    var t = i(f);
-    l = !0;
-    for (var e = s.length; e; ) {
-      for (c = s, s = []; ++a < e; ) c && c[a].run();
-      a = -1, e = s.length;
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
     }
-    c = null, l = !1, u(t);
-  }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
 }
 
-function m(t, e) {
-  this.fun = t, this.array = e;
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
 }
 
-function p() {}
-
-n.nextTick = function(t) {
-  var e = new Array(arguments.length - 1);
-  if (arguments.length > 1) for (var n = 1; n < arguments.length; n++) e[n - 1] = arguments[n];
-  s.push(new m(t, e)), 1 !== s.length || l || i(h);
-}, m.prototype.run = function() {
-  this.fun.apply(null, this.array);
-}, n.title = "browser", n.browser = !0, n.env = {}, n.argv = [], n.version = "", 
-n.versions = {}, n.on = p, n.addListener = p, n.once = p, n.off = p, n.removeListener = p, 
-n.removeAllListeners = p, n.emit = p, n.prependListener = p, n.prependOnceListener = p, 
-n.listeners = function(t) {
-  return [];
-}, n.binding = function(t) {
-  throw new Error("process.binding is not supported");
-}, n.cwd = function() {
-  return "/";
-}, n.chdir = function(t) {
-  throw new Error("process.chdir is not supported");
-}, n.umask = function() {
-  return 0;
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
 };
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
 
 },{}],34:[function(require,module,exports){
 (function (setImmediate,clearImmediate){(function (){
-var e = require("process/browser.js").nextTick, t = Function.prototype.apply, o = Array.prototype.slice, i = {}, n = 0;
+var nextTick = require('process/browser.js').nextTick;
+var apply = Function.prototype.apply;
+var slice = Array.prototype.slice;
+var immediateIds = {};
+var nextImmediateId = 0;
 
-function r(e, t) {
-  this._id = e, this._clearFn = t;
-}
+// DOM APIs, for completeness
 
 exports.setTimeout = function() {
-  return new r(t.call(setTimeout, window, arguments), clearTimeout);
-}, exports.setInterval = function() {
-  return new r(t.call(setInterval, window, arguments), clearInterval);
-}, exports.clearTimeout = exports.clearInterval = function(e) {
-  e.close();
-}, r.prototype.unref = r.prototype.ref = function() {}, r.prototype.close = function() {
+  return new Timeout(apply.call(setTimeout, window, arguments), clearTimeout);
+};
+exports.setInterval = function() {
+  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
+};
+exports.clearTimeout =
+exports.clearInterval = function(timeout) { timeout.close(); };
+
+function Timeout(id, clearFn) {
+  this._id = id;
+  this._clearFn = clearFn;
+}
+Timeout.prototype.unref = Timeout.prototype.ref = function() {};
+Timeout.prototype.close = function() {
   this._clearFn.call(window, this._id);
-}, exports.enroll = function(e, t) {
-  clearTimeout(e._idleTimeoutId), e._idleTimeout = t;
-}, exports.unenroll = function(e) {
-  clearTimeout(e._idleTimeoutId), e._idleTimeout = -1;
-}, exports._unrefActive = exports.active = function(e) {
-  clearTimeout(e._idleTimeoutId);
-  var t = e._idleTimeout;
-  t >= 0 && (e._idleTimeoutId = setTimeout((function() {
-    e._onTimeout && e._onTimeout();
-  }), t));
-}, exports.setImmediate = "function" == typeof setImmediate ? setImmediate : function(t) {
-  var r = n++, l = !(arguments.length < 2) && o.call(arguments, 1);
-  return i[r] = !0, e((function() {
-    i[r] && (l ? t.apply(null, l) : t.call(null), exports.clearImmediate(r));
-  })), r;
-}, exports.clearImmediate = "function" == typeof clearImmediate ? clearImmediate : function(e) {
-  delete i[e];
 };
 
+// Does not start the time, just sets up the members needed.
+exports.enroll = function(item, msecs) {
+  clearTimeout(item._idleTimeoutId);
+  item._idleTimeout = msecs;
+};
+
+exports.unenroll = function(item) {
+  clearTimeout(item._idleTimeoutId);
+  item._idleTimeout = -1;
+};
+
+exports._unrefActive = exports.active = function(item) {
+  clearTimeout(item._idleTimeoutId);
+
+  var msecs = item._idleTimeout;
+  if (msecs >= 0) {
+    item._idleTimeoutId = setTimeout(function onTimeout() {
+      if (item._onTimeout)
+        item._onTimeout();
+    }, msecs);
+  }
+};
+
+// That's not how node.js implements it but the exposed api is the same.
+exports.setImmediate = typeof setImmediate === "function" ? setImmediate : function(fn) {
+  var id = nextImmediateId++;
+  var args = arguments.length < 2 ? false : slice.call(arguments, 1);
+
+  immediateIds[id] = true;
+
+  nextTick(function onNextTick() {
+    if (immediateIds[id]) {
+      // fn.call() is faster so we optimize for the common use-case
+      // @see http://jsperf.com/call-apply-segu
+      if (args) {
+        fn.apply(null, args);
+      } else {
+        fn.call(null);
+      }
+      // Prevent ids from leaking
+      exports.clearImmediate(id);
+    }
+  });
+
+  return id;
+};
+
+exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
+  delete immediateIds[id];
+};
 }).call(this)}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
 
 },{"process/browser.js":33,"timers":34}]},{},[4])
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIm5vZGVfbW9kdWxlcy9icm93c2VyLXBhY2svX3ByZWx1ZGUuanMiLCJhc3Npc3QvY2hhbGtfc2VsZWN0b3IudHMiLCJhc3Npc3QvZnV6enlfbWF0Y2hfYXNzaXN0LnRzIiwiYXNzaXN0L21vZHVsZV9hc3Npc3QudHMiLCJpbmRleC50cyIsIm1haW4udHMiLCJtb25pdG9yL2NhbGxfZXZlbnRfbG9nLnRzIiwibW9uaXRvci9pbXBsL2NhbGxfbW9uaXRvci50cyIsIm1vbml0b3IvaW1wbC9tb25pdG9yX3NlbGVjdG9yLnRzIiwibW9uaXRvci9pbXBsL3N2Y19tb25pdG9yLnRzIiwibW9uaXRvci9zdGFsa2VyX21vbml0b3IudHMiLCJtb25pdG9yL3N2Yy9zaWduYWxfbmFtZV9tYXAudHMiLCJtb25pdG9yL3N2Yy9zdmNfbG9nX3RyYW5zbGF0aW9uLnRzIiwibmF0aXZlL2FuZHJvaWRfYXJ0LnRzIiwibmF0aXZlL3NvaW5mby50cyIsIm5hdGl2ZS91bml4X2FuZHJvaWQudHMiLCJub2RlX21vZHVsZXMvYW5zaS1zdHlsZXMvaW5kZXguanMiLCJub2RlX21vZHVsZXMvY2hhbGsvc291cmNlL2luZGV4LmpzIiwibm9kZV9tb2R1bGVzL2NoYWxrL3NvdXJjZS90ZW1wbGF0ZXMuanMiLCJub2RlX21vZHVsZXMvY2hhbGsvc291cmNlL3V0aWwuanMiLCJub2RlX21vZHVsZXMvY29sb3ItY29udmVydC9jb252ZXJzaW9ucy5qcyIsIm5vZGVfbW9kdWxlcy9jb2xvci1jb252ZXJ0L2luZGV4LmpzIiwibm9kZV9tb2R1bGVzL2NvbG9yLWNvbnZlcnQvcm91dGUuanMiLCJub2RlX21vZHVsZXMvY29sb3ItbmFtZS9pbmRleC5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1jb21waWxlL2xpYi9zdXBwb3J0cy1jb2xvci5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1qYXZhLWJyaWRnZS9saWIvYWxsb2MuanMiLCJub2RlX21vZHVsZXMvZnJpZGEtamF2YS1icmlkZ2UvbGliL2FuZHJvaWQuanMiLCJub2RlX21vZHVsZXMvZnJpZGEtamF2YS1icmlkZ2UvbGliL2Vudi5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1qYXZhLWJyaWRnZS9saWIvanZtdGkuanMiLCJub2RlX21vZHVsZXMvZnJpZGEtamF2YS1icmlkZ2UvbGliL21hY2hpbmUtY29kZS5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1qYXZhLWJyaWRnZS9saWIvbWVtb2l6ZS5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1qYXZhLWJyaWRnZS9saWIvcmVzdWx0LmpzIiwibm9kZV9tb2R1bGVzL2ZyaWRhLWphdmEtYnJpZGdlL2xpYi92bS5qcyIsIm5vZGVfbW9kdWxlcy9wcm9jZXNzL2Jyb3dzZXIuanMiLCJub2RlX21vZHVsZXMvdGltZXJzLWJyb3dzZXJpZnkvbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7OztBQ0FBLE1BQUEsSUFBQSxFQUFBLFFBQUE7O0FBRUEsTUFBYTtFQUNULE9BQVMsRUFBQyxFQUFBLFFBQU0sTUFBTSxFQUFBLFFBQU0sTUFBTSxFQUFBLFFBQU0sUUFBUSxFQUFBLFFBQU0sTUFBTSxFQUFBLFFBQU0sT0FBTyxFQUFBLFFBQU07RUFDL0UsU0FBVztFQUVYO0lBQ1EsS0FBSyxZQUFZLEtBQUssT0FBTyxXQUM3QixLQUFLLFdBQVc7SUFFcEIsTUFBTSxJQUFJLEtBQUs7SUFDZixLQUFLO0lBRUwsT0FEYyxLQUFLLE9BQU8sSUFBSSxLQUFLLE9BQU87QUFFOUM7OztBQVpKLFFBQUE7Ozs7O0FDRkEsSUFBaUI7Ozs7Z0NBQWpCLFNBQWlCO0VBRUcsRUFBQSxRQUFoQixTQUFzQixHQUFpQjtJQUNuQyxNQUFNLElBQVUsSUFBSSxFQUFRLFdBQVcsS0FBSztJQUc1QyxPQUZrQixJQUFJLE9BQU8sR0FBUyxLQUVyQixLQUFLO0FBQzFCO0FBRUgsQ0FURCxDQUFpQixJQUFBLFFBQUEsY0FBQSxRQUFBLFlBQVM7OztBQ0ExQjtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFD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QUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDdkpBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDL0tBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FB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QUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDeEJBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDNUhBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDN0dBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUNoSUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUNuRUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUN6QkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQ3BXQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQ2xDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDNUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FDekpBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDaEJBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7O0FDL0NBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7OztBQ3B4RUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQy9sQkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FDekNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDYkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQ1JBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDVkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQ3ZFQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUNoR0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0EiLCJmaWxlIjoiZ2VuZXJhdGVkLmpzIiwic291cmNlUm9vdCI6IiJ9
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIm5vZGVfbW9kdWxlcy9icm93c2VyLXBhY2svX3ByZWx1ZGUuanMiLCJhc3Npc3QvY2hhbGtfc2VsZWN0b3IudHMiLCJhc3Npc3QvZnV6enlfbWF0Y2hfYXNzaXN0LnRzIiwiYXNzaXN0L21vZHVsZV9hc3Npc3QudHMiLCJpbmRleC50cyIsIm1haW4udHMiLCJtb25pdG9yL2NhbGxfZXZlbnRfbG9nLnRzIiwibW9uaXRvci9pbXBsL2NhbGxfbW9uaXRvci50cyIsIm1vbml0b3IvaW1wbC9tb25pdG9yX3NlbGVjdG9yLnRzIiwibW9uaXRvci9pbXBsL3N2Y19tb25pdG9yLnRzIiwibW9uaXRvci9zdGFsa2VyX21vbml0b3IudHMiLCJtb25pdG9yL3N2Yy9zaWduYWxfbmFtZV9tYXAudHMiLCJtb25pdG9yL3N2Yy9zdmNfbG9nX3RyYW5zbGF0aW9uLnRzIiwibmF0aXZlL2FuZHJvaWRfYXJ0LnRzIiwibmF0aXZlL3NvaW5mby50cyIsIm5hdGl2ZS91bml4X2FuZHJvaWQudHMiLCJub2RlX21vZHVsZXMvYW5zaS1zdHlsZXMvaW5kZXguanMiLCJub2RlX21vZHVsZXMvY2hhbGsvc291cmNlL2luZGV4LmpzIiwibm9kZV9tb2R1bGVzL2NoYWxrL3NvdXJjZS90ZW1wbGF0ZXMuanMiLCJub2RlX21vZHVsZXMvY2hhbGsvc291cmNlL3V0aWwuanMiLCJub2RlX21vZHVsZXMvY29sb3ItY29udmVydC9jb252ZXJzaW9ucy5qcyIsIm5vZGVfbW9kdWxlcy9jb2xvci1jb252ZXJ0L2luZGV4LmpzIiwibm9kZV9tb2R1bGVzL2NvbG9yLWNvbnZlcnQvcm91dGUuanMiLCJub2RlX21vZHVsZXMvY29sb3ItbmFtZS9pbmRleC5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1jb21waWxlL2xpYi9zdXBwb3J0cy1jb2xvci5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1qYXZhLWJyaWRnZS9saWIvYWxsb2MuanMiLCJub2RlX21vZHVsZXMvZnJpZGEtamF2YS1icmlkZ2UvbGliL2FuZHJvaWQuanMiLCJub2RlX21vZHVsZXMvZnJpZGEtamF2YS1icmlkZ2UvbGliL2Vudi5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1qYXZhLWJyaWRnZS9saWIvanZtdGkuanMiLCJub2RlX21vZHVsZXMvZnJpZGEtamF2YS1icmlkZ2UvbGliL21hY2hpbmUtY29kZS5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1qYXZhLWJyaWRnZS9saWIvbWVtb2l6ZS5qcyIsIm5vZGVfbW9kdWxlcy9mcmlkYS1qYXZhLWJyaWRnZS9saWIvcmVzdWx0LmpzIiwibm9kZV9tb2R1bGVzL2ZyaWRhLWphdmEtYnJpZGdlL2xpYi92bS5qcyIsIm5vZGVfbW9kdWxlcy9wcm9jZXNzL2Jyb3dzZXIuanMiLCJub2RlX21vZHVsZXMvdGltZXJzLWJyb3dzZXJpZnkvbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7OztBQ0FBLGtEQUEwQjtBQUUxQixNQUFhLGFBQWE7SUFDdEIsTUFBTSxHQUFHLENBQUMsZUFBSyxDQUFDLElBQUksRUFBRSxlQUFLLENBQUMsSUFBSSxFQUFFLGVBQUssQ0FBQyxNQUFNLEVBQUUsZUFBSyxDQUFDLElBQUksRUFBRSxlQUFLLENBQUMsS0FBSyxFQUFFLGVBQUssQ0FBQyxPQUFPLENBQUMsQ0FBQTtJQUN2RixRQUFRLEdBQUcsQ0FBQyxDQUFBO0lBRVosUUFBUTtRQUNKLElBQUksSUFBSSxDQUFDLFFBQVEsSUFBSSxJQUFJLENBQUMsTUFBTSxDQUFDLE1BQU0sRUFBRTtZQUNyQyxJQUFJLENBQUMsUUFBUSxHQUFHLENBQUMsQ0FBQztTQUNyQjtRQUNELE1BQU0sQ0FBQyxHQUFHLElBQUksQ0FBQyxRQUFRLENBQUM7UUFDeEIsSUFBSSxDQUFDLFFBQVEsRUFBRSxDQUFDO1FBQ2hCLE1BQU0sS0FBSyxHQUFHLElBQUksQ0FBQyxNQUFNLENBQUMsQ0FBQyxHQUFHLElBQUksQ0FBQyxNQUFNLENBQUMsTUFBTSxDQUFDLENBQUM7UUFDbEQsT0FBTyxLQUFLLENBQUM7SUFDakIsQ0FB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QyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxnQkFBZ0IsQ0FBQyxDQUFDO1FBQzFDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxpQkFBaUIsQ0FBQyxDQUFDO1FBQzNDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxrQkFBa0IsQ0FBQyxDQUFDO1FBQzVDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxvQkFBb0IsQ0FBQyxDQUFDO1FBQzlDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxtQkFBbUIsQ0FBQyxDQUFDO1FBQzdDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxvQkFBb0IsQ0FBQyxDQUFDO1FBQzlDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSx1QkFBdUIsQ0FBQyxDQUFDO1FBQ2pELElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxvQkFBb0IsQ0FBQyxDQUFDO1FBQzlDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxtQkFBbUIsQ0FBQyxDQUFDO1FBQzdDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxvQkFBb0IsQ0FBQyxDQUFDO1FBQzlDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxvQkFBb0IsQ0FBQyxDQUFDO1FBQzlDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxtQkFBbUIsQ0FBQyxDQUFDO1FBQzdDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxzQkFBc0IsQ0FBQyxDQUFDO1FBQ2hELElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxhQUFhLENBQUMsQ0FBQztRQUN2QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsYUFBYSxDQUFDLENBQUM7UUFDdkMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLHFCQUFxQixDQUFDLENBQUM7UUFDL0MsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLHlCQUF5QixDQUFDLENBQUM7UUFDbkQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLHlCQUF5QixDQUFDLENBQUM7UUFDbkQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLHFCQUFxQixDQUFDLENBQUM7UUFDL0MsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLHdCQUF3QixDQUFDLENBQUM7UUFDbEQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLHdCQUF3QixDQUFDLENBQUM7UUFDbEQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGtCQUFrQixDQUFDLENBQUM7UUFDNUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLDZCQUE2QixDQUFDLENBQUM7UUFDdkQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLDZCQUE2QixDQUFDLENBQUM7UUFDdkQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLDRCQUE0QixDQUFDLENBQUM7UUFDdEQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLHNCQUFzQixDQUFDLENBQUM7UUFDaEQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLFdBQVcsQ0FBQyxDQUFDO1FBQ3JDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxZQUFZLENBQUMsQ0FBQztRQUN0QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsYUFBYSxDQUFDLENB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dkMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGFBQWEsQ0FBQyxDQUFDO1FBQ3ZDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxhQUFhLENBQUMsQ0FBQztRQUN2QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsaUJBQWlCLENBQUMsQ0FBQztRQUMzQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsWUFBWSxDQUFDLENBQUM7UUFDdEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGFBQWEsQ0FBQyxDQUFDO1FBQ3ZDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxhQUFhLENBQUMsQ0FBQztRQUN2QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsWUFBWSxDQUFDLENBQUM7UUFDdEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLFlBQVksQ0FBQyxDQUFDO1FBQ3RDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxhQUFhLENBQUMsQ0FBQztRQUN2QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsaUJBQWlCLENBQUMsQ0FBQztRQUMzQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsV0FBVyxDQUFDLENBQUM7UUFDckMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGFBQWEsQ0FBQyxDQUFDO1FBQ3ZDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxhQUFhLENBQUMsQ0FBQztRQUN2QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsY0FBYyxDQUFDLENBQUM7UUFDeEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGtCQUFrQixDQUFDLENBQUM7UUFDNUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGtCQUFrQixDQUFDLENBQUM7UUFDNUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGFBQWEsQ0FBQyxDQUFDO1FBQ3ZDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxlQUFlLENBQUMsQ0FBQztRQUN6QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsaUJBQWlCLENBQUMsQ0FBQztRQUMzQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsaUJBQWlCLENBQUMsQ0FBQztRQUMzQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsZUFBZSxDQUFDLENBQUM7UUFDekMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGNBQWMsQ0FBQyxDQUFDO1FBQ3hDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxjQUFjLENBQUMsQ0FBQztRQUN4QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsZ0JBQWdCLENBQUMsQ0FBQztRQUMxQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsVUFBVSxDQUFDLENBQUM7UUFDcEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGFBQWEsQ0FBQyxDQUFDO1FBQ3ZDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxhQUFhLENBQUMsQ0FBQztRQUN2QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsY0FBYyxDQUFDLENBQUM7UUFDeEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGtCQUFrQixDQUFDLENBQUM7UUFDNUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGFBQWEsQ0FBQyxDQUFDO1FBQ3ZDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxZQUFZLENBQUMsQ0FBQztRQUN0QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsYUFBYSxDQUFDLENBQUM7UUFDdkMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGVBQWUsQ0FBQyxDQUFDO1FBQ3pDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxvQkFBb0IsQ0FBQyxDQUFDO1FBQzlDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxhQUFhLENBQUMsQ0FBQztRQUN2QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsY0FBYyxDQUFDLENBQUM7UUFDeEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGVBQWUsQ0FBQyxDQUFDO1FBQ3pDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxZQUFZLENBQUMsQ0FBQztRQUN0QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsWUFBWSxDQUFDLENBQUM7UUFDdEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGNBQWMsQ0FBQyxDQUFDO1FBQ3hDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxlQUFlLENBQUMsQ0FBQztRQUN6QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsaUJBQWlCLENBQUMsQ0FBQztRQUMzQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsY0FBYyxDQUFDLENBQUM7UUFDeEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGNBQWMsQ0FBQyxDQUFDO1FBQ3hDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSx1QkFBdUIsQ0FBQyxDQUFDO1FBQ2pELElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxZQUFZLENBQUMsQ0FBQztRQUN0QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsb0JBQW9CLENBQUMsQ0FBQztRQUM5QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsb0JBQW9CLENBQUMsQ0FBQztRQUM5QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsb0JBQW9CLENBQUMsQ0FBQztRQUM5QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsaUJBQWlCLENBQUMsQ0FBQztRQUMzQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsY0FBYyxDQUFDLENBQUM7UUFDeEMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGVBQWUsQ0FBQyxDQUFDO1FBQ3pDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSw0QkFBNEIsQ0FBQyxDQUFDO1FBQ3RELElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxZQUFZLENBQUMsQ0FBQztRQUN0QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsZ0JBQWdCLENBQUMsQ0FBQztRQUMxQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsb0JBQW9CLENBQUMsQ0FBQztRQUM5QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsb0JBQW9CLENBQUMsQ0FBQztRQUM5QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsb0JBQW9CLENBQUMsQ0FBQztRQUM5QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsYUFBYSxDQUFDLENBQUM7UUFDdkMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLFlBQVksQ0FBQyxDQUFDO1FBQ3RDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxlQUFlLENBQUMsQ0FBQztRQUN6QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsdUJBQXVCLENBQUMsQ0FBQztRQUNqRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsV0FBVyxDQUFDLENBQUM7UUFDckMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLG1CQUFtQixDQUFDLENBQUM7UUFDN0MsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLG9CQUFvQixDQUFDLENBQUM7UUFDOUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLG9CQUFvQixDQUFDLENBQUM7UUFDOUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGdCQUFnQixDQUFDLENBQUM7UUFDMUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGNBQWMsQ0FBQyxDQUFDO1FBQ3hDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxnQkFBZ0IsQ0FBQyxDQUFDO1FBQzFDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxtQkFBbUIsQ0FBQyxDQUFDO1FBQzdDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxVQUFVLENBQUMsQ0FBQztRQUNwQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsZUFBZSxDQUFDLENBQUM7UUFDekMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGtCQUFrQixDQUFDLENBQUM7UUFDNUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGlCQUFpQixDQUFDLENBQUM7UUFDM0MsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGFBQWEsQ0FBQyxDQUFDO1FBQ3ZDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxzQkFBc0IsQ0FBQyxDQUFDO1FBQ2hELElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxjQUFjLENBQUMsQ0FBQztRQUN4QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsZUFBZSxDQUFDLENBQUM7UUFDekMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLG9CQUFvQixDQUFDLENBQUM7UUFDOUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGlCQUFpQixDQUFDLENBQUM7UUFDM0MsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLGdCQUFnQixDQUFDLENBQUM7UUFDMUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLFlBQVksQ0FBQyxDQUFDO1FBQ3RDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxvQkFBb0IsQ0FBQyxDQUFDO1FBQzlDLElBQUksQ0FBQyxTQUFTLENBQUMsR0FBRyxDQUFDLEdBQUcsRUFBRSxXQUFXLENBQUMsQ0FBQztRQUNyQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsMEJBQTBCLENBQUMsQ0FBQztRQUNwRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsNkJBQTZCLENBQUMsQ0FBQztRQUN2RCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsdUJBQXVCLENBQUMsQ0FBQztRQUNqRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsbUJBQW1CLENBQUMsQ0FBQztRQUM3QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsMkJBQTJCLENBQUMsQ0FBQztRQUNyRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsc0JBQXNCLENBQUMsQ0FBQztRQUNoRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsMEJBQTBCLENBQUMsQ0FBQztRQUNwRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsNkJBQTZCLENBQUMsQ0FBQztRQUN2RCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsNkJBQTZCLENBQUMsQ0FBQztRQUN2RCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsbUJBQW1CLENBQUMsQ0FBQztRQUM3QyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsbUNBQW1DLENBQUMsQ0FBQztRQUM3RCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUscUJBQXFCLENBQUMsQ0FBQztRQUMvQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUscUJBQXFCLENBQUMsQ0FBQztRQUMvQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsd0JBQXdCLENBQUMsQ0FBQztRQUNsRCxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsZ0JBQWdCLENBQUMsQ0FBQztRQUMxQyxJQUFJLENBQUMsU0FBUyxDQUFDLEdBQUcsQ0FBQyxHQUFHLEVBQUUsaUJBQWlCLENBQUMs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QUUsQ0FBQztnQkFFcEMsSUFBSSxDQUFDLFlBQVksR0FBRyxFQUFFLENBQUE7Z0JBRXRCLElBQUksU0FBUyxHQUFHLENBQUMsRUFBRTtvQkFDZixJQUFJLENBQUMsWUFBWSxHQUFHLFNBQVMsQ0FBQyxXQUFXLEVBQUUsQ0FBQyxXQUFXLEVBQUUsQ0FBQztpQkFDN0Q7WUFDTCxDQUFDO1lBQ0QsT0FBTyxDQUFDLFFBQVE7Z0JBQ1osUUFBUSxDQUFDLElBQUksQ0FBQyxZQUFZLENBQUMsQ0FBQztZQUNoQyxDQUFDO1NBQ0osQ0FBQyxDQUFDO0lBQ1AsQ0FBQztDQUNKO0FBNUNELHNDQTRDQzs7QUN2TEQ7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUNuS0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQ3pPQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDdElBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQ3ZDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDdjBCQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUNqRkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUNqR0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQ3hKQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOztBQ2hCQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7O0FDcEZBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7OztBQ3AvSkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUNyN0JBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUM5REE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUN0QkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDZkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7O0FDWkE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7QUM1S0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTs7O0FDeExBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBIiwiZmlsZSI6ImdlbmVyYXRlZC5qcyIsInNvdXJjZVJvb3QiOiIifQ==

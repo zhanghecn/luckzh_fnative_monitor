@@ -9,12 +9,16 @@ const monitorSelector = new MonitorSelectors();
 const rpcFunctions: IExport = {
     rpcExports: {
         "jniWatch": function (type: ModulePathRangeType) {
-            const monitor: StalkerMonitor = monitorSelector.monitorMap.get(type)();
-            monitor.watchJniInvoke();
+            setImmediate(() => {
+                const monitor: StalkerMonitor = monitorSelector.monitorMap.get(type)();
+                monitor.watchJniInvoke();
+            })
         },
         "pthreadCreateWatch": function (type: ModulePathRangeType) {
-            const monitor: StalkerMonitor = monitorSelector.monitorMap.get(type)();
-            monitor.watchPthreadCreate();
+            setImmediate(() => {
+                const monitor: StalkerMonitor = monitorSelector.monitorMap.get(type)();
+                monitor.watchPthreadCreate();
+            });
         },
         "monitor": function (type: ModulePathRangeType, range: WatchRange) {
             setImmediate(() => {
