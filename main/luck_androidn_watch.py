@@ -33,7 +33,7 @@ def main():
     script.on("message", on_message)
 
     script.load()
-    script.exports.monitor(args.type,args.range)
+    script.exports_sync.monitor(args.type,args.range)
     device.resume(pid)
     
     try:
